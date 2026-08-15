@@ -101,17 +101,27 @@ func (c *Client) DeleteModule(ctx context.Context, deviceID, moduleID, etag stri
 	return c.moduleError(ctx, deviceID, err)
 }
 
+// CodeModuleOnDisabledDevice is the provider-assigned error code for the
+// service quirk that module identity operations on a *disabled* device are
+// refused with 401 under SAS authentication (see moduleError).
+const CodeModuleOnDisabledDevice = "ModuleOnDisabledDevice"
+
 // moduleError normalises a service quirk: under shared-access-signature
-// authentication, module identity operations on a device that does not
-// exist answer 401 IotHubUnauthorizedAccess instead of 404 (Entra ID gets
-// 404; verified). A real authorization failure also fails the device read,
-// so the device is probed once and a missing device becomes IsNotFound.
+// authentication, module identity operations (GET/LIST/PUT/DELETE
+// /devices/{id}/modules…) on a device that does not exist — or that is
+// **disabled** — answer 401 IotHubUnauthorizedAccess (Entra ID gets 404,
+// resp. works; module *twins* are unaffected; verified with iothubowner). A
+// real authorization failure also fails the device read, so the device is
+// probed once: a missing device becomes IsNotFound, a disabled device keeps
+// the 401 but gets CodeModuleOnDisabledDevice and an explanation.
 func (c *Client) moduleError(ctx context.Context, deviceID string, err error) error {
 	if err == nil || !IsUnauthorized(err) {
 		return err
 	}
-	if _, derr := c.GetDevice(ctx, deviceID); IsNotFound(derr) {
-		e, _ := AsError(err)
+	e, _ := AsError(err)
+	dev, derr := c.GetDevice(ctx, deviceID)
+	switch {
+	case IsNotFound(derr):
 		return &Error{
 			StatusCode: http.StatusNotFound,
 			Code:       "DeviceNotFound",
@@ -122,8 +132,27 @@ func (c *Client) moduleError(ctx context.Context, deviceID string, err error) er
 			URL:        e.URL,
 			Body:       e.Body,
 		}
+	case derr == nil && dev != nil && dev.Status == StatusDisabled:
+		return &Error{
+			StatusCode: e.StatusCode,
+			Code:       CodeModuleOnDisabledDevice,
+			Message: fmt.Sprintf("device %q is disabled, and under SAS authentication the service refuses module identity operations on a disabled "+
+				"device with 401 (module twins are unaffected; Entra ID authentication is not). Enable the device first, or use Entra ID", deviceID),
+			TrackingID: e.TrackingID,
+			RequestID:  e.RequestID,
+			Method:     e.Method,
+			URL:        e.URL,
+			Body:       e.Body,
+		}
 	}
 	return err
+}
+
+// IsModuleOnDisabledDevice reports the SAS-only refusal of module identity
+// operations on a disabled device (see moduleError).
+func IsModuleOnDisabledDevice(err error) bool {
+	e, ok := AsError(err)
+	return ok && e.Code == CodeModuleOnDisabledDevice
 }
 
 // ModuleConnectionString renders a module connection string.

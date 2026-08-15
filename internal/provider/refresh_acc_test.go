@@ -3,6 +3,7 @@ package provider_test
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
@@ -23,17 +24,27 @@ import (
 // exercises the cheap path itself.)
 func TestAccRefresh_outOfBandChangesStillDetected(t *testing.T) {
 	dev := acctest.RandomWithPrefix("tf-acc")
-	cfg := iotacc.ProviderConfig() + fmt.Sprintf(`
+	config := func(status, managedBy string) string {
+		return iotacc.ProviderConfig() + fmt.Sprintf(`
 resource "iothub_device" "d" {
   device_id     = %q
-  status        = "enabled"
+  status        = %q
   status_reason = "managed by terraform"
 }
 resource "iothub_module" "m" {
   device_id  = iothub_device.d.device_id
   module_id  = "m1"
-  managed_by = "terraform"
-}`, dev)
+  managed_by = %q
+}`, dev, status, managedBy)
+	}
+	cfg := config("enabled", "terraform")
+	// Under SAS the service refuses module *identity* operations on a
+	// disabled device with 401 (verified; module twins and Entra ID are
+	// unaffected) — the provider explains that instead of a bare 401.
+	moduleOnDisabled := resource.TestStep{Config: config("disabled", "someone else")}
+	if iotacc.UsingSAS() {
+		moduleOnDisabled.ExpectError = regexp.MustCompile(`(?s)refuses module identity\s+operations on a disabled`)
+	}
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { iotacc.PreCheck(t) },
 		ProtoV6ProviderFactories: iotacc.ProtoV6ProviderFactories,
@@ -53,7 +64,7 @@ resource "iothub_module" "m" {
 						t.Fatal(err)
 					}
 					if _, err := c.UpdateDevice(ctx, client.DeviceSpec{
-						DeviceID: dev, Status: client.StatusDisabled, StatusReason: "changed out of band", Authentication: *d.Authentication,
+						DeviceID: dev, Status: client.StatusEnabled, StatusReason: "changed out of band", Authentication: *d.Authentication,
 					}, d.ETag); err != nil {
 						t.Fatalf("out-of-band device update: %v", err)
 					}
@@ -86,6 +97,18 @@ resource "iothub_module" "m" {
 				},
 				Config:           cfg,
 				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction("iothub_module.m", plancheck.ResourceActionCreate)}},
+			},
+			{ // device disabled by Terraform, module untouched: the module refresh goes through the twin,
+				// which works on a disabled device even under SAS (the registry read would be refused)
+				Config: config("disabled", "terraform"),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("iothub_device.d", tfjsonpath.New("status"), knownvalue.StringExact("disabled")),
+					statecheck.ExpectKnownValue("iothub_module.m", tfjsonpath.New("managed_by"), knownvalue.StringExact("terraform")),
+				},
+			},
+			moduleOnDisabled, // a module *write* on the disabled device: fine under Entra ID, explained under SAS
+			{ // back to enabled so the module can be updated and destroyed under either mode
+				Config: config("enabled", "terraform"),
 			},
 		},
 	})

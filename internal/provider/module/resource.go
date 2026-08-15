@@ -88,7 +88,12 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"through this resource.\n\n" +
 			"**Refresh cost.** As for `iothub_device`, a refresh reads the module *twin* first and only falls back to the " +
 			"identity registry when the twin's `deviceEtag` (the module identity's ETag) or the connection state changed; " +
-			"needs `twins/read` (or a SAS policy with *ServiceConnect*), otherwise the registry is read as before.",
+			"needs `twins/read` (or a SAS policy with *ServiceConnect*), otherwise the registry is read as before.\n\n" +
+			"~> **Disabled devices under SAS authentication.** Verified: with a shared access policy (even `iothubowner`) the " +
+			"service refuses module identity operations (read, create, update, delete) on a *disabled* device with 401; module " +
+			"twins and Entra ID are unaffected. An unchanged module on a disabled device still refreshes (through the twin), but " +
+			"creating, changing or destroying it needs the device enabled first — or Entra ID authentication. The provider " +
+			"reports this case by name instead of a bare 401.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>` — also the import ID.",

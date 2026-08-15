@@ -9,15 +9,17 @@ resources and stay with the [`azurerm`](https://registry.terraform.io/providers/
 provider; this provider starts exactly where `azurerm` stops.
 
 > **Status: alpha, not yet published to the Terraform Registry.**
-> Phases 0–3 are complete — everything in the concept up to the 1.0
-> candidate: authentication, the service client, the identity registry
+> Phases 0–4 are complete — everything the concept defines for this
+> provider: authentication, the service client, the identity registry
 > (`iothub_device`, `iothub_module`, credentials and SAS tokens as ephemeral
 > resources), device and module twins with leaf-path ownership,
 > `iothub_configuration` and `iothub_edge_deployment`, `iothub_query`,
 > `iothub_statistics`, actions (direct methods, scheduled and import/export
-> jobs, apply configuration, purge, cancel) and list resources with resource
-> identity for `terraform query`. Phase 4 (Plug and Play, ETag-gated
-> refresh) is demand-driven ([roadmap](CONCEPT.md#14-roadmap)).
+> jobs, apply configuration, purge, cancel, Plug and Play commands), list
+> resources with resource identity for `terraform query`, the
+> `iothub_digital_twin` data source and the ETag-gated (twin-first) refresh
+> of identities. Device Provisioning Service enrollments are a separate
+> provider ([roadmap](CONCEPT.md#14-roadmap)).
 
 The design — every resource, action and behaviour, the decisions behind
 them, and the service facts verified against a live hub — is in

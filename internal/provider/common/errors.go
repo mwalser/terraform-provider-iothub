@@ -20,6 +20,9 @@ func DescribeError(err error) string {
 	b.WriteString(e.Error())
 	switch e.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
+		if client.IsModuleOnDisabledDevice(err) {
+			break // the message already explains the service quirk; the RBAC hint would mislead
+		}
 		b.WriteString("\n\nThe identity has no data-plane permission on this hub. Assign an IoT Hub data role at hub scope " +
 			"(IoT Hub Data Contributor, or the narrower Registry/Twin Contributor or Data Reader roles); " +
 			"Owner and Contributor do not include data-plane actions. With connection_string, check that the " +

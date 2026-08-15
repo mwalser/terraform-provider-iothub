@@ -102,7 +102,28 @@ func TestModules_SAS401OnMissingDeviceBecomesNotFound(t *testing.T) {
 	}))
 	defer srv2.Close()
 	c2, _ := newTestClient(t, srv2, nil)
-	if _, err := c2.GetModule(context.Background(), "d1", "m1"); !IsUnauthorized(err) {
+	if _, err := c2.GetModule(context.Background(), "d1", "m1"); !IsUnauthorized(err) || IsModuleOnDisabledDevice(err) {
 		t.Fatalf("expected 401 to pass through, got %v", err)
+	}
+
+	// a 401 on a module of a *disabled* device is explained (verified quirk)
+	srv3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/modules") {
+			w.Header().Set("iothub-errorcode", "IotHubUnauthorizedAccess")
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"Message":"{\"errorCode\":401002,\"message\":\"Unauthorized access\",\"trackingId\":\"t3\"}"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"deviceId":"d1","status":"disabled","etag":"E"}`))
+	}))
+	defer srv3.Close()
+	c3, _ := newTestClient(t, srv3, nil)
+	_, err = c3.ListModules(context.Background(), "d1")
+	if !IsUnauthorized(err) || !IsModuleOnDisabledDevice(err) {
+		t.Fatalf("expected the disabled-device explanation, got %v", err)
+	}
+	if e, _ := AsError(err); e.TrackingID != "t3" || !strings.Contains(e.Message, "disabled") {
+		t.Errorf("error %+v", e)
 	}
 }

@@ -19,6 +19,14 @@ description: |-
 | Microsoft Entra ID (default) | no `connection_string` | Token scope `https://iothubs.azure.net/.default`. Assign *IoT Hub Data Contributor* (or a narrower IoT Hub data role) at hub scope — `Owner`/`Contributor` carry no data-plane permissions. |
 | Shared access policy (SAS) | `connection_string` set | Uses the policy in the connection string to mint SAS tokens. |
 
+Two things depend on the choice: `iothub_device`/`iothub_module` refreshes
+are cheapest with an identity that can also read twins (`twins/read`, i.e.
+*IoT Hub Twin Contributor*/*Data Contributor*, or a SAS policy with
+*ServiceConnect*) — otherwise the provider silently reads the registry, which
+is rate-limited far more tightly; and the `iothub_digital_twin_command`
+action works with SAS only, because the service rejects Entra ID tokens on
+that endpoint.
+
 Every resource, data source and action accepts its own `hostname`, so a
 single provider block can manage several hubs and a hub created in the same
 configuration can be referenced before it exists.
