@@ -9,13 +9,19 @@
 package acctest
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	"github.com/hashicorp/terraform-plugin-testing/echoprovider"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 
+	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider"
 )
 
@@ -54,4 +60,64 @@ provider "iothub" {
   hostname = %q
 }
 `, Hostname())
+}
+
+// ProtoV6ProviderFactoriesWithEcho adds HashiCorp's echo provider, which
+// copies ephemeral values into state so tests can assert on them.
+var ProtoV6ProviderFactoriesWithEcho = map[string]func() (tfprotov6.ProviderServer, error){
+	"iothub": providerserver.NewProtocol6WithError(provider.New("test")()),
+	"echo":   echoprovider.NewProviderServer(),
+}
+
+// Client returns a service client for the test hub using the same
+// credentials the provider under test uses (Entra ID via the azidentity
+// default chain, or IOTHUB_CONNECTION_STRING).
+func Client(t *testing.T) *client.Client {
+	t.Helper()
+	cfg := client.Config{Version: "acctest"}
+	if cs := os.Getenv("IOTHUB_CONNECTION_STRING"); cs != "" {
+		parts := map[string]string{}
+		for _, p := range strings.Split(cs, ";") {
+			if k, v, ok := strings.Cut(p, "="); ok {
+				parts[k] = v
+			}
+		}
+		cfg.SharedAccessKey = &client.SharedAccessKey{HostName: parts["HostName"], KeyName: parts["SharedAccessKeyName"], Key: parts["SharedAccessKey"]}
+	} else {
+		cred, err := azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			t.Fatalf("credential: %v", err)
+		}
+		cfg.Credential = cred
+	}
+	f, err := client.NewFactory(cfg)
+	if err != nil {
+		t.Fatalf("client factory: %v", err)
+	}
+	c, err := f.Client(Hostname())
+	if err != nil {
+		t.Fatalf("client: %v", err)
+	}
+	return c
+}
+
+// CheckDeviceDestroyed verifies that the given devices no longer exist.
+func CheckDeviceDestroyed(ids ...string) func(*terraform.State) error {
+	return func(_ *terraform.State) error {
+		if os.Getenv("TF_ACC") == "" {
+			return nil
+		}
+		t := &testing.T{}
+		c := Client(t)
+		for _, id := range ids {
+			_, err := c.GetDevice(context.Background(), id)
+			if err == nil {
+				return fmt.Errorf("device %q still exists after destroy", id)
+			}
+			if !client.IsNotFound(err) {
+				return fmt.Errorf("checking device %q: %w", id, err)
+			}
+		}
+		return nil
+	}
 }

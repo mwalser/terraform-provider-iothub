@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | Concept / RFC — v0.10, 2026-08-15 (decisions resolved, §15; verified against a live hub, Appendix D) |
+| Status | Concept / RFC — v0.11, 2026-08-15 (decisions resolved, §15; verified against a live hub, Appendix D) |
 | Scope | IoT Hub **Service REST API** (`https://<hub>.azure-devices.net`, `api-version=2021-04-12`) |
 | Out of scope | Everything under Azure Resource Manager (`Microsoft.Devices/*`), the device-side Messaging API, AMQP-only operations, sovereign clouds |
 | Name | `terraform-provider-iothub`, registry `<namespace>/iothub`, resource prefix `iothub_` |
@@ -190,25 +190,28 @@ Deliberately **not** resources: jobs (one-shot, 30-day retention → a resource 
 
 ```hcl
 resource "iothub_device" "gateway" {
-  device_id    = "gw-munich-01"          # required, immutable (RequiresReplace), 1–128 chars, registry charset
-  edge_enabled = true                    # capabilities.iotEdge — updatable in place
-  status       = "enabled"               # enabled | disabled (default enabled)
+  device_id     = "gw-munich-01"         # required, immutable (RequiresReplace), 1–128 chars, registry charset
+  edge_enabled  = true                   # capabilities.iotEdge — updatable in place
+  status        = "enabled"              # enabled | disabled (default enabled)
   status_reason = "commissioned 2026-08"
 
-  authentication {                       # optional; default: sas with hub-generated keys
-    type = "certificateAuthority"        # sas | selfSigned | certificateAuthority
+  authentication = {                     # optional nested attribute; omitted = keep what the hub holds (sas with
+    type = "certificateAuthority"        #   hub-generated keys on create). sas | selfSigned | certificateAuthority
     # sas:        primary_key / secondary_key   (Optional+Computed, Sensitive)
-    #             primary_key_wo / secondary_key_wo + *_wo_version (write-only alternative)
     # selfSigned: primary_thumbprint / secondary_thumbprint
   }
+  # write-only alternative for sas keys (top level, so the nested attribute can stay Computed):
+  # primary_key_wo / primary_key_wo_version, secondary_key_wo / secondary_key_wo_version
 }
 
 resource "iothub_device" "sensor" {
   device_id    = "s-0001"
   parent_scope = iothub_device.gateway.device_scope   # makes it a child of the gateway
-  authentication { type = "sas" }
+  authentication = { type = "sas" }
 }
 ```
+
+Implementation notes (Phase 0): `authentication` is a nested *attribute* (`= { … }`), Optional+Computed, so an omitted block means "leave the hub's credentials alone" (imports keep their auth) instead of a perpetual diff; the write-only keys live at the top level because Terraform forbids write-only children under a Computed nested attribute. When only one of the two keys is supplied, the provider generates the counterpart (the service insists on both or neither).
 
 Computed: `id`, `etag`, `generation_id`, `device_scope`, `parent_scopes`, `connection_state`, `connection_state_updated_time`, `last_activity_time`, `status_updated_time`, `cloud_to_device_message_count`.
 
@@ -222,6 +225,8 @@ Behaviour:
 | Delete | `DELETE /devices/{id}` with `If-Match: *` | `If-Match` is **required** on delete (412 "Etag missing" without it); a missing device returns 404 → treated as success. Deletes the twin and all modules implicitly. |
 
 Parent/child mapping (as the Azure CLI does it, verified): for a **leaf** device `parent_scope` is written to `deviceScope` — the hub then also fills `parentScopes[0]`; for an **edge** device (`edge_enabled = true`) it is written to `parentScopes[0]` while `deviceScope` stays hub-generated (`ms-azure-iot-edge://<id>-<ticks>`; a user-supplied value is silently ignored). A leaf with only `parentScopes` is silently ignored — hence the mapping. One parent per device. `edge_enabled` toggles in place in both directions (a device toggled *to* edge gets a scope without generation suffix, `ms-azure-iot-edge://<id>-`).
+
+Scope rules on **update** (verified while implementing): an edge device must **echo its own `deviceScope`** in every `PUT` (omitting or blanking it is 400 "Device scope is immutable") and carries the parent in `parentScopes` (an explicit `[]` detaches; omitting the list also detaches); a leaf becoming an edge device sends `deviceScope: ""` — with `parentScopes` if it keeps a parent (works in one write); an edge device becoming a leaf **loses its parent in the same write**, so the provider detaches first and attaches the leaf's `deviceScope` in a second write.
 
 Edge devices get `$edgeAgent`/`$edgeHub` module identities implicitly; `iothub_module` (identity) rejects `$`-prefixed IDs, while `iothub_module_twin` accepts them — per-device desired-property overrides on the system modules are legitimate.
 
@@ -338,7 +343,7 @@ resource "azurerm_key_vault_secret" "sensor_cs" {
   value_wo_version = 1
 }
 ```
-- `iothub_device_credentials` / `iothub_module_credentials`: `primary_key`, `secondary_key`, `primary_connection_string`, `secondary_connection_string`, `hostname` — read at apply time, never written to state or plan.
+- `iothub_device_credentials` / `iothub_module_credentials`: `primary_key`, `secondary_key`, `primary_connection_string`, `secondary_connection_string`, `hostname` — never written to state or plan. Terraform opens ephemeral resources during **plan** as well (unless an input is unknown) and does not tell the provider which phase it is in; `DeferralAllowed` is off by default in Terraform 1.15. When the device does not exist yet — the normal same-run creation case — the provider returns the values as **unknown** with a "Device not found (yet)" warning, Terraform re-opens at apply and gets the real values, and later plans are clean; a device that is truly missing keeps the warning and fails at apply through its consumer. (Verified; see Appendix D.)
 - `iothub_device_sas_token`: `device_id`, `module_id?`, `ttl`, `key = primary|secondary` → `token`, `expires_at` (HMAC-SHA256 computed locally after one registry read).
 
 ---
@@ -763,6 +768,8 @@ Verified against an F1 hub in West Europe with `api-version=2021-04-12`, using r
 | Import/export jobs (import) | `create`/`updateTwin`/`delete` verified; `status` required on every line; **job `completed` with `failureReason: null` despite per-line failures** — errors only in `importErrors.log` (`{"deviceId","errorCode","errorStatus"}`) | Action reports the job status and names `importErrors.log`; reading blobs is out of scope (§15 row 18) |
 | Import/export jobs (identity-based) | Hub system-assigned MI + *Storage Blob Data Contributor* on the container works; RBAC propagation (~30 s) surfaces as the same `BlobContainerValidationError`; `exclude_keys_in_export` prefixes the blob with a plain-text warning line; job record does not echo `storageAuthenticationType`/`identity` | Retry that error briefly when `identityBased`; document the blob format |
 | Query ghosts | A device deleted 25 min earlier still returned by `SELECT … FROM devices` while `GET` is 404 | List resources confirm with `GET` |
+| Scope updates | Edge device: omitting/blanking own `deviceScope` on `PUT` → 400 "Device scope is immutable"; `parentScopes` omitted or `[]` detaches; leaf→edge: `deviceScope: ""` (+ `parentScopes` keeps the parent; sending the parent scope as `deviceScope` → 503); edge→leaf: parent lost unless attached in a second write | Spec builder echoes the own scope; two-step edge→leaf with parent (§6.1) |
+| Ephemeral timing | Terraform 1.15 opens ephemeral resources at plan when inputs are known; `depends_on` does not defer; `DeferralAllowed` is false by default; unknown results at plan are accepted and re-opened at apply | `iothub_device_credentials` returns unknowns + warning for a not-yet-existing device (§8) |
 | Throttling | 250 registry reads / 10.5 s all 200 (p90 1.2 s, max 3.2 s); configuration writes shaped to ≈1/s; 429 has **no `Retry-After`**, message says "Wait 10 seconds", `connection: close` | 10 s base backoff; generous HTTP timeout |
 | Statistics | Lag: deleted devices still counted, connected count 0 while connected | Data source documented as approximate |
 | API versions | Accepted: `2018-06-30`, `2020-05-31-preview`, `2020-09-30`, `2021-04-12`, `2024-03-31`; spec source is `Azure/azure-iot-hub-python/service.json` | Pin `2021-04-12`; correct spec reference |
