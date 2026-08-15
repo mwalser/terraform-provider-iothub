@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | Concept / RFC — v0.8, 2026-08-15 (decisions resolved, §15; verified against a live hub, Appendix D) |
+| Status | Concept / RFC — v0.9, 2026-08-15 (decisions resolved, §15; verified against a live hub, Appendix D) |
 | Scope | IoT Hub **Service REST API** (`https://<hub>.azure-devices.net`, `api-version=2021-04-12`) |
 | Out of scope | Everything under Azure Resource Manager (`Microsoft.Devices/*`), the device-side Messaging API, AMQP-only operations, sovereign clouds |
 | Name | `terraform-provider-iothub`, registry `<namespace>/iothub`, resource prefix `iothub_` |
@@ -373,13 +373,22 @@ resource "iothub_device_twin" "sensor" {
 |---|---|---|
 | `iothub_direct_method` | `device_id`, `module_id?`, `method_name`, `payload`, timeouts, `expected_status_codes` | `POST /twins/{id}[/modules/{mid}]/methods` |
 | `iothub_scheduled_job` | `job_id?`, `type = scheduleUpdateTwin \| scheduleDeviceMethod`, `query_condition`, `start_time?`, `max_execution_time_seconds`, `twin_patch` *or* `method {…}`, `wait = true` (with a future `start_time` this waits through the scheduled start, bounded by `timeouts`), `fail_on_device_failures` | `PUT /jobs/v2/{id}`, poll `GET /jobs/v2/{id}` |
-| `iothub_import_export_job` | `type = import \| export`, blob container URIs (Sensitive), `storage_authentication_type = keyBased \| identityBased`, `user_assigned_identity?`, `exclude_keys_in_export`, `include_configurations`, blob names, `wait` | `POST /jobs/create`, poll `GET /jobs/{id}` |
+| `iothub_import_export_job` | `type = import \| export`, blob container URIs (Sensitive), `storage_authentication_type = keyBased \| identityBased`, `user_assigned_identity?`, `exclude_keys_in_export`, `include_configurations`, blob names, `wait`, `fail_on_import_errors = true` | `POST /jobs/create`, poll `GET /jobs/{id}` (see verified mechanics below) |
 | `iothub_apply_configuration` | `device_id` (edge), `modules_content` | `POST /devices/{id}/applyConfigurationContent` (204; non-edge device → 400 "Not an Azure IoT Edge device") |
 | `iothub_purge_c2d_queue` | `device_id` | `DELETE /devices/{id}/commands` (200, `{deviceId, totalMessagesPurged}`) |
 | `iothub_digital_twin_command` | `digital_twin_id`, `component_path?`, `command_name`, `payload`, timeouts | `POST /digitaltwins/{id}[/components/{path}]/commands/{name}` — **verified to reject Entra ID tokens with 401 (works with SAS)**; the action documents that it needs SAS auth until the service changes |
 | `iothub_cancel_job` | `job_id`, `kind = scheduled \| import_export` | `POST /jobs/v2/{id}/cancel`, `DELETE /jobs/{id}` |
 
-Why not resources: jobs complete and their history is retained only 30 days; a resource would either need a fake delete or re-run itself when history expires. Actions model the truth. Concurrency limits (1 job on S1, 5 on S2, 10 on S3; 1 import/export job on all tiers) → actions poll and honour `429`. Verified job mechanics: create answers `status: queued`; a duplicate `jobId` is 409 `JobAlreadyExists`; `cancel` answers `cancelled` but the next `GET` may still say `scheduled` (poll to a terminal state); **`GET /jobs/v2/{unknown}` returns 200 with `{"type":"unknown","status":"unknown"}`** — the data source treats that as not found.
+Why not resources: jobs complete and their history is retained only 30 days; a resource would either need a fake delete or re-run itself when history expires. Actions model the truth. Concurrency limits (1 job on S1, 5 on S2, 10 on S3; 1 import/export job on all tiers) → actions poll and honour `429`.
+
+Verified import/export mechanics (Appendix D) and what the action does about them:
+- Creating a job while another import/export runs is **403 `JobQuotaExceeded`** — the action treats it like throttling and waits within its timeout instead of failing.
+- A bad SAS / missing blob permission fails **synchronously** at creation with 400 `BlobContainerValidationError` ("Unauthorized to write to output blob container"). With `identityBased` the *same* error appears while a fresh role assignment for the hub's managed identity is still propagating (≈30 s observed) — the action retries that specific error for up to a few minutes when `identityBased`, and fails fast when `keyBased`.
+- The job record never echoes the container URIs (`outputBlobContainerUri` comes back empty) — nothing sensitive to redact from diagnostics.
+- **An import job reports `completed` with `failureReason: null` even when individual lines failed** (per-line errors go to `importErrors.log` in the output container: `{"deviceId":…,"errorCode":409001,"errorStatus":…}`). With `fail_on_import_errors = true` (default) the action fetches `importErrors.log` after completion — via the SAS URI for `keyBased`; for `identityBased` via the provider's own Entra ID token against `https://storage.azure.com/.default` (requires *Storage Blob Data Reader* for the Terraform principal — degraded to a warning on 403) — and fails the apply listing the offending lines. Note for users authoring import files: every line requires `status`, including `delete` and `updateTwin` lines.
+- Cancel (`DELETE /jobs/{id}`) works instantly on a running import; unknown import/export job → 404 `JobNotFound` (unlike scheduled jobs). Default blob names are `devices.txt`, `configurations.txt`, `importErrors.log`; exports write one `ExportImportDevice` JSON per line, modules on their own lines, and with `exclude_keys_in_export` a plain-text warning as the *first line* (the blob is then not pure NDJSON).
+
+Verified scheduled-job mechanics: create answers `status: queued`; a duplicate `jobId` is 409 `JobAlreadyExists`; `cancel` answers `cancelled` but the next `GET` may still say `scheduled` (poll to a terminal state); **`GET /jobs/v2/{unknown}` returns 200 with `{"type":"unknown","status":"unknown"}`** — the data source treats that as not found.
 
 ---
 
@@ -391,7 +400,7 @@ list "iothub_device" "munich" {
   config { query_condition = "tags.site='munich'" }
 }
 ```
-`terraform query` then discovers device IDs (via `POST /devices/query`, `SELECT deviceId, … FROM devices WHERE …`, paged with `x-ms-max-item-count`/`x-ms-continuation`; `x-ms-item-type` is `Raw` for projections, `Twin` for `SELECT *`, `DeviceJob` for `FROM devices.jobs`) and can generate `import` blocks — the migration path for existing fleets. Also `iothub_module`, `iothub_configuration`, `iothub_edge_deployment`.
+`terraform query` then discovers device IDs (via `POST /devices/query`, `SELECT deviceId, … FROM devices WHERE …`, paged with `x-ms-max-item-count`/`x-ms-continuation`; `x-ms-item-type` is `Raw` for projections, `Twin` for `SELECT *`, `DeviceJob` for `FROM devices.jobs`) and can generate `import` blocks — the migration path for existing fleets. Also `iothub_module`, `iothub_configuration`, `iothub_edge_deployment`. The query index is eventually consistent and can list **ghosts** — devices deleted long ago (25 min observed) that `GET /devices/{id}` no longer knows — so list results are confirmed with a `GET` and ghosts are dropped silently.
 
 No provider-defined functions: connection strings come from the ephemeral credentials resource, and anything else is plain string interpolation.
 
@@ -498,7 +507,7 @@ The reliable discriminator is the **`iothub-errorcode` response header**; bodies
 ### 11.5 Eventual consistency & timing
 
 - Twin becomes readable shortly after identity creation → `iothub_*_twin` Create retries `GET /twins/{id}` on 404 for up to 30 s (in tests it was available immediately).
-- Query results (`iothub_query`, list resources) index with a lag (≈1–2 s measured for a new device) → not used inside resource CRUD.
+- Query results (`iothub_query`, list resources) index with a lag (≈1–2 s measured for a new device; a *deleted* device was still listed 25 min later) → not used inside resource CRUD; list resources confirm hits with a `GET`.
 - Statistics lag noticeably (deleted devices still counted, `connectedDeviceCount` 0 while a device was connected) → data source only, documented as approximate.
 - Job status after `cancel` lags (`cancelled` in the cancel response, `scheduled` on the next `GET`) → job actions poll to a terminal state.
 - Configuration `systemMetrics` update asynchronously → computed, never diffed.
@@ -544,7 +553,7 @@ flowchart TB
 |---|---|
 | Unit | `twinpatch` table tests; client against `httptest` fixtures recorded from a real hub (headers, ETags, 412/429 paths); retry policy (429 with and without `Retry-After`, budget exhaustion, jitter bounds); schema/plan-modifier tests |
 | Contract | Request/response shapes validated against `service.json` (2021-04-12), plus recorded fixtures for the verified service deviations (Appendix D) |
-| Acceptance (`TF_ACC=1`) | Real hub (F1 free tier verified sufficient: twins, methods, jobs, configurations, deployments all available). Harness creates the hub via `azurerm` or uses `IOTHUB_TEST_HOSTNAME`; runs both auth modes; covers import, drift, ETag conflict + conflict inspection, throttling under `-parallelism=10`, edge parent/child, layered deployment; a simulated device (`az iot device simulate`) for direct-method and connection-state cases |
+| Acceptance (`TF_ACC=1`) | Real hub (F1 free tier verified sufficient: twins, methods, jobs, configurations, deployments all available). Harness creates the hub via `azurerm` or uses `IOTHUB_TEST_HOSTNAME`; runs both auth modes; covers import, drift, ETag conflict + conflict inspection, throttling under `-parallelism=10`, edge parent/child, layered deployment; a simulated device (`az iot device simulate`) for direct-method and connection-state cases; a throw-away Standard_LRS storage account + container (created and destroyed by the harness) for the import/export action |
 | Matrix | Terraform 1.14 and latest × Go latest two |
 | Docs | `tfplugindocs` from schema + `examples/`; every resource page lists required RBAC data actions and throttle class |
 | Release | GoReleaser, GPG signing, registry publish; `CHANGELOG.md`; SemVer with `0.x` until Phase 3 |
@@ -726,7 +735,7 @@ Built-in roles: **IoT Hub Data Contributor** (all), **IoT Hub Registry Contribut
 
 ## Appendix D — Empirical findings (live hub, 2026-08-15)
 
-Verified against an F1 hub in West Europe with `api-version=2021-04-12`, using raw REST calls under both Entra ID (*IoT Hub Data Contributor*) and SAS (`iothubowner`); a device was simulated with `az iot device simulate` for connectivity cases. Everything here is encoded in the sections above; this table is the evidence.
+Verified against an F1 hub in West Europe with `api-version=2021-04-12`, using raw REST calls under both Entra ID (*IoT Hub Data Contributor*) and SAS (`iothubowner`); a device was simulated with `az iot device simulate` for connectivity cases, and a temporary Standard_LRS storage account (deleted afterwards) served the import/export jobs. Everything here is encoded in the sections above; this table is the evidence.
 
 | Area | Finding | Consequence |
 |---|---|---|
@@ -749,6 +758,10 @@ Verified against an F1 hub in West Europe with `api-version=2021-04-12`, using r
 | Direct methods | Live device: `{status:200,payload:…}`; offline: 404 `DeviceNotOnline` (`errorCode 404103`, nested envelope) | Action semantics as specified |
 | Digital twin | `GET` works for non-PnP devices; `PATCH` (JSON Patch) → 202 + ETag/Location; **command invocation 401 under Entra ID, works under SAS** | Phase 4 action documents the SAS requirement |
 | Bulk | Body is a bare array; per-device errors in a 400 `BulkRegistryOperationResult` | Not exposed; recorded for completeness |
+| Import/export jobs (key-based) | Export: `enqueued` → `completed` in ≈3 s, `devices.txt` NDJSON (modules as own lines, keys included), `configurations.txt` PascalCase; container URI not echoed back; `GET /jobs` lists history; bad SAS → synchronous 400 `BlobContainerValidationError`; second job → 403 `JobQuotaExceeded`; cancel instant; unknown → 404 `JobNotFound` | Action semantics in §9 |
+| Import/export jobs (import) | `create`/`updateTwin`/`delete` verified; `status` required on every line; **job `completed` with `failureReason: null` despite per-line failures** — errors only in `importErrors.log` (`{"deviceId","errorCode","errorStatus"}`) | Action reads `importErrors.log` (`fail_on_import_errors`) |
+| Import/export jobs (identity-based) | Hub system-assigned MI + *Storage Blob Data Contributor* on the container works; RBAC propagation (~30 s) surfaces as the same `BlobContainerValidationError`; `exclude_keys_in_export` prefixes the blob with a plain-text warning line; job record does not echo `storageAuthenticationType`/`identity` | Retry that error briefly when `identityBased`; document the blob format |
+| Query ghosts | A device deleted 25 min earlier still returned by `SELECT … FROM devices` while `GET` is 404 | List resources confirm with `GET` |
 | Throttling | 250 registry reads / 10.5 s all 200 (p90 1.2 s, max 3.2 s); configuration writes shaped to ≈1/s; 429 has **no `Retry-After`**, message says "Wait 10 seconds", `connection: close` | 10 s base backoff; generous HTTP timeout |
 | Statistics | Lag: deleted devices still counted, connected count 0 while connected | Data source documented as approximate |
 | API versions | Accepted: `2018-06-30`, `2020-05-31-preview`, `2020-09-30`, `2021-04-12`, `2024-03-31`; spec source is `Azure/azure-iot-hub-python/service.json` | Pin `2021-04-12`; correct spec reference |
