@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -82,4 +83,26 @@ func ExpectProviderData(raw any) (*ProviderData, diag.Diagnostics) {
 		return nil, diags
 	}
 	return pd, nil
+}
+
+// QueryIDs runs a projection query and returns the values of column (a
+// string) from every row, in order. Rows without the column are skipped.
+func QueryIDs(ctx context.Context, c *client.Client, query, column string) ([]string, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	items, _, err := c.Query(ctx, query)
+	if err != nil {
+		diags.AddError("IoT Hub query failed", "Query: "+query+"\n\n"+DescribeError(err))
+		return nil, diags
+	}
+	out := make([]string, 0, len(items))
+	for _, it := range items {
+		var row map[string]any
+		if err := json.Unmarshal(it, &row); err != nil {
+			continue
+		}
+		if v, ok := row[column].(string); ok && v != "" {
+			out = append(out, v)
+		}
+	}
+	return out, diags
 }

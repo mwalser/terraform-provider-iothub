@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -33,6 +35,7 @@ var (
 	_ resource.ResourceWithImportState    = &deviceResource{}
 	_ resource.ResourceWithModifyPlan     = &deviceResource{}
 	_ resource.ResourceWithValidateConfig = &deviceResource{}
+	_ resource.ResourceWithIdentity       = &deviceResource{}
 )
 
 // NewResource returns the iothub_device resource.
@@ -164,6 +167,28 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 }
 
+// identityModel is the resource identity: the hub and the device ID.
+type identityModel struct {
+	Hostname types.String `tfsdk:"hostname"`
+	DeviceID types.String `tfsdk:"device_id"`
+}
+
+func (r *deviceResource) IdentitySchema(_ context.Context, _ resource.IdentitySchemaRequest, resp *resource.IdentitySchemaResponse) {
+	resp.IdentitySchema = identityschema.Schema{
+		Attributes: map[string]identityschema.Attribute{
+			"hostname":  identityschema.StringAttribute{RequiredForImport: true, Description: "IoT Hub hostname."},
+			"device_id": identityschema.StringAttribute{RequiredForImport: true, Description: "Device ID."},
+		},
+	}
+}
+
+func setIdentity(ctx context.Context, id *tfsdk.ResourceIdentity, hostname, deviceID string) diag.Diagnostics {
+	if id == nil {
+		return nil
+	}
+	return id.Set(ctx, &identityModel{Hostname: types.StringValue(hostname), DeviceID: types.StringValue(deviceID)})
+}
+
 func computedString(desc string) schema.StringAttribute {
 	return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 }
@@ -287,6 +312,7 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, created.DeviceID)...)
 }
 
 func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -324,6 +350,7 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, dev.DeviceID)...)
 }
 
 func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -418,6 +445,7 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, updated.DeviceID)...)
 }
 
 func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -445,14 +473,31 @@ func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *deviceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	hostname, parts, err := common.ParseResourceID(req.ID, "devices")
-	if err != nil || len(parts) != 1 {
-		resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/devices/<device_id>`, e.g. contoso.azure-devices.net/devices/sensor-01.")
+	var hostname, deviceID string
+	if req.ID != "" {
+		host, parts, err := common.ParseResourceID(req.ID, "devices")
+		if err != nil || len(parts) != 1 {
+			resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/devices/<device_id>`, e.g. contoso.azure-devices.net/devices/sensor-01.")
+			return
+		}
+		hostname, deviceID = host, parts[0]
+	} else if req.Identity != nil {
+		var id identityModel
+		resp.Diagnostics.Append(req.Identity.Get(ctx, &id)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		hostname, deviceID = id.Hostname.ValueString(), id.DeviceID.ValueString()
+	}
+	if hostname == "" || deviceID == "" {
+		resp.Diagnostics.AddError("Invalid import", "Provide the import ID `<hostname>/devices/<device_id>` or the identity attributes `hostname` and `device_id`.")
 		return
 	}
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(strings.ToLower(hostname)))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("device_id"), types.StringValue(parts[0]))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(common.ResourceID(hostname, "devices", parts[0])))...)
+	hostname = strings.ToLower(hostname)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(hostname))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("device_id"), types.StringValue(deviceID))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(common.ResourceID(hostname, "devices", deviceID)))...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, deviceID)...)
 }
 
 // ---- helpers ----------------------------------------------------------------

@@ -13,11 +13,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -31,6 +33,7 @@ var (
 	_ resource.ResourceWithConfigure   = &configResource{}
 	_ resource.ResourceWithImportState = &configResource{}
 	_ resource.ResourceWithModifyPlan  = &configResource{}
+	_ resource.ResourceWithIdentity    = &configResource{}
 )
 
 // NewConfigurationResource returns the iothub_configuration resource.
@@ -172,6 +175,26 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),
 		},
 	}
+}
+
+// IdentitySchema: hub + configuration_id / deployment_id.
+func (r *configResource) IdentitySchema(_ context.Context, _ resource.IdentitySchemaRequest, resp *resource.IdentitySchemaResponse) {
+	resp.IdentitySchema = identityschema.Schema{
+		Attributes: map[string]identityschema.Attribute{
+			"hostname":      identityschema.StringAttribute{RequiredForImport: true, Description: "IoT Hub hostname."},
+			r.kind.idAttr(): identityschema.StringAttribute{RequiredForImport: true, Description: "ID of the " + r.kind.noun() + "."},
+		},
+	}
+}
+
+func (k kind) setIdentity(ctx context.Context, id *tfsdk.ResourceIdentity, hostname, configID string) diag.Diagnostics {
+	if id == nil {
+		return nil
+	}
+	var diags diag.Diagnostics
+	diags.Append(id.SetAttribute(ctx, path.Root("hostname"), types.StringValue(hostname))...)
+	diags.Append(id.SetAttribute(ctx, path.Root(k.idAttr()), types.StringValue(configID))...)
+	return diags
 }
 
 func (r *configResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -316,6 +339,7 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 	r.kind.fromHub(&plan, hostname, created, plan)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, plan)...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, created.ID)...)
 }
 
 func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -353,6 +377,7 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 	r.kind.fromHub(&state, hostname, cfg, state)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, state)...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, cfg.ID)...)
 }
 
 // checkKind refuses to manage a deployment as a configuration or vice versa.
@@ -431,6 +456,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 	r.kind.fromHub(&plan, hostname, updated, plan)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, plan)...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, updated.ID)...)
 }
 
 func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -458,14 +484,32 @@ func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *configResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	hostname, parts, err := common.ParseResourceID(req.ID, "configurations")
-	if err != nil || len(parts) != 1 {
-		resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/configurations/<id>`, e.g. contoso.azure-devices.net/configurations/fw-channel-stable.")
+	var hostname, id string
+	if req.ID != "" {
+		host, parts, err := common.ParseResourceID(req.ID, "configurations")
+		if err != nil || len(parts) != 1 {
+			resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/configurations/<id>`, e.g. contoso.azure-devices.net/configurations/fw-channel-stable.")
+			return
+		}
+		hostname, id = host, parts[0]
+	} else if req.Identity != nil {
+		var h, i types.String
+		resp.Diagnostics.Append(req.Identity.GetAttribute(ctx, path.Root("hostname"), &h)...)
+		resp.Diagnostics.Append(req.Identity.GetAttribute(ctx, path.Root(r.kind.idAttr()), &i)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		hostname, id = h.ValueString(), i.ValueString()
+	}
+	if hostname == "" || id == "" {
+		resp.Diagnostics.AddError("Invalid import", "Provide the import ID `<hostname>/configurations/<id>` or the identity attributes `hostname` and `"+r.kind.idAttr()+"`.")
 		return
 	}
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(strings.ToLower(hostname)))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root(r.kind.idAttr()), types.StringValue(parts[0]))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(resourceID(hostname, parts[0])))...)
+	hostname = strings.ToLower(hostname)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(hostname))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root(r.kind.idAttr()), types.StringValue(id))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(resourceID(hostname, id)))...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, id)...)
 }
 
 // ---- helpers ------------------------------------------------------------------

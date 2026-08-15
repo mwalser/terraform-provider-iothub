@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
+	"github.com/hashicorp/terraform-plugin-framework/list"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -29,6 +30,7 @@ var (
 	_ provider.Provider                       = &IoTHubProvider{}
 	_ provider.ProviderWithEphemeralResources = &IoTHubProvider{}
 	_ provider.ProviderWithActions            = &IoTHubProvider{}
+	_ provider.ProviderWithListResources      = &IoTHubProvider{}
 )
 
 // IoTHubProvider is the provider implementation.
@@ -201,6 +203,7 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	resp.DataSourceData = pd
 	resp.EphemeralResourceData = pd
 	resp.ActionData = pd
+	resp.ListResourceData = pd
 }
 
 // newClientFactory wires the resolved settings into the service client:
@@ -262,6 +265,15 @@ func (p *IoTHubProvider) EphemeralResources(_ context.Context) []func() ephemera
 
 func (p *IoTHubProvider) Actions(_ context.Context) []func() action.Action {
 	return []func() action.Action{}
+}
+
+func (p *IoTHubProvider) ListResources(_ context.Context) []func() list.ListResource {
+	return []func() list.ListResource{
+		device.NewListResource,
+		module.NewListResource,
+		configuration.NewConfigurationListResource,
+		configuration.NewEdgeDeploymentListResource,
+	}
 }
 
 // New returns the provider factory used by main and by tests.

@@ -16,10 +16,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -34,6 +36,7 @@ var (
 	_ resource.ResourceWithImportState    = &moduleResource{}
 	_ resource.ResourceWithModifyPlan     = &moduleResource{}
 	_ resource.ResourceWithValidateConfig = &moduleResource{}
+	_ resource.ResourceWithIdentity       = &moduleResource{}
 )
 
 // NewResource returns the iothub_module resource.
@@ -142,6 +145,30 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 }
 
+// identityModel is the resource identity: hub, device and module ID.
+type identityModel struct {
+	Hostname types.String `tfsdk:"hostname"`
+	DeviceID types.String `tfsdk:"device_id"`
+	ModuleID types.String `tfsdk:"module_id"`
+}
+
+func (r *moduleResource) IdentitySchema(_ context.Context, _ resource.IdentitySchemaRequest, resp *resource.IdentitySchemaResponse) {
+	resp.IdentitySchema = identityschema.Schema{
+		Attributes: map[string]identityschema.Attribute{
+			"hostname":  identityschema.StringAttribute{RequiredForImport: true, Description: "IoT Hub hostname."},
+			"device_id": identityschema.StringAttribute{RequiredForImport: true, Description: "Device ID."},
+			"module_id": identityschema.StringAttribute{RequiredForImport: true, Description: "Module ID."},
+		},
+	}
+}
+
+func setIdentity(ctx context.Context, id *tfsdk.ResourceIdentity, hostname, deviceID, moduleID string) diag.Diagnostics {
+	if id == nil {
+		return nil
+	}
+	return id.Set(ctx, &identityModel{Hostname: types.StringValue(hostname), DeviceID: types.StringValue(deviceID), ModuleID: types.StringValue(moduleID)})
+}
+
 func (r *moduleResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	pd, diags := common.ExpectProviderData(req.ProviderData)
 	resp.Diagnostics.Append(diags...)
@@ -248,6 +275,7 @@ func (r *moduleResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 	setState(&plan, hostname, created, plan.writeOnlyKeys())
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, created.DeviceID, created.ModuleID)...)
 }
 
 func (r *moduleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -281,6 +309,7 @@ func (r *moduleResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 	setState(&state, hostname, mod, state.writeOnlyKeys())
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, mod.DeviceID, mod.ModuleID)...)
 }
 
 func (r *moduleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -349,6 +378,7 @@ func (r *moduleResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 	setState(&plan, hostname, updated, plan.writeOnlyKeys())
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, updated.DeviceID, updated.ModuleID)...)
 }
 
 func (r *moduleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -378,15 +408,32 @@ func (r *moduleResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *moduleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	hostname, parts, err := common.ParseResourceID(req.ID, "devices")
-	if err != nil || len(parts) != 3 || parts[1] != "modules" || parts[2] == "" {
-		resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/devices/<device_id>/modules/<module_id>`, e.g. contoso.azure-devices.net/devices/sensor-01/modules/telemetry.")
+	var hostname, deviceID, moduleID string
+	if req.ID != "" {
+		host, parts, err := common.ParseResourceID(req.ID, "devices")
+		if err != nil || len(parts) != 3 || parts[1] != "modules" || parts[2] == "" {
+			resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/devices/<device_id>/modules/<module_id>`, e.g. contoso.azure-devices.net/devices/sensor-01/modules/telemetry.")
+			return
+		}
+		hostname, deviceID, moduleID = host, parts[0], parts[2]
+	} else if req.Identity != nil {
+		var id identityModel
+		resp.Diagnostics.Append(req.Identity.Get(ctx, &id)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		hostname, deviceID, moduleID = id.Hostname.ValueString(), id.DeviceID.ValueString(), id.ModuleID.ValueString()
+	}
+	if hostname == "" || deviceID == "" || moduleID == "" {
+		resp.Diagnostics.AddError("Invalid import", "Provide the import ID `<hostname>/devices/<device_id>/modules/<module_id>` or the identity attributes `hostname`, `device_id` and `module_id`.")
 		return
 	}
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(strings.ToLower(hostname)))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("device_id"), types.StringValue(parts[0]))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("module_id"), types.StringValue(parts[2]))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(resourceID(hostname, parts[0], parts[2])))...)
+	hostname = strings.ToLower(hostname)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(hostname))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("device_id"), types.StringValue(deviceID))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("module_id"), types.StringValue(moduleID))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(resourceID(hostname, deviceID, moduleID)))...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, deviceID, moduleID)...)
 }
 
 // ---- helpers ----------------------------------------------------------------
