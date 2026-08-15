@@ -28,5 +28,6 @@ FEATURES:
 * **New Ephemeral Resource:** `iothub_device_credentials`
 * **New Ephemeral Resource:** `iothub_module_credentials`
 * **New Ephemeral Resource:** `iothub_device_sas_token` — device/module SAS tokens minted locally
+* provider, all constructs: `hostname` must be given in its canonical lowercase form (validated up front; a mixed-case value would otherwise trip Terraform's plan/apply consistency checks — review finding); timestamps are rendered canonically (RFC 3339, no trailing fractional zeros) whichever endpoint answered
 * resource/iothub_module, data-source/iothub_module(s): the SAS-only service refusal of module identity operations on a *disabled* device (401) is reported by name with the remedy (enable the device or use Entra ID) instead of a bare unauthorized error
 * resource/iothub_device, resource/iothub_module: refresh reads the twin first and skips the registry read while the identity ETag is unchanged (~60× cheaper on S1 for quiet fleets; needs `twins/read` or a SAS policy with ServiceConnect, otherwise the registry is read as before)

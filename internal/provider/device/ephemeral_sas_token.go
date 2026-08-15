@@ -61,7 +61,7 @@ func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest,
 			"Like `iothub_device_credentials`, an identity that does not exist yet (created in the same run) yields " +
 			"unknown values at plan time and the real token at apply.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"module_id": schema.StringAttribute{MarkdownDescription: "Module ID, for a module token.", Optional: true},
 			"ttl": schema.StringAttribute{

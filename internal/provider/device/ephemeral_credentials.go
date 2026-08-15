@@ -49,7 +49,7 @@ func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaReque
 			"because it is created in the same run, the plan shows the values as known after apply (with a " +
 			"\"Device not found (yet)\" warning) and they are read at apply time.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+			"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, `certificateAuthority` or `none`.", Computed: true},
 			"primary_key":         schema.StringAttribute{MarkdownDescription: "Base64 primary key (sas only).", Computed: true, Sensitive: true},

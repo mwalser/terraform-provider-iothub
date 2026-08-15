@@ -45,7 +45,7 @@ func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListRe
 			"Devices are found through the hub's query index (`SELECT deviceId FROM devices WHERE …`) and confirmed with a registry " +
 			"read, so devices deleted recently but still in the index are not listed.",
 		Attributes: map[string]schema.Attribute{
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true},
+			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"query_condition": schema.StringAttribute{
 				MarkdownDescription: "`WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, e.g. `tags.site = 'munich'` or " +
 					"`capabilities.iotEdge = true`. All devices when omitted.",

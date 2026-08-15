@@ -49,7 +49,7 @@ func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 			"without properties. Under SAS authentication the shared access policy needs *ServiceConnect* (`service` or `iothubowner`).",
 		Attributes: map[string]schema.Attribute{
 			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/digitaltwins/<digital_twin_id>`.", Computed: true},
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"digital_twin_id": schema.StringAttribute{
 				MarkdownDescription: "The device ID (a digital twin ID is the device ID).",
 				Required:            true,

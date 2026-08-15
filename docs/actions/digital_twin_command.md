@@ -81,6 +81,6 @@ resource "iothub_device_twin" "controller" {
 - `component_path` (String) Component name for a component command; omit for a root-level command.
 - `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before failing with `DeviceNotOnline`, 0–300 seconds (default 0).
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `payload` (String) JSON request payload (any JSON value; use `jsonencode`). Sent as `null` when omitted.
 - `response_timeout_seconds` (Number) How long the hub waits for the device's response, 5–300 seconds (default 30).

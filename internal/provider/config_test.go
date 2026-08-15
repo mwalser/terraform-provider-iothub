@@ -80,9 +80,12 @@ func TestResolve_ConnectionString(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Errorf("expected mismatch error, got %v", err)
 	}
-	// Same hostname, different case, is fine.
-	if _, err = resolve(rawConfig{Hostname: "Contoso.Azure-Devices.NET", ConnectionString: cs}, envFrom(nil)); err != nil {
+	// The connection string's HostName may be spelled with capitals (Azure-generated); the explicit hostname must be lowercase.
+	if _, err = resolve(rawConfig{Hostname: "contoso.azure-devices.net", ConnectionString: strings.Replace(cs, "contoso.azure-devices.net", "Contoso.Azure-Devices.NET", 1)}, envFrom(nil)); err != nil {
 		t.Errorf("case-insensitive hostname match should pass: %v", err)
+	}
+	if _, err = resolve(rawConfig{Hostname: "Contoso.Azure-Devices.NET", ConnectionString: cs}, envFrom(nil)); err == nil || !strings.Contains(err.Error(), "lowercase") {
+		t.Errorf("mixed-case explicit hostname must be rejected, got %v", err)
 	}
 	// Env var works too.
 	s, err = resolve(rawConfig{}, envFrom(map[string]string{"IOTHUB_CONNECTION_STRING": cs}))
@@ -106,16 +109,32 @@ func TestParseConnectionString_Errors(t *testing.T) {
 }
 
 func TestValidateHostname(t *testing.T) {
-	good := []string{"contoso.azure-devices.net", "Contoso-Prod.AZURE-DEVICES.NET"}
-	bad := []string{"contoso", "https://contoso.azure-devices.net", "contoso.azure-devices.net/", ".azure-devices.net", "contoso.azure-devices.us", "contoso.azure-devices.cn"}
+	good := []string{"contoso.azure-devices.net", "contoso-prod.azure-devices.net"}
+	bad := []string{"contoso", "https://contoso.azure-devices.net", "contoso.azure-devices.net/", ".azure-devices.net", "contoso.azure-devices.us", "contoso.azure-devices.cn",
+		"Contoso-Prod.AZURE-DEVICES.NET", " contoso.azure-devices.net"}
 	for _, h := range good {
-		if err := validateHostname(h); err != nil {
+		if err := common.ValidateHostname(h); err != nil {
 			t.Errorf("%q should be valid: %v", h, err)
 		}
 	}
 	for _, h := range bad {
-		if err := validateHostname(h); err == nil {
+		if err := common.ValidateHostname(h); err == nil {
 			t.Errorf("%q should be invalid", h)
 		}
+	}
+	// a connection string's HostName is Azure-generated: case is tolerated and normalised
+	cred, err := parseConnectionString("HostName=Contoso.Azure-Devices.NET;SharedAccessKeyName=iothubowner;SharedAccessKey=a2V5")
+	if err != nil {
+		t.Fatalf("mixed-case connection string HostName should parse: %v", err)
+	}
+	s, err := resolve(rawConfig{ConnectionString: "HostName=Contoso.Azure-Devices.NET;SharedAccessKeyName=iothubowner;SharedAccessKey=a2V5"}, envFrom(nil))
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if s.Hostname != "contoso.azure-devices.net" || cred.HostName != "Contoso.Azure-Devices.NET" {
+		t.Errorf("default hostname from the connection string must be lowercase, got %q", s.Hostname)
+	}
+	if _, err := resolve(rawConfig{Hostname: "Contoso.azure-devices.net"}, envFrom(nil)); err == nil {
+		t.Error("a mixed-case provider hostname must be rejected")
 	}
 }

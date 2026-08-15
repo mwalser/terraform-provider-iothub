@@ -72,7 +72,7 @@ variable "release" {
 ### Optional
 
 - `fail_on_device_failures` (Boolean) With `wait`, fail the apply when the job completed but `failedCount > 0` (default `true`).
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `job_id` (String) Job ID (unique per hub); generated (`tf-<random>`) when omitted.
 - `max_execution_time_seconds` (Number) How long the hub may run the job (upper bound for devices to be reached); hub default when omitted.
 - `method` (Attributes) For `scheduleDeviceMethod`: the direct method to invoke on every targeted device. (see [below for nested schema](#nestedatt--method))

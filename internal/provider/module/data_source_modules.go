@@ -42,7 +42,7 @@ func (d *modulesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 			"`$edgeAgent`/`$edgeHub` on IoT Edge devices. No key material; use `iothub_module_credentials` for that.",
 		Attributes: map[string]schema.Attribute{
 			"id":        schema.StringAttribute{MarkdownDescription: "`<hostname>/devices/<device_id>/modules`.", Computed: true},
-			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"modules": schema.ListNestedAttribute{
 				MarkdownDescription: "The device's modules, in the order the hub returns them.",

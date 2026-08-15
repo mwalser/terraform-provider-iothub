@@ -27,10 +27,6 @@ type rawConfig struct {
 // envLookup abstracts os.Getenv for tests.
 type envLookup func(string) string
 
-// publicCloudSuffix is the only hub domain the provider supports (§2.3 /
-// §15 row 7 of the concept: public cloud only).
-const publicCloudSuffix = ".azure-devices.net"
-
 // resolve merges configuration and environment (configuration wins),
 // infers the auth mode and validates the result.
 func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
@@ -77,7 +73,7 @@ func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 		s.SAS = cred
 		switch {
 		case s.Hostname == "":
-			s.Hostname = cred.HostName
+			s.Hostname = strings.ToLower(cred.HostName)
 		case !strings.EqualFold(s.Hostname, cred.HostName):
 			return common.Settings{}, fmt.Errorf("hostname %q does not match the HostName in connection_string (%q)", s.Hostname, cred.HostName)
 		}
@@ -104,23 +100,11 @@ func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 	}
 
 	if s.Hostname != "" {
-		if err := validateHostname(s.Hostname); err != nil {
+		if err := common.ValidateHostname(s.Hostname); err != nil {
 			return common.Settings{}, err
 		}
 	}
 	return s, nil
-}
-
-// validateHostname accepts fully-qualified public-cloud IoT Hub hostnames.
-func validateHostname(h string) error {
-	lower := strings.ToLower(h)
-	if strings.Contains(lower, "://") || strings.Contains(lower, "/") {
-		return fmt.Errorf("hostname %q must be a bare host name such as contoso.azure-devices.net, not a URL", h)
-	}
-	if !strings.HasSuffix(lower, publicCloudSuffix) || len(lower) == len(publicCloudSuffix) {
-		return fmt.Errorf("hostname %q must end in %s (only the Azure public cloud is supported)", h, publicCloudSuffix)
-	}
-	return nil
 }
 
 // parseConnectionString parses an IoT Hub *service* connection string.
@@ -158,7 +142,9 @@ func parseConnectionString(cs string) (*common.SASCredential, error) {
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("connection_string: missing %s", strings.Join(missing, ", "))
 	}
-	if err := validateHostname(cred.HostName); err != nil {
+	// The HostName of a connection string is Azure-generated; its case is
+	// irrelevant (the client lowercases it) so only the shape is checked.
+	if err := common.ValidateHostname(strings.ToLower(cred.HostName)); err != nil {
 		return nil, fmt.Errorf("connection_string: %w", err)
 	}
 	return cred, nil

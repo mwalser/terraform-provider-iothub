@@ -71,7 +71,7 @@ resource "iothub_module" "diagnostics" {
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
 - `authentication` (Attributes) How the module authenticates. When omitted, the hub generates SAS keys and the block reflects whatever the hub holds (imported modules keep their credentials). (see [below for nested schema](#nestedatt--authentication))
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the module.
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the module.
 - `managed_by` (String) Free-text owner of the module (`managedBy`); the hub sets `iotEdge` on the system modules.
 - `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key (base64, 16–64 bytes): sent to the hub, never stored in state or plan. Requires `primary_key_wo_version`; a changed version re-sends the value.
 - `primary_key_wo_version` (Number) Version marker for `primary_key_wo`; change it to rotate the key.

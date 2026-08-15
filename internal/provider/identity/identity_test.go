@@ -204,3 +204,26 @@ func TestValidateAuth(t *testing.T) {
 		t.Error("omitted block is fine")
 	}
 }
+
+func TestTimeOrNull(t *testing.T) {
+	for in, want := range map[string]string{
+		"":                             "",
+		"0001-01-01T00:00:00Z":         "0001-01-01T00:00:00Z",
+		"0001-01-01T00:00:00.0000000Z": "0001-01-01T00:00:00Z",
+		"2026-08-15T20:02:38.3391628Z": "2026-08-15T20:02:38.3391628Z",
+		"2026-08-15T20:02:38.3391620Z": "2026-08-15T20:02:38.339162Z",
+		"2026-08-15T22:02:38+02:00":    "2026-08-15T20:02:38Z",
+		"not a timestamp":              "not a timestamp",
+	} {
+		got := TimeOrNull(in)
+		if want == "" {
+			if !got.IsNull() {
+				t.Errorf("TimeOrNull(%q) = %v, want null", in, got)
+			}
+			continue
+		}
+		if got.ValueString() != want {
+			t.Errorf("TimeOrNull(%q) = %q, want %q", in, got.ValueString(), want)
+		}
+	}
+}

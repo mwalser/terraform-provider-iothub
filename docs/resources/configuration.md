@@ -56,7 +56,7 @@ resource "iothub_configuration" "telemetry_interval" {
 ### Optional
 
 - `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys (`jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`). Exactly one of `device_content` and `module_content`. **Immutable** — a change replaces the configuration.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
 - `labels` (Map of String) Free-form labels (string map).
 - `metrics` (Map of String) Custom metric queries, name → IoT Hub query (e.g. `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`). Validated against the hub during `plan` whenever they change; results are in `metric_results`.
 - `module_content` (String) Module twin desired properties to apply (`properties.desired.<path>` keys); use with a module target condition (`FROM devices.modules WHERE moduleId = '…'`). Exactly one of `device_content` and `module_content`. **Immutable**.

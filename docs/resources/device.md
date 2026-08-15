@@ -81,7 +81,7 @@ resource "iothub_device" "meter" {
 
 - `authentication` (Attributes) How the device authenticates. When omitted, the hub generates SAS keys and the block reflects whatever the hub holds (imported devices keep their credentials). (see [below for nested schema](#nestedatt--authentication))
 - `edge_enabled` (Boolean) Whether the device is an IoT Edge device (`capabilities.iotEdge`). Edge devices get a hub-generated `device_scope` and the `$edgeAgent`/`$edgeHub` module identities. Can be changed in place.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the device.
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the device.
 - `parent_scope` (String) `device_scope` of the parent IoT Edge device, making this device its child (a downstream/leaf device, or a nested edge device). One parent per device.
 - `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key (base64, 16–64 bytes): sent to the hub, never stored in state or plan. Requires `primary_key_wo_version`; a changed version re-sends the value.
 - `primary_key_wo_version` (Number) Version marker for `primary_key_wo`; change it to rotate the key.

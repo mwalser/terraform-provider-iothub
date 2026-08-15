@@ -46,7 +46,7 @@ func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListRe
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Lists every " + l.kind.noun() + " of the hub for `terraform query` (`GET /configurations`, filtered by content kind).",
 		Attributes: map[string]schema.Attribute{
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true},
+			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 		},
 	}
 }

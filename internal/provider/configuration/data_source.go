@@ -79,7 +79,7 @@ func (d *configDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 	}
 	attrs := map[string]schema.Attribute{
 		"id":                    c("`<hostname>/configurations/<id>`."),
-		"hostname":              schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+		"hostname":              schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 		d.kind.idAttr():         schema.StringAttribute{MarkdownDescription: "ID of the " + d.kind.noun() + ".", Required: true},
 		"target_condition":      c("Target condition."),
 		"priority":              schema.Int64Attribute{MarkdownDescription: "Priority.", Computed: true},

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -90,6 +91,24 @@ func StringOrNull(s string) types.String {
 		return types.StringNull()
 	}
 	return types.StringValue(s)
+}
+
+// TimeOrNull is StringOrNull for the service's timestamps, rendered
+// canonically (RFC 3339 UTC, fractional seconds without trailing zeros). The
+// service itself is inconsistent — a PUT/POST answer says
+// `0001-01-01T00:00:00Z`, a GET or the twin `0001-01-01T00:00:00.0000000Z`
+// for the same instant — and since a refresh may take either path, state
+// must not depend on which endpoint answered last. Unparseable values are
+// kept verbatim.
+func TimeOrNull(s string) types.String {
+	if s == "" {
+		return types.StringNull()
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return types.StringValue(s)
+	}
+	return types.StringValue(t.UTC().Format(time.RFC3339Nano))
 }
 
 // AuthFromHub maps the service's authentication mechanism to the nested

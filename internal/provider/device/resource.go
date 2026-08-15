@@ -107,6 +107,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the device.",
 				Optional:            true,
 				Computed:            true,
+				Validators:          common.HostnameValidators(),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
@@ -345,7 +346,7 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if tw := r.pd.Refresh.TwinIfUnchanged(ctx, hostname, func(ctx context.Context) (*client.Twin, error) {
 		return c.GetDeviceTwin(ctx, state.DeviceID.ValueString())
 	}, state.ETag.ValueString(), state.ConnectionState.ValueString()); tw != nil {
-		state.LastActivityTime = identity.StringOrNull(tw.LastActivityTime)
+		state.LastActivityTime = identity.TimeOrNull(tw.LastActivityTime)
 		state.CloudToDeviceMessageCount = types.Int64Value(tw.CloudToDeviceMessageCount)
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 		resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, state.DeviceID.ValueString())...)
@@ -605,9 +606,9 @@ func (r *deviceResource) setState(_ context.Context, m *resourceModel, hostname 
 	list, diags := types.ListValue(types.StringType, scopes)
 	m.ParentScopes = list
 	m.ConnectionState = identity.StringOrNull(d.ConnectionState)
-	m.ConnectionStateUpdatedTime = identity.StringOrNull(d.ConnectionStateUpdatedTime)
-	m.LastActivityTime = identity.StringOrNull(d.LastActivityTime)
-	m.StatusUpdatedTime = identity.StringOrNull(d.StatusUpdatedTime)
+	m.ConnectionStateUpdatedTime = identity.TimeOrNull(d.ConnectionStateUpdatedTime)
+	m.LastActivityTime = identity.TimeOrNull(d.LastActivityTime)
+	m.StatusUpdatedTime = identity.TimeOrNull(d.StatusUpdatedTime)
 	m.CloudToDeviceMessageCount = types.Int64Value(d.CloudToDeviceMessageCount)
 	return diags
 }

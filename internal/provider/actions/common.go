@@ -23,7 +23,7 @@ import (
 
 // hostnameAttribute is the per-action hub override.
 func hostnameAttribute() schema.StringAttribute {
-	return schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true}
+	return schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()}
 }
 
 // clientFor resolves the hub for an action invocation. Unknown values cannot

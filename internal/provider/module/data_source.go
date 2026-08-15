@@ -48,7 +48,7 @@ func (d *dataSource) Metadata(_ context.Context, req datasource.MetadataRequest,
 func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	attrs := infoAttributes()
 	attrs["id"] = schema.StringAttribute{MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>`.", Computed: true}
-	attrs["hostname"] = schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true}
+	attrs["hostname"] = schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()}
 	attrs["device_id"] = schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true}
 	attrs["module_id"] = schema.StringAttribute{MarkdownDescription: "Module ID (system modules such as `$edgeAgent` can be read too).", Required: true}
 	resp.Schema = schema.Schema{

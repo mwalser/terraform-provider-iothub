@@ -91,7 +91,7 @@ func (d *scheduledJobDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 			"`iothub_scheduled_job` action. The hub keeps job history for 30 days; an unknown job is an error.",
 		Attributes: map[string]schema.Attribute{
 			"id":                         c("`<hostname>/jobs/v2/<job_id>`."),
-			"hostname":                   schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+			"hostname":                   schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"job_id":                     schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true},
 			"type":                       c("`scheduleUpdateTwin` or `scheduleDeviceMethod`."),
 			"status":                     c("`queued`, `scheduled`, `running`, `completed`, `failed` or `cancelled`."),
@@ -149,9 +149,9 @@ func (d *scheduledJobDataSource) Read(ctx context.Context, req datasource.ReadRe
 	data.Type = types.StringValue(job.Type)
 	data.Status = types.StringValue(job.Status)
 	data.QueryCondition = identity.StringOrNull(job.QueryCondition)
-	data.CreatedTime = identity.StringOrNull(job.CreatedTime)
-	data.StartTime = identity.StringOrNull(job.StartTime)
-	data.EndTime = identity.StringOrNull(job.EndTime)
+	data.CreatedTime = identity.TimeOrNull(job.CreatedTime)
+	data.StartTime = identity.TimeOrNull(job.StartTime)
+	data.EndTime = identity.TimeOrNull(job.EndTime)
 	data.MaxExecutionTimeSeconds = types.Int64Value(job.MaxExecutionTimeInSeconds)
 	data.TwinPatch = rawJSON(job.UpdateTwin)
 	data.Method = rawJSON(job.CloudToDeviceMethod)
@@ -211,7 +211,7 @@ func (d *importExportJobDataSource) Schema(_ context.Context, _ datasource.Schem
 			"The job record never echoes the container URIs.",
 		Attributes: map[string]schema.Attribute{
 			"id":                          c("`<hostname>/jobs/<job_id>`."),
-			"hostname":                    schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+			"hostname":                    schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"job_id":                      schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true},
 			"type":                        c("`export` or `import`."),
 			"status":                      c("`enqueued`, `running`, `completed`, `failed` or `cancelled`."),
@@ -256,8 +256,8 @@ func (d *importExportJobDataSource) Read(ctx context.Context, req datasource.Rea
 	data.Type = types.StringValue(job.Type)
 	data.Status = types.StringValue(job.Status)
 	data.Progress = types.Int64Value(job.Progress)
-	data.StartTime = identity.StringOrNull(job.StartTimeUTC)
-	data.EndTime = identity.StringOrNull(job.EndTimeUTC)
+	data.StartTime = identity.TimeOrNull(job.StartTimeUTC)
+	data.EndTime = identity.TimeOrNull(job.EndTimeUTC)
 	data.FailureReason = identity.StringOrNull(job.FailureReason)
 	data.ExcludeKeysInExport = types.BoolValue(job.ExcludeKeysInExport)
 	data.IncludeConfigurations = types.BoolValue(job.IncludeConfigurations)

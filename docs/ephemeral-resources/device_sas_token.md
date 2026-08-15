@@ -53,7 +53,7 @@ ephemeral "iothub_device_sas_token" "telemetry" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `key` (String) Which key signs the token: `primary` (default) or `secondary`.
 - `module_id` (String) Module ID, for a module token.
 - `ttl` (String) Token lifetime as a Go duration (`30m`, `24h`, `168h`); default `1h`. Counted from the moment the token is minted.

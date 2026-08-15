@@ -88,7 +88,7 @@ func (d *twinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 	}
 	attrs := map[string]schema.Attribute{
 		"id":                  c(idFormat + "."),
-		"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+		"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 		"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 		"tags":                c("All tags of the twin as a JSON string."),
 		"desired_properties":  c("All desired properties as a JSON string (`$metadata` and `$version` stripped)."),
@@ -189,7 +189,7 @@ func (d *twinDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	data.ModelID = identity.StringOrNull(tw.ModelID)
 	data.Status = identity.StringOrNull(tw.Status)
 	data.ConnectionState = identity.StringOrNull(tw.ConnectionState)
-	data.LastActivityTime = identity.StringOrNull(tw.LastActivityTime)
+	data.LastActivityTime = identity.TimeOrNull(tw.LastActivityTime)
 
 	if d.kind.isModule() {
 		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

@@ -61,7 +61,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"and connection strings.",
 		Attributes: map[string]schema.Attribute{
 			"id":       c("`<hostname>/devices/<device_id>`."),
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
+			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{
 				MarkdownDescription: "Device ID.",
 				Required:            true,
@@ -148,9 +148,9 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	resp.Diagnostics.Append(diags...)
 	data.ParentScopes = list
 	data.ConnectionState = identity.StringOrNull(dev.ConnectionState)
-	data.ConnectionStateUpdatedTime = identity.StringOrNull(dev.ConnectionStateUpdatedTime)
-	data.LastActivityTime = identity.StringOrNull(dev.LastActivityTime)
-	data.StatusUpdatedTime = identity.StringOrNull(dev.StatusUpdatedTime)
+	data.ConnectionStateUpdatedTime = identity.TimeOrNull(dev.ConnectionStateUpdatedTime)
+	data.LastActivityTime = identity.TimeOrNull(dev.LastActivityTime)
+	data.StatusUpdatedTime = identity.TimeOrNull(dev.StatusUpdatedTime)
 	data.CloudToDeviceMessageCount = types.Int64Value(dev.CloudToDeviceMessageCount)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

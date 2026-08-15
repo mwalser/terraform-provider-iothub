@@ -142,6 +142,7 @@ Auth mode is inferred: `connection_string` present → SAS, otherwise Entra ID. 
 
 - Every resource/data source/action has an optional `hostname` attribute overriding the provider default (precedent: AWS provider ≥ 6.0 per-resource `region`).
   This matters for bootstrapping: `hostname = azurerm_iothub.hub.hostname` is *unknown* during the first plan of a fresh root module. Unknown **resource** attributes are fine; unknown **provider** attributes are not. With Entra ID auth the provider block needs no hub-specific value at all, so hub and hub content can live in one module.
+- `hostname` is validated everywhere (provider block, resources, data sources, ephemerals, actions, list resources) to the canonical form: a bare, **lowercase**, fully-qualified public-cloud name (`contoso.azure-devices.net`). Hostnames are case-insensitive DNS names, but Terraform compares strings exactly and a provider may neither normalise a configured value in the plan (core: "planned value does not match config value") nor store something else than it planned ("inconsistent result after apply"); demanding the canonical spelling up front is simpler and safer than plan-time juggling (review finding, 2026-08-15). A hub created with capitals in its name would need `lower(azurerm_iothub.x.hostname)`; the error message says so. The `HostName` inside a connection string is Azure-generated and only checked for shape.
 - Resource IDs mirror REST paths and are the import format:
 
 | Resource | ID / import string |

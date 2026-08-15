@@ -75,8 +75,8 @@ func infoFromHub(m *client.Module) infoModel {
 		ETag:                       types.StringValue(m.ETag),
 		GenerationID:               types.StringValue(m.GenerationID),
 		ConnectionState:            identity.StringOrNull(m.ConnectionState),
-		ConnectionStateUpdatedTime: identity.StringOrNull(m.ConnectionStateUpdatedTime),
-		LastActivityTime:           identity.StringOrNull(m.LastActivityTime),
+		ConnectionStateUpdatedTime: identity.TimeOrNull(m.ConnectionStateUpdatedTime),
+		LastActivityTime:           identity.TimeOrNull(m.LastActivityTime),
 		CloudToDeviceMessageCount:  types.Int64Value(m.CloudToDeviceMessageCount),
 	}
 }

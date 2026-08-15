@@ -52,7 +52,7 @@ resource "iothub_module_twin" "telemetry" {
 ### Optional
 
 - `desired_properties` (String) JSON object (use `jsonencode`) with the desired properties this resource owns; the same leaf-path rules as `tags`. Omit to manage no desired properties.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
 - `tags` (String) JSON object (use `jsonencode`) with the tags this resource owns. Only the leaf paths declared here are managed; sibling keys written by other systems are left alone. Omit to manage no tags.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 

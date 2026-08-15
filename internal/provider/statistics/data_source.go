@@ -47,6 +47,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 				MarkdownDescription: common.HostnameAttributeDescription,
 				Optional:            true,
 				Computed:            true,
+				Validators:          common.HostnameValidators(),
 			},
 			"total_device_count": schema.Int64Attribute{
 				MarkdownDescription: "Number of device identities in the registry.",

@@ -104,6 +104,7 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the module.",
 				Optional:            true,
 				Computed:            true,
+				Validators:          common.HostnameValidators(),
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
@@ -311,7 +312,7 @@ func (r *moduleResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if tw := r.pd.Refresh.TwinIfUnchanged(ctx, hostname, func(ctx context.Context) (*client.Twin, error) {
 		return c.GetModuleTwin(ctx, state.DeviceID.ValueString(), state.ModuleID.ValueString())
 	}, state.ETag.ValueString(), state.ConnectionState.ValueString()); tw != nil {
-		state.LastActivityTime = identity.StringOrNull(tw.LastActivityTime)
+		state.LastActivityTime = identity.TimeOrNull(tw.LastActivityTime)
 		state.CloudToDeviceMessageCount = types.Int64Value(tw.CloudToDeviceMessageCount)
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 		resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, state.DeviceID.ValueString(), state.ModuleID.ValueString())...)
@@ -536,7 +537,7 @@ func setState(m *resourceModel, hostname string, mod *client.Module, wo identity
 	m.ETag = types.StringValue(mod.ETag)
 	m.GenerationID = types.StringValue(mod.GenerationID)
 	m.ConnectionState = identity.StringOrNull(mod.ConnectionState)
-	m.ConnectionStateUpdatedTime = identity.StringOrNull(mod.ConnectionStateUpdatedTime)
-	m.LastActivityTime = identity.StringOrNull(mod.LastActivityTime)
+	m.ConnectionStateUpdatedTime = identity.TimeOrNull(mod.ConnectionStateUpdatedTime)
+	m.LastActivityTime = identity.TimeOrNull(mod.LastActivityTime)
 	m.CloudToDeviceMessageCount = types.Int64Value(mod.CloudToDeviceMessageCount)
 }

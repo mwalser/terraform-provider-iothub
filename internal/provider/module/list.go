@@ -47,7 +47,7 @@ func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListRe
 			"confirmed with a registry read). The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped: they cannot be managed by " +
 			"`iothub_module`.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true},
+			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Only modules of this device.", Optional: true},
 			"query_condition": schema.StringAttribute{
 				MarkdownDescription: "Additional `WHERE` clause over `devices.modules` (e.g. `moduleId = 'telemetry'`, `tags.x = 1`).",

@@ -67,6 +67,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the resource.",
 			Optional:            true,
 			Computed:            true,
+			Validators:          common.HostnameValidators(),
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 				stringplanmodifier.RequiresReplace(),

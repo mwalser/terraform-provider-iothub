@@ -65,7 +65,7 @@ resource "iothub_edge_deployment" "temp_sensor" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
+- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
 - `labels` (Map of String) Free-form labels (string map).
 - `metrics` (Map of String) Custom metric queries, name → IoT Hub query (e.g. `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`). Validated against the hub during `plan` whenever they change; results are in `metric_results`.
 - `priority` (Number) Priority (≥ 0, default 0). When several IoT Edge deployments target the same device, the highest priority wins.
