@@ -19,6 +19,7 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/device"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/module"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/statistics"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/twin"
 )
 
 // Ensure IoTHubProvider satisfies the provider interfaces it implements.
@@ -228,6 +229,8 @@ func (p *IoTHubProvider) Resources(_ context.Context) []func() resource.Resource
 	return []func() resource.Resource{
 		device.NewResource,
 		module.NewResource,
+		twin.NewDeviceResource,
+		twin.NewModuleResource,
 	}
 }
 
@@ -236,6 +239,8 @@ func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.Data
 		device.NewDataSource,
 		module.NewDataSource,
 		module.NewModulesDataSource,
+		twin.NewDeviceDataSource,
+		twin.NewModuleDataSource,
 		statistics.NewDataSource,
 	}
 }
