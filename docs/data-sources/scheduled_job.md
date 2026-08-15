@@ -3,12 +3,12 @@
 page_title: "iothub_scheduled_job Data Source - iothub"
 subcategory: ""
 description: |-
-  A scheduled twin-update or device-method job (GET /jobs/v2/{id}), e.g. one started by the iothub_scheduled_job action. The hub keeps job history for 30 days; an unknown job is an error.
+  A scheduled twin-update or device-method job, e.g. one started by the iothub_scheduled_job action. The hub keeps job history for a limited time; an unknown job is an error.
 ---
 
 # iothub_scheduled_job (Data Source)
 
-A scheduled twin-update or device-method job (`GET /jobs/v2/{id}`), e.g. one started by the `iothub_scheduled_job` action. The hub keeps job history for 30 days; an unknown job is an error.
+A scheduled twin-update or device-method job, e.g. one started by the `iothub_scheduled_job` action. The hub keeps job history for a limited time; an unknown job is an error.
 
 ## Example Usage
 

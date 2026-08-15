@@ -3,12 +3,12 @@
 page_title: "iothub_device Data Source - iothub"
 subcategory: ""
 description: |-
-  A device identity from the IoT Hub identity registry. Symmetric keys are deliberately not exposed here (data-source state is state); use the iothub_device_credentials ephemeral resource for keys and connection strings.
+  A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here; use the iothub_device_credentials ephemeral resource for keys and connection strings.
 ---
 
 # iothub_device (Data Source)
 
-A device identity from the IoT Hub identity registry. Symmetric keys are deliberately not exposed here (data-source state is state); use the `iothub_device_credentials` ephemeral resource for keys and connection strings.
+A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here; use the `iothub_device_credentials` ephemeral resource for keys and connection strings.
 
 ## Example Usage
 
@@ -41,7 +41,7 @@ output "gateway_scope" {
 - `connection_state_updated_time` (String) When the connection state last changed.
 - `device_scope` (String) Own scope (hub-generated for edge devices, parent scope for child leaf devices).
 - `edge_enabled` (Boolean) Whether the device is an IoT Edge device.
-- `etag` (String) Identity ETag.
+- `etag` (String) ETag of the identity.
 - `generation_id` (String) Hub-generated generation ID.
 - `id` (String) `<hostname>/devices/<device_id>`.
 - `last_activity_time` (String) Last activity time.

@@ -95,9 +95,9 @@ func (r *twinResource) Metadata(_ context.Context, req resource.MetadataRequest,
 }
 
 func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	subject, idFormat, backing := "device", "`<hostname>/twins/<device_id>`", "`GET/PATCH /twins/{id}`"
+	subject, idFormat := "device", "`<hostname>/twins/<device_id>`"
 	if r.kind.isModule() {
-		subject, idFormat, backing = "module", "`<hostname>/twins/<device_id>/modules/<module_id>`", "`GET/PATCH /twins/{id}/modules/{mid}`"
+		subject, idFormat = "module", "`<hostname>/twins/<device_id>/modules/<module_id>`"
 	}
 	attrs := map[string]schema.Attribute{
 		"id": schema.StringAttribute{
@@ -133,8 +133,8 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 				"leaf-path rules as `tags`. Omit to manage no desired properties.",
 			Optional: true,
 		},
-		"etag":    schema.StringAttribute{MarkdownDescription: "Twin ETag after the last write or refresh.", Computed: true},
-		"version": schema.Int64Attribute{MarkdownDescription: "Twin version after the last write or refresh.", Computed: true},
+		"etag":    schema.StringAttribute{MarkdownDescription: "ETag of the twin.", Computed: true},
+		"version": schema.Int64Attribute{MarkdownDescription: "Version of the twin.", Computed: true},
 	}
 	if r.kind.isModule() {
 		attrs["module_id"] = schema.StringAttribute{
@@ -145,23 +145,20 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 		}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Partial ownership of a " + subject + " twin's tags and desired properties (" + backing + ").\n\n" +
+		MarkdownDescription: "Partial ownership of a " + subject + " twin's tags and desired properties.\n\n" +
 			"The twin exists as long as the " + subject + " does; this resource neither creates nor deletes it. It **owns exactly the " +
 			"leaf paths** it declares — scalars, arrays and empty objects inside `tags` / `desired_properties` — and never reads, " +
 			"diffs or writes anything else in the twin: not other top-level keys, and not sibling keys inside objects it declares " +
 			"(a backend writing `desired.firmware.lastCheck` next to your `desired.firmware.channel` is invisible to Terraform). " +
 			"Several resources, teams and systems can therefore share one twin.\n\n" +
-			"Writes are JSON merge patches (`PATCH` with `If-Match: *`): changed leaves are set, removed leaves are nulled — at " +
-			"the highest enclosing object when nobody else has written into it, otherwise leaf by leaf. Destroying the resource " +
-			"nulls the owned leaves the same way; to stop managing a twin without touching it, use `removed { … lifecycle { " +
-			"destroy = false } }`. Importing starts with an empty owned set: the first apply adopts the configured leaves and " +
-			"cannot delete anything the configuration does not mention.\n\n" +
-			"External changes to owned leaves show up as drift; keys and values are validated against the service's twin rules " +
-			"(no `.`, `$`, `#`, space or control characters in keys, ≤ 1024-byte keys, ≤ 4096-byte string values, ≤ 10 nested " +
-			"objects, no null values). Reported properties are read-only and exposed on the data source.\n\n" +
-			"The JSON strings are compared semantically: key order, whitespace and `2` vs `2.0` never cause drift on refresh. " +
-			"Reformatting the value in the configuration does show as an update in the plan (Terraform compares the strings), " +
-			"but applying it writes nothing to the twin.",
+			"Removing a leaf from the configuration removes it from the twin; destroying the resource removes all owned leaves. To " +
+			"stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. Importing starts with an " +
+			"empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not " +
+			"mention. External changes to owned leaves show up as drift. Reported properties are read-only and exposed on the data " +
+			"source.\n\n" +
+			"Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format); " +
+			"violations are reported at plan time. The JSON strings are compared semantically — key order, whitespace and `2` vs " +
+			"`2.0` never cause drift; reformatting the value in the configuration shows as an update that writes nothing.",
 		Attributes: attrs,
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),

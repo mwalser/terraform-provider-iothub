@@ -3,24 +3,21 @@
 page_title: "iothub_device_twin Resource - iothub"
 subcategory: ""
 description: |-
-  Partial ownership of a device twin's tags and desired properties (GET/PATCH /twins/{id}).
+  Partial ownership of a device twin's tags and desired properties.
   The twin exists as long as the device does; this resource neither creates nor deletes it. It owns exactly the leaf paths it declares — scalars, arrays and empty objects inside tags / desired_properties — and never reads, diffs or writes anything else in the twin: not other top-level keys, and not sibling keys inside objects it declares (a backend writing desired.firmware.lastCheck next to your desired.firmware.channel is invisible to Terraform). Several resources, teams and systems can therefore share one twin.
-  Writes are JSON merge patches (PATCH with If-Match: *): changed leaves are set, removed leaves are nulled — at the highest enclosing object when nobody else has written into it, otherwise leaf by leaf. Destroying the resource nulls the owned leaves the same way; to stop managing a twin without touching it, use removed { … lifecycle { destroy = false } }. Importing starts with an empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not mention.
-  External changes to owned leaves show up as drift; keys and values are validated against the service's twin rules (no ., $, #, space or control characters in keys, ≤ 1024-byte keys, ≤ 4096-byte string values, ≤ 10 nested objects, no null values). Reported properties are read-only and exposed on the data source.
-  The JSON strings are compared semantically: key order, whitespace and 2 vs 2.0 never cause drift on refresh. Reformatting the value in the configuration does show as an update in the plan (Terraform compares the strings), but applying it writes nothing to the twin.
+  Removing a leaf from the configuration removes it from the twin; destroying the resource removes all owned leaves. To stop managing a twin without touching it, use removed { … lifecycle { destroy = false } }. Importing starts with an empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not mention. External changes to owned leaves show up as drift. Reported properties are read-only and exposed on the data source.
+  Keys and values must follow the twin format rules https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format; violations are reported at plan time. The JSON strings are compared semantically — key order, whitespace and 2 vs 2.0 never cause drift; reformatting the value in the configuration shows as an update that writes nothing.
 ---
 
 # iothub_device_twin (Resource)
 
-Partial ownership of a device twin's tags and desired properties (`GET/PATCH /twins/{id}`).
+Partial ownership of a device twin's tags and desired properties.
 
 The twin exists as long as the device does; this resource neither creates nor deletes it. It **owns exactly the leaf paths** it declares — scalars, arrays and empty objects inside `tags` / `desired_properties` — and never reads, diffs or writes anything else in the twin: not other top-level keys, and not sibling keys inside objects it declares (a backend writing `desired.firmware.lastCheck` next to your `desired.firmware.channel` is invisible to Terraform). Several resources, teams and systems can therefore share one twin.
 
-Writes are JSON merge patches (`PATCH` with `If-Match: *`): changed leaves are set, removed leaves are nulled — at the highest enclosing object when nobody else has written into it, otherwise leaf by leaf. Destroying the resource nulls the owned leaves the same way; to stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. Importing starts with an empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not mention.
+Removing a leaf from the configuration removes it from the twin; destroying the resource removes all owned leaves. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. Importing starts with an empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not mention. External changes to owned leaves show up as drift. Reported properties are read-only and exposed on the data source.
 
-External changes to owned leaves show up as drift; keys and values are validated against the service's twin rules (no `.`, `$`, `#`, space or control characters in keys, ≤ 1024-byte keys, ≤ 4096-byte string values, ≤ 10 nested objects, no null values). Reported properties are read-only and exposed on the data source.
-
-The JSON strings are compared semantically: key order, whitespace and `2` vs `2.0` never cause drift on refresh. Reformatting the value in the configuration does show as an update in the plan (Terraform compares the strings), but applying it writes nothing to the twin.
+Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format); violations are reported at plan time. The JSON strings are compared semantically — key order, whitespace and `2` vs `2.0` never cause drift; reformatting the value in the configuration shows as an update that writes nothing.
 
 ## Example Usage
 
@@ -70,9 +67,9 @@ resource "iothub_device_twin" "sensor_ops" {
 
 ### Read-Only
 
-- `etag` (String) Twin ETag after the last write or refresh.
+- `etag` (String) ETag of the twin.
 - `id` (String) `<hostname>/twins/<device_id>` — also the import ID.
-- `version` (Number) Twin version after the last write or refresh.
+- `version` (Number) Version of the twin.
 
 <a id="nestedblock--timeouts"></a>
 ### Nested Schema for `timeouts`

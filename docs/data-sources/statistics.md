@@ -3,12 +3,12 @@
 page_title: "iothub_statistics Data Source - iothub"
 subcategory: ""
 description: |-
-  Identity-registry and service statistics of an IoT Hub (GET /statistics/devices and GET /statistics/service). The counts are maintained asynchronously by the service and can lag behind registry changes and device connections by minutes — treat them as approximate.
+  Identity-registry and service statistics of an IoT Hub. The counts are maintained asynchronously by the service and can lag behind registry changes and device connections by minutes — treat them as approximate.
 ---
 
 # iothub_statistics (Data Source)
 
-Identity-registry and service statistics of an IoT Hub (`GET /statistics/devices` and `GET /statistics/service`). The counts are maintained asynchronously by the service and can lag behind registry changes and device connections by minutes — treat them as approximate.
+Identity-registry and service statistics of an IoT Hub. The counts are maintained asynchronously by the service and can lag behind registry changes and device connections by minutes — treat them as approximate.
 
 ## Example Usage
 

@@ -3,12 +3,12 @@
 page_title: "iothub_device List Resource - iothub"
 subcategory: ""
 description: |-
-  Lists device identities for terraform query, e.g. to generate import blocks for an existing fleet. Devices are found through the hub's query index (SELECT deviceId FROM devices WHERE …) and confirmed with a registry read, so devices deleted recently but still in the index are not listed.
+  Lists device identities for terraform query, e.g. to generate import blocks for an existing fleet.
 ---
 
 # iothub_device (List Resource)
 
-Lists device identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet. Devices are found through the hub's query index (`SELECT deviceId FROM devices WHERE …`) and confirmed with a registry read, so devices deleted recently but still in the index are not listed.
+Lists device identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet.
 
 ## Example Usage
 

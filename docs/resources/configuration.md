@@ -3,15 +3,15 @@
 page_title: "iothub_configuration Resource - iothub"
 subcategory: ""
 description: |-
-  An automatic device management configuration (PUT/GET/DELETE /configurations/{id}): desired properties the hub applies to every device or module matching target_condition, by priority. Configurations and IoT Edge deployments share the hub's limit of 100.
-  target_condition, priority, labels and metrics update in place with an If-Match ETag check that fails with the changed fields if the configuration was modified outside Terraform since the last refresh; the content is immutable and replaces the configuration (the service silently ignores content changes on update; the provider enforces the replacement). target_condition and metrics are validated against the hub at plan time whenever they change (POST /configurations/testQueries); transient failures of that check degrade to a warning.
+  An automatic device management configuration: desired properties the hub applies to every device or module matching target_condition, by priority.
+  target_condition, priority, labels and metrics can be changed in place; the content cannot — changing it replaces the configuration.
 ---
 
 # iothub_configuration (Resource)
 
-An automatic device management configuration (`PUT/GET/DELETE /configurations/{id}`): desired properties the hub applies to every device or module matching `target_condition`, by `priority`. Configurations and IoT Edge deployments share the hub's limit of 100.
+An automatic device management configuration: desired properties the hub applies to every device or module matching `target_condition`, by `priority`.
 
-`target_condition`, `priority`, `labels` and `metrics` update in place with an `If-Match` ETag check that fails with the changed fields if the configuration was modified outside Terraform since the last refresh; the content is immutable and replaces the configuration (the service silently ignores content changes on update; the provider enforces the replacement). `target_condition` and `metrics` are validated against the hub at plan time whenever they change (`POST /configurations/testQueries`); transient failures of that check degrade to a warning.
+`target_condition`, `priority`, `labels` and `metrics` can be changed in place; **the content cannot — changing it replaces the configuration.**
 
 ## Example Usage
 
@@ -51,15 +51,15 @@ resource "iothub_configuration" "telemetry_interval" {
 ### Required
 
 - `configuration_id` (String) Configuration ID: 1–128 characters from `a-z 0-9 - + % _ * ! '` (lowercase only). Immutable.
-- `target_condition` (String) Which devices (or modules) the configuration targets: a query condition over `deviceId`, `tags` and `properties.reported` (e.g. `tags.site = 'munich'`), `*` for all devices, or `FROM devices.modules WHERE …` for module targets. Validated against the hub during `plan` whenever it changes.
+- `target_condition` (String) Which devices (or modules) the configuration targets: a query condition over `deviceId`, `tags` and `properties.reported` (e.g. `tags.site = 'munich'`), `*` for all devices, or `FROM devices.modules WHERE …` for module targets.
 
 ### Optional
 
-- `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys (`jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`). Exactly one of `device_content` and `module_content`. **Immutable** — a change replaces the configuration.
+- `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys (`jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`). Exactly one of `device_content` and `module_content`. **Changing it replaces the configuration**, which re-evaluates every targeted device.
 - `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
 - `labels` (Map of String) Free-form labels (string map).
-- `metrics` (Map of String) Custom metric queries, name → IoT Hub query (e.g. `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`). Validated against the hub during `plan` whenever they change; results are in `metric_results`.
-- `module_content` (String) Module twin desired properties to apply (`properties.desired.<path>` keys); use with a module target condition (`FROM devices.modules WHERE moduleId = '…'`). Exactly one of `device_content` and `module_content`. **Immutable**.
+- `metrics` (Map of String) Custom metric queries, name → IoT Hub query (e.g. `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`). Results are in `metric_results`.
+- `module_content` (String) Module twin desired properties to apply (`properties.desired.<path>` keys); use with a module target condition (`FROM devices.modules WHERE moduleId = '…'`). Exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
 - `priority` (Number) Priority (≥ 0, default 0). When several configurations target the same device, the highest priority wins.
 - `schema_version` (String) Schema version of the configuration document (`1.0` is what the Azure CLI writes). Left as the hub reports it when omitted.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
@@ -67,7 +67,7 @@ resource "iothub_configuration" "telemetry_interval" {
 ### Read-Only
 
 - `created_time_utc` (String) Creation time.
-- `etag` (String) ETag; used for optimistic concurrency on updates.
+- `etag` (String) ETag of the configuration.
 - `id` (String) `<hostname>/configurations/<id>` — also the import ID.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.

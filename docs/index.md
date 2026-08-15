@@ -1,15 +1,15 @@
 ---
 page_title: "iothub Provider"
 description: |-
-  Manages the Azure IoT Hub data plane — device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods — through the IoT Hub Service REST API. The hub itself (and everything else under Azure Resource Manager) is managed with the azurerm provider.
-  Authentication is Microsoft Entra ID by default (RBAC data roles such as IoT Hub Data Contributor); setting connection_string switches to a hub shared access policy (SAS). There are deliberately no behaviour knobs: throttling, ETag handling and the API version are fixed by the provider.
+  Manages the Azure IoT Hub data plane — device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself (and everything else under Azure Resource Manager) is managed with the azurerm provider.
+  Authentication is Microsoft Entra ID by default; setting connection_string switches to a hub shared access policy (SAS). Throttled requests are retried automatically until the operation's timeout.
 ---
 
 # iothub Provider
 
-Manages the Azure IoT Hub **data plane** — device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods — through the IoT Hub Service REST API. The hub itself (and everything else under Azure Resource Manager) is managed with the `azurerm` provider.
+Manages the Azure IoT Hub **data plane** — device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself (and everything else under Azure Resource Manager) is managed with the `azurerm` provider.
 
-Authentication is Microsoft Entra ID by default (RBAC data roles such as *IoT Hub Data Contributor*); setting `connection_string` switches to a hub shared access policy (SAS). There are deliberately no behaviour knobs: throttling, ETag handling and the API version are fixed by the provider.
+Authentication is Microsoft Entra ID by default; setting `connection_string` switches to a hub shared access policy (SAS). Throttled requests are retried automatically until the operation's timeout.
 
 ## Example Usage
 
@@ -42,20 +42,34 @@ provider "iothub" {
 
 | Mode | Selected when | Notes |
 |---|---|---|
-| Microsoft Entra ID (default) | no `connection_string` | Token scope `https://iothubs.azure.net/.default`. Assign *IoT Hub Data Contributor* (or a narrower IoT Hub data role) at hub scope — `Owner`/`Contributor` carry no data-plane permissions. |
-| Shared access policy (SAS) | `connection_string` set | Uses the policy in the connection string to mint SAS tokens. |
+| Microsoft Entra ID (default) | no `connection_string` | Uses the `azidentity` chain (environment, workload identity, managed identity, Azure CLI) unless a method is chosen explicitly. The identity needs an IoT Hub **data-plane** role at hub scope — `Owner`/`Contributor` are not enough. |
+| Shared access policy (SAS) | `connection_string` set | Uses the hub shared access policy in the connection string. |
 
-Two things depend on the choice: `iothub_device`/`iothub_module` refreshes
-are cheapest with an identity that can also read twins (`twins/read`, i.e.
-*IoT Hub Twin Contributor*/*Data Contributor*, or a SAS policy with
-*ServiceConnect*) — otherwise the provider silently reads the registry, which
-is rate-limited far more tightly; and the `iothub_digital_twin_command`
-action works with SAS only, because the service rejects Entra ID tokens on
-that endpoint.
+### Permissions
 
-Every resource, data source and action accepts its own `hostname`, so a
-single provider block can manage several hubs and a hub created in the same
-configuration can be referenced before it exists.
+The simplest setup is *IoT Hub Data Contributor* (Entra ID) or the `iothubowner`
+policy (SAS). Narrower permissions work for subsets:
+
+| To use | Entra ID role | SAS policy permissions |
+|---|---|---|
+| `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor* (*Data Reader* for read-only use) | RegistryRead, RegistryWrite |
+| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, list resources | *IoT Hub Twin Contributor* (*Data Reader* for read-only use) | ServiceConnect |
+| Configurations, deployments, jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
+| `iothub_digital_twin_command` | — (SAS only, see below) | ServiceConnect |
+
+Two service restrictions depend on the authentication mode:
+
+- Plug and Play commands (`iothub_digital_twin_command`) are only accepted
+  with SAS authentication; under Entra ID use `iothub_direct_method` instead.
+- With SAS authentication the hub refuses to create, change or delete
+  modules of a *disabled* device; enable the device first or use Entra ID.
+
+## Hostnames
+
+Every resource, data source, ephemeral resource, action and list resource
+accepts its own `hostname`, so a single provider block can manage several hubs
+and a hub created in the same configuration can be referenced before it
+exists. Hostnames are given in lowercase (`contoso.azure-devices.net`).
 
 <!-- schema generated by tfplugindocs -->
 ## Schema

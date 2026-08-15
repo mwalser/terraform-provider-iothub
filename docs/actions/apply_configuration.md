@@ -3,12 +3,12 @@
 page_title: "iothub_apply_configuration Action - iothub"
 subcategory: ""
 description: |-
-  Applies a deployment manifest's modulesContent to one IoT Edge device immediately (POST /devices/{id}/applyConfigurationContent), bypassing iothub_edge_deployment targeting — the equivalent of az iot edge set-modules. Useful for one-off tests on a single gateway; fleets should use iothub_edge_deployment. A device that is not an IoT Edge device fails with Not an Azure IoT Edge device.
+  Applies a deployment manifest's modulesContent to one IoT Edge device immediately, bypassing iothub_edge_deployment targeting — the equivalent of az iot edge set-modules. Useful for one-off tests on a single gateway; fleets should use iothub_edge_deployment. Fails for a device that is not an IoT Edge device.
 ---
 
 # iothub_apply_configuration (Action)
 
-Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately (`POST /devices/{id}/applyConfigurationContent`), bypassing `iothub_edge_deployment` targeting — the equivalent of `az iot edge set-modules`. Useful for one-off tests on a single gateway; fleets should use `iothub_edge_deployment`. A device that is not an IoT Edge device fails with `Not an Azure IoT Edge device`.
+Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately, bypassing `iothub_edge_deployment` targeting — the equivalent of `az iot edge set-modules`. Useful for one-off tests on a single gateway; fleets should use `iothub_edge_deployment`. Fails for a device that is not an IoT Edge device.
 
 ## Example Usage
 

@@ -3,24 +3,24 @@
 page_title: "iothub_digital_twin_command Action - iothub"
 subcategory: ""
 description: |-
-  Invokes an IoT Plug and Play command on a device (POST /digitaltwins/{id}/commands/{name}, or …/components/{component_path}/commands/{name} for a component command) and waits for the device's answer. The device-defined response status is compared with expected_status_codes; anything else fails the apply, as does a device that is not online (404 DeviceNotOnline) or does not exist. The answer's status and payload are reported as progress output.
-  ~> This endpoint requires SAS authentication. Verified against the service: it rejects Entra ID bearer tokens with 401 IotHubUnauthorizedAccess regardless of the caller's role, while the same call succeeds with a shared access policy that has ServiceConnect (service or iothubowner). Configure the provider with connection_string to use this action; the equivalent direct method (iothub_direct_method with method_name = "<component>*<command>") works under both authentication modes.
-  A command invocation is never retried after an ambiguous failure (it may have run); throttling (429) is retried.
+  Invokes an IoT Plug and Play command on a device — a root-level command, or a component command with component_path — and waits for the device's answer. The device-defined response status is compared with expected_status_codes; anything else fails the apply, as does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
+  ~> Requires shared-access-policy (SAS) authentication. IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with connection_string (a policy with ServiceConnect, e.g. service or iothubowner) to use this action, or invoke the equivalent direct method with iothub_direct_method (method_name = "<component>*<command>"), which works with both authentication modes.
+  A command invocation is never repeated after an ambiguous failure, because it may already have run.
 ---
 
 # iothub_digital_twin_command (Action)
 
-Invokes an IoT Plug and Play command on a device (`POST /digitaltwins/{id}/commands/{name}`, or `…/components/{component_path}/commands/{name}` for a component command) and waits for the device's answer. The device-defined response status is compared with `expected_status_codes`; anything else fails the apply, as does a device that is not online (404 `DeviceNotOnline`) or does not exist. The answer's status and payload are reported as progress output.
+Invokes an IoT Plug and Play command on a device — a root-level command, or a component command with `component_path` — and waits for the device's answer. The device-defined response status is compared with `expected_status_codes`; anything else fails the apply, as does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
 
-~> **This endpoint requires SAS authentication.** Verified against the service: it rejects Entra ID bearer tokens with 401 `IotHubUnauthorizedAccess` regardless of the caller's role, while the same call succeeds with a shared access policy that has *ServiceConnect* (`service` or `iothubowner`). Configure the provider with `connection_string` to use this action; the equivalent direct method (`iothub_direct_method` with `method_name = "<component>*<command>"`) works under both authentication modes.
+~> **Requires shared-access-policy (SAS) authentication.** IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with `connection_string` (a policy with *ServiceConnect*, e.g. `service` or `iothubowner`) to use this action, or invoke the equivalent direct method with `iothub_direct_method` (`method_name = "<component>*<command>"`), which works with both authentication modes.
 
-A command invocation is never retried after an ambiguous failure (it may have run); throttling (429) is retried.
+A command invocation is never repeated after an ambiguous failure, because it may already have run.
 
 ## Example Usage
 
 ```terraform
-# Digital twin commands need SAS authentication (the endpoint rejects Entra ID
-# tokens); the equivalent direct method works with both.
+# Plug and Play commands need SAS authentication; the equivalent direct method
+# works with Entra ID too.
 provider "iothub" {
   connection_string = var.iothub_service_connection_string # a policy with ServiceConnect
 }
@@ -79,7 +79,7 @@ resource "iothub_device_twin" "controller" {
 ### Optional
 
 - `component_path` (String) Component name for a component command; omit for a root-level command.
-- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before failing with `DeviceNotOnline`, 0–300 seconds (default 0).
+- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0–300 seconds (default 0).
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.
 - `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `payload` (String) JSON request payload (any JSON value; use `jsonencode`). Sent as `null` when omitted.

@@ -83,20 +83,13 @@ func (r *deviceResource) Metadata(_ context.Context, req resource.MetadataReques
 
 func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A device identity in the IoT Hub identity registry (`PUT/GET/DELETE /devices/{id}`).\n\n" +
-			"Creating a device implicitly creates its twin; manage tags and desired properties with " +
-			"`iothub_device_twin`. Deleting a device deletes its twin and modules.\n\n" +
-			"**Credentials.** With `authentication.type = \"sas\"` and no keys given, the hub generates the keys and " +
-			"they are stored in state (sensitive). To keep keys out of state, pass them through the write-only " +
-			"`primary_key_wo` / `secondary_key_wo` arguments (bump the matching `*_wo_version` to rotate) and read " +
-			"connection strings with the `iothub_device_credentials` ephemeral resource.\n\n" +
-			"**Concurrency.** Updates send `If-Match` with the ETag from the last refresh; if the identity changed " +
-			"outside Terraform in the meantime the apply fails and names the changed fields — run `terraform plan` again.\n\n" +
-			"**Refresh cost.** A refresh reads the device *twin* first (100 reads/s on every tier) and only falls back to the " +
-			"identity registry (1.67 reads/s on S1) when the twin's `deviceEtag` shows the identity changed or the connection state " +
-			"moved — the twin's `deviceEtag` is the identity ETag, so this is lossless. It needs the `twins/read` data action " +
-			"(*IoT Hub Twin Contributor* / *Data Contributor*; *Registry Contributor* alone lacks it) or a SAS policy with " +
-			"*ServiceConnect*; without it the registry is read as before, silently.",
+		MarkdownDescription: "A device identity in the IoT Hub identity registry.\n\n" +
+			"Creating a device also creates its twin — manage tags and desired properties with `iothub_device_twin`. " +
+			"Deleting a device deletes its twin and its modules.\n\n" +
+			"**Credentials.** With `authentication.type = \"sas\"` and no keys given, the hub generates the keys and they are " +
+			"stored in state (sensitive). To keep keys out of state, pass them through the write-only `primary_key_wo` / " +
+			"`secondary_key_wo` arguments (bump the matching `*_wo_version` to rotate) and read connection strings with the " +
+			"`iothub_device_credentials` ephemeral resource.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "`<hostname>/devices/<device_id>` — also the import ID.",
@@ -132,8 +125,8 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				Validators:          []validator.String{stringvalidator.LengthAtMost(128)},
 			},
 			"edge_enabled": schema.BoolAttribute{
-				MarkdownDescription: "Whether the device is an IoT Edge device (`capabilities.iotEdge`). Edge devices get a hub-generated " +
-					"`device_scope` and the `$edgeAgent`/`$edgeHub` module identities. Can be changed in place.",
+				MarkdownDescription: "Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and " +
+					"the `$edgeAgent`/`$edgeHub` module identities. Can be changed in place.",
 				Optional:      true,
 				Computed:      true,
 				Default:       booldefault.StaticBool(false),
@@ -147,11 +140,11 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 			"authentication": identity.AuthAttribute("device"),
 			// ---- computed ----
-			"etag":                          computedString("Identity ETag; used for optimistic concurrency on updates."),
+			"etag":                          computedString("ETag of the identity."),
 			"generation_id":                 computedStringStable("Hub-generated ID distinguishing re-creations of the same `device_id`."),
 			"device_scope":                  computedString("Own scope: hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty."),
 			"connection_state":              computedString("`Connected` or `Disconnected` (approximate, updated by the service)."),
-			"connection_state_updated_time": computedString("When the connection state last changed (re-read from the registry when `connection_state` changed)."),
+			"connection_state_updated_time": computedString("When the connection state last changed."),
 			"last_activity_time":            computedString("Last time the device connected, sent or received a message."),
 			"status_updated_time":           computedString("When `status` last changed."),
 			"cloud_to_device_message_count": schema.Int64Attribute{

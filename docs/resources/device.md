@@ -3,24 +3,18 @@
 page_title: "iothub_device Resource - iothub"
 subcategory: ""
 description: |-
-  A device identity in the IoT Hub identity registry (PUT/GET/DELETE /devices/{id}).
-  Creating a device implicitly creates its twin; manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and modules.
+  A device identity in the IoT Hub identity registry.
+  Creating a device also creates its twin — manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and its modules.
   Credentials. With authentication.type = "sas" and no keys given, the hub generates the keys and they are stored in state (sensitive). To keep keys out of state, pass them through the write-only primary_key_wo / secondary_key_wo arguments (bump the matching *_wo_version to rotate) and read connection strings with the iothub_device_credentials ephemeral resource.
-  Concurrency. Updates send If-Match with the ETag from the last refresh; if the identity changed outside Terraform in the meantime the apply fails and names the changed fields — run terraform plan again.
-  Refresh cost. A refresh reads the device twin first (100 reads/s on every tier) and only falls back to the identity registry (1.67 reads/s on S1) when the twin's deviceEtag shows the identity changed or the connection state moved — the twin's deviceEtag is the identity ETag, so this is lossless. It needs the twins/read data action (IoT Hub Twin Contributor / Data Contributor; Registry Contributor alone lacks it) or a SAS policy with ServiceConnect; without it the registry is read as before, silently.
 ---
 
 # iothub_device (Resource)
 
-A device identity in the IoT Hub identity registry (`PUT/GET/DELETE /devices/{id}`).
+A device identity in the IoT Hub identity registry.
 
-Creating a device implicitly creates its twin; manage tags and desired properties with `iothub_device_twin`. Deleting a device deletes its twin and modules.
+Creating a device also creates its twin — manage tags and desired properties with `iothub_device_twin`. Deleting a device deletes its twin and its modules.
 
 **Credentials.** With `authentication.type = "sas"` and no keys given, the hub generates the keys and they are stored in state (sensitive). To keep keys out of state, pass them through the write-only `primary_key_wo` / `secondary_key_wo` arguments (bump the matching `*_wo_version` to rotate) and read connection strings with the `iothub_device_credentials` ephemeral resource.
-
-**Concurrency.** Updates send `If-Match` with the ETag from the last refresh; if the identity changed outside Terraform in the meantime the apply fails and names the changed fields — run `terraform plan` again.
-
-**Refresh cost.** A refresh reads the device *twin* first (100 reads/s on every tier) and only falls back to the identity registry (1.67 reads/s on S1) when the twin's `deviceEtag` shows the identity changed or the connection state moved — the twin's `deviceEtag` is the identity ETag, so this is lossless. It needs the `twins/read` data action (*IoT Hub Twin Contributor* / *Data Contributor*; *Registry Contributor* alone lacks it) or a SAS policy with *ServiceConnect*; without it the registry is read as before, silently.
 
 ## Example Usage
 
@@ -80,7 +74,7 @@ resource "iothub_device" "meter" {
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
 - `authentication` (Attributes) How the device authenticates. When omitted, the hub generates SAS keys and the block reflects whatever the hub holds (imported devices keep their credentials). (see [below for nested schema](#nestedatt--authentication))
-- `edge_enabled` (Boolean) Whether the device is an IoT Edge device (`capabilities.iotEdge`). Edge devices get a hub-generated `device_scope` and the `$edgeAgent`/`$edgeHub` module identities. Can be changed in place.
+- `edge_enabled` (Boolean) Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and the `$edgeAgent`/`$edgeHub` module identities. Can be changed in place.
 - `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the device.
 - `parent_scope` (String) `device_scope` of the parent IoT Edge device, making this device its child (a downstream/leaf device, or a nested edge device). One parent per device.
 - `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key (base64, 16–64 bytes): sent to the hub, never stored in state or plan. Requires `primary_key_wo_version`; a changed version re-sends the value.
@@ -95,9 +89,9 @@ resource "iothub_device" "meter" {
 
 - `cloud_to_device_message_count` (Number) Number of cloud-to-device messages queued for the device.
 - `connection_state` (String) `Connected` or `Disconnected` (approximate, updated by the service).
-- `connection_state_updated_time` (String) When the connection state last changed (re-read from the registry when `connection_state` changed).
+- `connection_state_updated_time` (String) When the connection state last changed.
 - `device_scope` (String) Own scope: hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty.
-- `etag` (String) Identity ETag; used for optimistic concurrency on updates.
+- `etag` (String) ETag of the identity.
 - `generation_id` (String) Hub-generated ID distinguishing re-creations of the same `device_id`.
 - `id` (String) `<hostname>/devices/<device_id>` — also the import ID.
 - `last_activity_time` (String) Last time the device connected, sent or received a message.

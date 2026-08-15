@@ -3,15 +3,15 @@
 page_title: "iothub_direct_method Action - iothub"
 subcategory: ""
 description: |-
-  Invokes a direct method on a device or module (POST /twins/{id}[/modules/{mid}]/methods) and waits for the device's answer. The device-defined response status is compared with expected_status_codes; anything else fails the apply, as does a device that is not online (404 DeviceNotOnline) or does not exist. The answer's status and payload are reported as progress output.
-  Trigger it from a resource lifecycle (action_trigger { events = [after_update] … }) — e.g. reboot a device after its twin changed — or ad hoc with terraform apply -invoke=action.iothub_direct_method.<name>. A method invocation is never retried after an ambiguous failure (it may have run); throttling (429) is retried.
+  Invokes a direct method on a device or module and waits for the device's answer. The device-defined response status is compared with expected_status_codes; anything else fails the apply, as does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
+  Trigger it from a resource lifecycle (action_trigger { events = [after_update] … }) — e.g. reboot a device after its twin changed — or ad hoc with terraform apply -invoke=action.iothub_direct_method.<name>. A method invocation is never repeated after an ambiguous failure, because it may already have run.
 ---
 
 # iothub_direct_method (Action)
 
-Invokes a direct method on a device or module (`POST /twins/{id}[/modules/{mid}]/methods`) and waits for the device's answer. The device-defined response status is compared with `expected_status_codes`; anything else fails the apply, as does a device that is not online (404 `DeviceNotOnline`) or does not exist. The answer's status and payload are reported as progress output.
+Invokes a direct method on a device or module and waits for the device's answer. The device-defined response status is compared with `expected_status_codes`; anything else fails the apply, as does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
 
-Trigger it from a resource lifecycle (`action_trigger { events = [after_update] … }`) — e.g. reboot a device after its twin changed — or ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. A method invocation is never retried after an ambiguous failure (it may have run); throttling (429) is retried.
+Trigger it from a resource lifecycle (`action_trigger { events = [after_update] … }`) — e.g. reboot a device after its twin changed — or ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. A method invocation is never repeated after an ambiguous failure, because it may already have run.
 
 ## Example Usage
 
@@ -57,7 +57,7 @@ resource "iothub_device_twin" "sensor" {
 
 ### Optional
 
-- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before failing with `DeviceNotOnline`, 0–300 seconds (default 0).
+- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0–300 seconds (default 0).
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.
 - `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `module_id` (String) Module ID, to call a module's method.

@@ -43,10 +43,9 @@ func (a *applyConfigurationAction) Metadata(_ context.Context, req action.Metada
 
 func (a *applyConfigurationAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately " +
-			"(`POST /devices/{id}/applyConfigurationContent`), bypassing `iothub_edge_deployment` targeting — the equivalent of " +
-			"`az iot edge set-modules`. Useful for one-off tests on a single gateway; fleets should use `iothub_edge_deployment`. " +
-			"A device that is not an IoT Edge device fails with `Not an Azure IoT Edge device`.",
+		MarkdownDescription: "Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately, bypassing " +
+			"`iothub_edge_deployment` targeting — the equivalent of `az iot edge set-modules`. Useful for one-off tests on a single " +
+			"gateway; fleets should use `iothub_edge_deployment`. Fails for a device that is not an IoT Edge device.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":  hostnameAttribute(),
 			"device_id": schema.StringAttribute{MarkdownDescription: "ID of the IoT Edge device.", Required: true, Validators: []validator.String{identity.IDValidator()}},

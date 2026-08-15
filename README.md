@@ -2,29 +2,34 @@
 
 A Terraform provider for the **Azure IoT Hub data plane** — the identity
 registry, device and module twins, automatic device management
-configurations, IoT Edge deployments, jobs and direct methods exposed by the
-IoT Hub *Service REST API*. The hub itself, its routing, endpoints,
-certificates and shared access policies are Azure Resource Manager
-resources and stay with the [`azurerm`](https://registry.terraform.io/providers/hashicorp/azurerm)
+configurations, IoT Edge deployments, jobs, direct methods and Plug and Play.
+The hub itself, its routing, endpoints, certificates and shared access
+policies are Azure Resource Manager resources and stay with the
+[`azurerm`](https://registry.terraform.io/providers/hashicorp/azurerm)
 provider; this provider starts exactly where `azurerm` stops.
 
-> **Status: alpha, not yet published to the Terraform Registry.**
-> Phases 0–4 are complete — everything the concept defines for this
-> provider: authentication, the service client, the identity registry
-> (`iothub_device`, `iothub_module`, credentials and SAS tokens as ephemeral
-> resources), device and module twins with leaf-path ownership,
-> `iothub_configuration` and `iothub_edge_deployment`, `iothub_query`,
-> `iothub_statistics`, actions (direct methods, scheduled and import/export
-> jobs, apply configuration, purge, cancel, Plug and Play commands), list
-> resources with resource identity for `terraform query`, the
-> `iothub_digital_twin` data source and the ETag-gated (twin-first) refresh
-> of identities. Device Provisioning Service enrollments are a separate
-> provider ([roadmap](CONCEPT.md#14-roadmap)).
+> **Status: alpha, not yet published to the Terraform Registry.** Feature
+> complete for the scope below; not yet released.
 
-The design — every resource, action and behaviour, the decisions behind
-them, and the service facts verified against a live hub — is in
-[`CONCEPT.md`](CONCEPT.md). Generated reference documentation lives in
-[`docs/`](docs/).
+What it manages:
+
+- **Identities** — `iothub_device`, `iothub_module` (resources, data sources,
+  `terraform query` list resources), credentials and device SAS tokens as
+  ephemeral resources.
+- **Twins** — `iothub_device_twin`, `iothub_module_twin` with leaf-path
+  ownership (Terraform manages exactly the keys you declare); reported
+  properties and the Plug and Play digital twin as data sources.
+- **Configurations** — `iothub_configuration` (automatic device management)
+  and `iothub_edge_deployment` (incl. layered deployments).
+- **Actions** — direct methods, Plug and Play commands, scheduled twin/method
+  jobs, bulk import/export, applying a manifest to one edge device, purging a
+  device's cloud-to-device queue, cancelling jobs.
+- **Data sources** — `iothub_query` (IoT Hub query language), `iothub_statistics`,
+  job status.
+
+Reference documentation is generated into [`docs/`](docs/). The design and
+the service behaviour it is built on are in [`CONCEPT.md`](CONCEPT.md)
+(maintainers). Contributions: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Requirements
 
@@ -99,10 +104,10 @@ resource "azurerm_key_vault_secret" "sensor" {
 }
 ```
 
-Every resource, data source and ephemeral resource accepts its own
-`hostname`, so one provider block can manage several hubs, and a hub created
-in the same configuration (`azurerm_iothub.x.hostname`) can be referenced
-before it exists.
+Every resource, data source, ephemeral resource and action accepts its own
+`hostname` (lowercase), so one provider block can manage several hubs, and a
+hub created in the same configuration (`azurerm_iothub.x.hostname`) can be
+referenced before it exists.
 
 ## Using a local build
 

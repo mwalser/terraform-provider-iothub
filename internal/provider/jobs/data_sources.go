@@ -87,8 +87,8 @@ func (d *scheduledJobDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A scheduled twin-update or device-method job (`GET /jobs/v2/{id}`), e.g. one started by the " +
-			"`iothub_scheduled_job` action. The hub keeps job history for 30 days; an unknown job is an error.",
+		MarkdownDescription: "A scheduled twin-update or device-method job, e.g. one started by the `iothub_scheduled_job` action. " +
+			"The hub keeps job history for a limited time; an unknown job is an error.",
 		Attributes: map[string]schema.Attribute{
 			"id":                         c("`<hostname>/jobs/v2/<job_id>`."),
 			"hostname":                   schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
@@ -207,8 +207,8 @@ func (d *importExportJobDataSource) Schema(_ context.Context, _ datasource.Schem
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A bulk import/export job (`GET /jobs/{id}`), e.g. one started by the `iothub_import_export_job` action. " +
-			"The job record never echoes the container URIs.",
+		MarkdownDescription: "A bulk import/export job, e.g. one started by the `iothub_import_export_job` action. " +
+			"The job record does not include the container URIs.",
 		Attributes: map[string]schema.Attribute{
 			"id":                          c("`<hostname>/jobs/<job_id>`."),
 			"hostname":                    schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
@@ -218,7 +218,7 @@ func (d *importExportJobDataSource) Schema(_ context.Context, _ datasource.Schem
 			"progress":                    schema.Int64Attribute{MarkdownDescription: "Progress in percent.", Computed: true},
 			"start_time":                  c("Start time."),
 			"end_time":                    c("End time."),
-			"failure_reason":              c("Failure reason, if any (per-line import errors are not reported here — see importErrors.log)."),
+			"failure_reason":              c("Failure reason, if any. Per-line import errors are not reported here; the hub writes them to `importErrors.log` in the output container."),
 			"exclude_keys_in_export":      schema.BoolAttribute{MarkdownDescription: "Whether keys were excluded from the export.", Computed: true},
 			"include_configurations":      schema.BoolAttribute{MarkdownDescription: "Whether configurations were included.", Computed: true},
 			"storage_authentication_type": c("`keyBased` or `identityBased`, when reported."),

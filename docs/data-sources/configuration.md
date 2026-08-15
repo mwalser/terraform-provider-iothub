@@ -37,7 +37,7 @@ output "fw_channel_targeted" {
 
 - `created_time_utc` (String) Creation time.
 - `device_content` (String) Device twin content as a JSON string (null for module configurations).
-- `etag` (String) ETag.
+- `etag` (String) ETag of the configuration.
 - `id` (String) `<hostname>/configurations/<id>`.
 - `labels` (Map of String) Labels.
 - `last_updated_time_utc` (String) Last update time.

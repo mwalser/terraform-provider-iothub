@@ -65,12 +65,10 @@ func (p *IoTHubProvider) Metadata(_ context.Context, _ provider.MetadataRequest,
 func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages the Azure IoT Hub **data plane** — device and module identities, twins, " +
-			"automatic device management configurations, IoT Edge deployments, jobs and direct methods — " +
-			"through the IoT Hub Service REST API. The hub itself (and everything else under Azure Resource " +
-			"Manager) is managed with the `azurerm` provider.\n\n" +
-			"Authentication is Microsoft Entra ID by default (RBAC data roles such as *IoT Hub Data Contributor*); " +
-			"setting `connection_string` switches to a hub shared access policy (SAS). There are deliberately no " +
-			"behaviour knobs: throttling, ETag handling and the API version are fixed by the provider.",
+			"automatic device management configurations, IoT Edge deployments, jobs and direct methods. " +
+			"The hub itself (and everything else under Azure Resource Manager) is managed with the `azurerm` provider.\n\n" +
+			"Authentication is Microsoft Entra ID by default; setting `connection_string` switches to a hub shared access " +
+			"policy (SAS). Throttled requests are retried automatically until the operation's timeout.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
 				MarkdownDescription: "Default IoT Hub hostname, e.g. `contoso.azure-devices.net`. Every resource, data source " +

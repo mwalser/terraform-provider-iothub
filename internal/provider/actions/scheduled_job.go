@@ -65,14 +65,13 @@ func (a *scheduledJobAction) Metadata(_ context.Context, req action.MetadataRequ
 
 func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Runs a scheduled job (`PUT /jobs/v2/{id}`): a twin update (`scheduleUpdateTwin`, merge patch of tags / desired " +
-			"properties) or a direct method (`scheduleDeviceMethod`) on every device matching `query_condition`, optionally at a future " +
-			"`start_time`. With `wait = true` (default) the action polls the job to a terminal state and fails on `failed`/`cancelled` " +
-			"— and, with `fail_on_device_failures` (default), when any targeted device failed. Job history is kept by the hub for 30 " +
-			"days; read it with the `iothub_scheduled_job` data source.\n\n" +
-			"Hubs run one job at a time on the free and S1 tiers (5 on S2, 10 on S3): while another job is active the hub answers 429 " +
-			"`ThrottlingMaxActiveJobCountExceeded`, which the action waits out within `timeout`. A duplicate `job_id` is rejected " +
-			"(409 `JobAlreadyExists`).",
+		MarkdownDescription: "Runs a scheduled job: a twin update (`scheduleUpdateTwin`, merging tags / desired properties) or a " +
+			"direct method (`scheduleDeviceMethod`) on every device matching `query_condition`, optionally at a future `start_time`. " +
+			"With `wait = true` (default) the action waits for the job to finish and fails if the job failed or was cancelled — and, " +
+			"with `fail_on_device_failures` (default), if any targeted device failed. Read a job's outcome later with the " +
+			"`iothub_scheduled_job` data source.\n\n" +
+			"A hub runs only a limited number of jobs at a time; while the slots are taken the action waits for a free one within " +
+			"`timeout`. A duplicate `job_id` is an error.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": hostnameAttribute(),
 			"job_id": schema.StringAttribute{
@@ -91,7 +90,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
 			},
 			"start_time": schema.StringAttribute{
-				MarkdownDescription: "RFC 3339 start time, at most 168 hours (7 days) ahead; the job runs immediately when omitted. " +
+				MarkdownDescription: "RFC 3339 start time, at most 7 days ahead; the job runs immediately when omitted. " +
 					"A scheduled job occupies one of the hub's job slots until it runs.",
 				Optional: true,
 			},
@@ -101,7 +100,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Validators:          []validator.Int64{int64validator.AtLeast(1)},
 			},
 			"twin_patch": schema.SingleNestedAttribute{
-				MarkdownDescription: "For `scheduleUpdateTwin`: the merge patch applied to every targeted twin (same JSON documents and rules as `iothub_device_twin`).",
+				MarkdownDescription: "For `scheduleUpdateTwin`: the tags and desired properties merged into every targeted twin (same JSON documents as `iothub_device_twin`).",
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
 					"tags":               schema.StringAttribute{CustomType: twin.DocumentType, MarkdownDescription: "Tags to merge (JSON object).", Optional: true},
@@ -120,7 +119,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 			},
 			"wait": waitAttribute(),
 			"fail_on_device_failures": schema.BoolAttribute{
-				MarkdownDescription: "With `wait`, fail the apply when the job completed but `failedCount > 0` (default `true`).",
+				MarkdownDescription: "With `wait`, fail the apply when the job completed but some devices failed (default `true`).",
 				Optional:            true,
 			},
 			"timeout": timeoutAttribute("1h"),

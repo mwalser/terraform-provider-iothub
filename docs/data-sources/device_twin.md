@@ -40,7 +40,7 @@ output "sensor_firmware_version" {
 - `desired_properties` (String) All desired properties as a JSON string (`$metadata` and `$version` stripped).
 - `desired_version` (Number) `$version` of the desired properties.
 - `device_etag` (String) ETag of the underlying identity.
-- `etag` (String) Twin ETag.
+- `etag` (String) ETag of the twin.
 - `id` (String) `<hostname>/twins/<device_id>`.
 - `last_activity_time` (String) Last activity time.
 - `model_id` (String) IoT Plug and Play model ID announced by the device, if any.
@@ -48,4 +48,4 @@ output "sensor_firmware_version" {
 - `reported_version` (Number) `$version` of the reported properties.
 - `status` (String) `enabled` or `disabled` (mirrored from the identity).
 - `tags` (String) All tags of the twin as a JSON string.
-- `version` (Number) Twin version.
+- `version` (Number) Version of the twin.

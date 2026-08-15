@@ -3,12 +3,12 @@
 page_title: "iothub_cancel_job Action - iothub"
 subcategory: ""
 description: |-
-  Cancels a running or scheduled job: a scheduled twin-update/method job (POST /jobs/v2/{id}/cancel, then polled until the hub reports cancelled) or an import/export job (DELETE /jobs/{id}). A job that already finished is reported as such without error; an unknown job fails.
+  Cancels a running or scheduled job — a scheduled twin-update/method job or an import/export job — and waits until the hub reports it cancelled. A job that already finished is reported as such without error; an unknown job fails.
 ---
 
 # iothub_cancel_job (Action)
 
-Cancels a running or scheduled job: a scheduled twin-update/method job (`POST /jobs/v2/{id}/cancel`, then polled until the hub reports `cancelled`) or an import/export job (`DELETE /jobs/{id}`). A job that already finished is reported as such without error; an unknown job fails.
+Cancels a running or scheduled job — a scheduled twin-update/method job or an import/export job — and waits until the hub reports it cancelled. A job that already finished is reported as such without error; an unknown job fails.
 
 ## Example Usage
 

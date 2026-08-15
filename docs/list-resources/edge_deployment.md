@@ -3,12 +3,12 @@
 page_title: "iothub_edge_deployment List Resource - iothub"
 subcategory: ""
 description: |-
-  Lists every IoT Edge deployment of the hub for terraform query (GET /configurations, filtered by content kind).
+  Lists every IoT Edge deployment of the hub for terraform query.
 ---
 
 # iothub_edge_deployment (List Resource)
 
-Lists every IoT Edge deployment of the hub for `terraform query` (`GET /configurations`, filtered by content kind).
+Lists every IoT Edge deployment of the hub for `terraform query`.
 
 ## Example Usage
 

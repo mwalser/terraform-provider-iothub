@@ -3,12 +3,12 @@
 page_title: "iothub_module Data Source - iothub"
 subcategory: ""
 description: |-
-  A module identity from the IoT Hub identity registry. Symmetric keys are deliberately not exposed here (data-source state is state); use the iothub_module_credentials ephemeral resource for keys and connection strings.
+  A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here; use the iothub_module_credentials ephemeral resource for keys and connection strings.
 ---
 
 # iothub_module (Data Source)
 
-A module identity from the IoT Hub identity registry. Symmetric keys are deliberately not exposed here (data-source state is state); use the `iothub_module_credentials` ephemeral resource for keys and connection strings.
+A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here; use the `iothub_module_credentials` ephemeral resource for keys and connection strings.
 
 ## Example Usage
 
@@ -41,7 +41,7 @@ output "edge_agent_connection_state" {
 - `cloud_to_device_message_count` (Number) Queued cloud-to-device messages.
 - `connection_state` (String) `Connected` or `Disconnected` (approximate).
 - `connection_state_updated_time` (String) When the connection state last changed.
-- `etag` (String) Module ETag.
+- `etag` (String) ETag of the module identity.
 - `generation_id` (String) Hub-generated generation ID.
 - `id` (String) `<hostname>/devices/<device_id>/modules/<module_id>`.
 - `last_activity_time` (String) Last activity time.

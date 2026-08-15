@@ -60,13 +60,12 @@ func (a *directMethodAction) Metadata(_ context.Context, req action.MetadataRequ
 
 func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Invokes a direct method on a device or module (`POST /twins/{id}[/modules/{mid}]/methods`) and waits for " +
-			"the device's answer. The device-defined response status is compared with `expected_status_codes`; anything else fails " +
-			"the apply, as does a device that is not online (404 `DeviceNotOnline`) or does not exist. The answer's status and payload " +
-			"are reported as progress output.\n\n" +
+		MarkdownDescription: "Invokes a direct method on a device or module and waits for the device's answer. The device-defined " +
+			"response status is compared with `expected_status_codes`; anything else fails the apply, as does a device that is " +
+			"offline or does not exist. The answer's status and payload are reported as progress output.\n\n" +
 			"Trigger it from a resource lifecycle (`action_trigger { events = [after_update] … }`) — e.g. reboot a device after its " +
 			"twin changed — or ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. A method invocation is never " +
-			"retried after an ambiguous failure (it may have run); throttling (429) is retried.",
+			"repeated after an ambiguous failure, because it may already have run.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":    hostnameAttribute(),
 			"device_id":   schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},
@@ -82,7 +81,7 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Validators:          []validator.Int64{int64validator.Between(5, 300)},
 			},
 			"connect_timeout_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub waits for a disconnected device to connect before failing with `DeviceNotOnline`, 0–300 seconds (default 0).",
+				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0–300 seconds (default 0).",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.Between(0, 300)},
 			},

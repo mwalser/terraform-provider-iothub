@@ -45,14 +45,13 @@ func (d *dataSource) Metadata(_ context.Context, req datasource.MetadataRequest,
 func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) " +
-			"statement against the hub (`POST /devices/query`) and returns every result page.\n\n" +
+			"statement against the hub and returns all results.\n\n" +
 			"Results are JSON strings — `SELECT * FROM devices` yields whole twins, projections yield the selected " +
 			"columns, `FROM devices.jobs` yields job records — so use `jsondecode()` on them. The query index is " +
 			"eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed " +
-			"for a while afterwards. Queries are among the most tightly throttled operations (20/min/unit on S1), so " +
-			"prefer `iothub_device` / `iothub_device_twin` data sources for point lookups.",
+			"for a while afterwards. Prefer the `iothub_device` / `iothub_device_twin` data sources for point lookups.",
 		Attributes: map[string]schema.Attribute{
-			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/query/<short hash of the query>` (first 8 bytes of its SHA-256, hex).", Computed: true},
+			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/query/<short hash of the query>`.", Computed: true},
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"query": schema.StringAttribute{
 				MarkdownDescription: "The statement, e.g. `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.",

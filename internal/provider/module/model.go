@@ -55,7 +55,7 @@ func infoAttributes() map[string]schema.Attribute {
 		"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority` or `none`."),
 		"primary_thumbprint":            c("Primary X.509 thumbprint (selfSigned)."),
 		"secondary_thumbprint":          c("Secondary X.509 thumbprint (selfSigned)."),
-		"etag":                          c("Module ETag."),
+		"etag":                          c("ETag of the module identity."),
 		"generation_id":                 c("Hub-generated generation ID."),
 		"connection_state":              c("`Connected` or `Disconnected` (approximate)."),
 		"connection_state_updated_time": c("When the connection state last changed."),

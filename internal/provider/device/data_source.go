@@ -56,9 +56,8 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A device identity from the IoT Hub identity registry. Symmetric keys are deliberately not " +
-			"exposed here (data-source state is state); use the `iothub_device_credentials` ephemeral resource for keys " +
-			"and connection strings.",
+		MarkdownDescription: "A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here; " +
+			"use the `iothub_device_credentials` ephemeral resource for keys and connection strings.",
 		Attributes: map[string]schema.Attribute{
 			"id":       c("`<hostname>/devices/<device_id>`."),
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
@@ -73,7 +72,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority` or `none`."),
 			"primary_thumbprint":            c("Primary X.509 thumbprint (selfSigned)."),
 			"secondary_thumbprint":          c("Secondary X.509 thumbprint (selfSigned)."),
-			"etag":                          c("Identity ETag."),
+			"etag":                          c("ETag of the identity."),
 			"generation_id":                 c("Hub-generated generation ID."),
 			"device_scope":                  c("Own scope (hub-generated for edge devices, parent scope for child leaf devices)."),
 			"connection_state":              c("`Connected` or `Disconnected` (approximate)."),

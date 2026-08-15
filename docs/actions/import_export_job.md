@@ -3,15 +3,15 @@
 page_title: "iothub_import_export_job Action - iothub"
 subcategory: ""
 description: |-
-  Runs a bulk identity registry job (POST /jobs/create): export the registry (devices.txt, one ExportImportDevice JSON per line, modules on their own lines; optionally configurations.txt) to a blob container, or import such a file (create / update / updateTwin / delete per line — every line needs status) from one. Blob access is either keyBased (container SAS URIs — action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS) or identityBased (the hub's system-assigned or a user-assigned managed identity with Storage Blob Data Contributor on the container).
-  With wait = true (default) the action polls the job and fails on failed/cancelled. An import job reports completed even when individual lines failed — those errors are only written to importErrors.log in the output container; the action reports the job status and names the log, it does not read blobs. Only one import/export job runs per hub at a time (403 JobQuotaExceeded), which the action waits out within timeout; with identityBased a BlobContainerValidationError is retried for a few minutes because a fresh role assignment takes time to propagate.
+  Runs a bulk identity registry job: export the registry (and optionally configurations and deployments) to a blob container, or import a file in the same format from one — see Import and export IoT Hub device identities in bulk https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt for the file format. Blob access is either keyBased (container SAS URIs — action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS) or identityBased (the hub's system-assigned or a user-assigned managed identity with Storage Blob Data Contributor on the container).
+  With wait = true (default) the action waits for the job to finish and fails if it failed or was cancelled. An import job counts as completed even when individual lines failed — those errors are only written to importErrors.log in the output container, which the action names but does not read. Only one import/export job runs per hub at a time; the action waits for its turn within timeout. With identityBased, a role assignment that has just been granted can take a few minutes to become effective; the action retries during that window.
 ---
 
 # iothub_import_export_job (Action)
 
-Runs a bulk identity registry job (`POST /jobs/create`): **export** the registry (`devices.txt`, one `ExportImportDevice` JSON per line, modules on their own lines; optionally `configurations.txt`) to a blob container, or **import** such a file (`create` / `update` / `updateTwin` / `delete` per line — every line needs `status`) from one. Blob access is either `keyBased` (container SAS URIs — action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS) or `identityBased` (the hub's system-assigned or a user-assigned managed identity with *Storage Blob Data Contributor* on the container).
+Runs a bulk identity registry job: **export** the registry (and optionally configurations and deployments) to a blob container, or **import** a file in the same format from one — see [Import and export IoT Hub device identities in bulk](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) for the file format. Blob access is either `keyBased` (container SAS URIs — action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS) or `identityBased` (the hub's system-assigned or a user-assigned managed identity with *Storage Blob Data Contributor* on the container).
 
-With `wait = true` (default) the action polls the job and fails on `failed`/`cancelled`. **An import job reports `completed` even when individual lines failed** — those errors are only written to `importErrors.log` in the output container; the action reports the job status and names the log, it does not read blobs. Only one import/export job runs per hub at a time (403 `JobQuotaExceeded`), which the action waits out within `timeout`; with `identityBased` a `BlobContainerValidationError` is retried for a few minutes because a fresh role assignment takes time to propagate.
+With `wait = true` (default) the action waits for the job to finish and fails if it failed or was cancelled. **An import job counts as completed even when individual lines failed** — those errors are only written to `importErrors.log` in the output container, which the action names but does not read. Only one import/export job runs per hub at a time; the action waits for its turn within `timeout`. With `identityBased`, a role assignment that has just been granted can take a few minutes to become effective; the action retries during that window.
 
 ## Example Usage
 
@@ -50,13 +50,13 @@ action "iothub_import_export_job" "import" {
 
 ### Required
 
-- `output_blob_container_uri` (String) Destination container for exports and for `importErrors.log` of imports. With `keyBased` a container SAS URI with read, write, delete and list permissions (the hub deletes an existing blob before writing; verified: `Unauthorized to delete from output blob container` otherwise).
+- `output_blob_container_uri` (String) Destination container for exports and for `importErrors.log` of imports. With `keyBased` a container SAS URI with read, write, delete and list permissions (the hub deletes an existing blob before writing).
 - `type` (String) `export` or `import`.
 
 ### Optional
 
 - `configurations_blob_name` (String) Configurations file name (default `configurations.txt`).
-- `exclude_keys_in_export` (Boolean) Export without symmetric keys (default `false`). Note: the hub then writes a plain-text warning as the first line of the export blob.
+- `exclude_keys_in_export` (Boolean) Export without symmetric keys (default `false`). The hub then writes a plain-text warning as the first line of the export file.
 - `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `include_configurations` (Boolean) Also export/import configurations and deployments (`configurations.txt`).
 - `input_blob_container_uri` (String) Container holding the import file (`import` only). With `keyBased` a container SAS URI with at least read and list permissions.

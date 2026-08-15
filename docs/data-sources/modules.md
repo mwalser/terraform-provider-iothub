@@ -3,12 +3,12 @@
 page_title: "iothub_modules Data Source - iothub"
 subcategory: ""
 description: |-
-  All module identities of a device (GET /devices/{id}/modules), including the hub-managed $edgeAgent/$edgeHub on IoT Edge devices. No key material; use iothub_module_credentials for that.
+  All module identities of a device, including the hub-managed $edgeAgent/$edgeHub on IoT Edge devices. Symmetric keys are not exposed; use iothub_module_credentials for those.
 ---
 
 # iothub_modules (Data Source)
 
-All module identities of a device (`GET /devices/{id}/modules`), including the hub-managed `$edgeAgent`/`$edgeHub` on IoT Edge devices. No key material; use `iothub_module_credentials` for that.
+All module identities of a device, including the hub-managed `$edgeAgent`/`$edgeHub` on IoT Edge devices. Symmetric keys are not exposed; use `iothub_module_credentials` for those.
 
 ## Example Usage
 
@@ -48,7 +48,7 @@ Read-Only:
 - `cloud_to_device_message_count` (Number) Queued cloud-to-device messages.
 - `connection_state` (String) `Connected` or `Disconnected` (approximate).
 - `connection_state_updated_time` (String) When the connection state last changed.
-- `etag` (String) Module ETag.
+- `etag` (String) ETag of the module identity.
 - `generation_id` (String) Hub-generated generation ID.
 - `last_activity_time` (String) Last activity time.
 - `managed_by` (String) Owner of the module (`managedBy`), e.g. `iotEdge` for system modules.

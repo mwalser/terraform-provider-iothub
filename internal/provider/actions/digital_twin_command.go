@@ -56,17 +56,15 @@ func (a *digitalTwinCommandAction) Metadata(_ context.Context, req action.Metada
 
 func (a *digitalTwinCommandAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Invokes an IoT Plug and Play command on a device (`POST /digitaltwins/{id}/commands/{name}`, or " +
-			"`…/components/{component_path}/commands/{name}` for a component command) and waits for the device's answer. The " +
-			"device-defined response status is compared with `expected_status_codes`; anything else fails the apply, as does a device " +
-			"that is not online (404 `DeviceNotOnline`) or does not exist. The answer's status and payload are reported as progress " +
-			"output.\n\n" +
-			"~> **This endpoint requires SAS authentication.** Verified against the service: it rejects Entra ID bearer tokens with " +
-			"401 `IotHubUnauthorizedAccess` regardless of the caller's role, while the same call succeeds with a shared access policy " +
-			"that has *ServiceConnect* (`service` or `iothubowner`). Configure the provider with `connection_string` to use this " +
-			"action; the equivalent direct method (`iothub_direct_method` with `method_name = \"<component>*<command>\"`) works " +
-			"under both authentication modes.\n\n" +
-			"A command invocation is never retried after an ambiguous failure (it may have run); throttling (429) is retried.",
+		MarkdownDescription: "Invokes an IoT Plug and Play command on a device — a root-level command, or a component command with " +
+			"`component_path` — and waits for the device's answer. The device-defined response status is compared with " +
+			"`expected_status_codes`; anything else fails the apply, as does a device that is offline or does not exist. The answer's " +
+			"status and payload are reported as progress output.\n\n" +
+			"~> **Requires shared-access-policy (SAS) authentication.** IoT Hub does not accept Entra ID tokens for Plug and Play " +
+			"commands, whatever the caller's role. Configure the provider with `connection_string` (a policy with *ServiceConnect*, " +
+			"e.g. `service` or `iothubowner`) to use this action, or invoke the equivalent direct method with `iothub_direct_method` " +
+			"(`method_name = \"<component>*<command>\"`), which works with both authentication modes.\n\n" +
+			"A command invocation is never repeated after an ambiguous failure, because it may already have run.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":        hostnameAttribute(),
 			"digital_twin_id": schema.StringAttribute{MarkdownDescription: "The device ID (a digital twin ID is the device ID).", Required: true, Validators: []validator.String{identity.IDValidator()}},
@@ -90,7 +88,7 @@ func (a *digitalTwinCommandAction) Schema(_ context.Context, _ action.SchemaRequ
 				Validators:          []validator.Int64{int64validator.Between(5, 300)},
 			},
 			"connect_timeout_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub waits for a disconnected device to connect before failing with `DeviceNotOnline`, 0–300 seconds (default 0).",
+				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0–300 seconds (default 0).",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.Between(0, 300)},
 			},

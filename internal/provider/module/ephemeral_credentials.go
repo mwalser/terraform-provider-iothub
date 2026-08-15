@@ -43,8 +43,8 @@ func (e *credentialsEphemeral) Metadata(_ context.Context, req ephemeral.Metadat
 
 func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The symmetric keys and connection strings of a module, read from the identity registry and " +
-			"never written to state or plan. Feed them into write-only arguments (e.g. `azurerm_key_vault_secret.value_wo`). " +
+		MarkdownDescription: "The symmetric keys and connection strings of a module, never written to state or plan. " +
+			"Feed them into write-only arguments (e.g. `azurerm_key_vault_secret.value_wo`). " +
 			"Modules with X.509 authentication have no keys; the key attributes are then null.\n\n" +
 			"Terraform opens ephemeral resources during `plan` as well as `apply`. When the module does not exist yet " +
 			"because it is created in the same run, the plan shows the values as known after apply (with a " +

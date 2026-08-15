@@ -41,12 +41,11 @@ func (d *digitalTwinDataSource) Metadata(_ context.Context, req datasource.Metad
 
 func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The IoT Plug and Play **digital twin** of a device (`GET /digitaltwins/{id}`): the document the hub derives " +
-			"from the device twin and the device's DTDL model — `$dtId`, `$metadata.$model`, root-level properties and components " +
-			"(objects carrying their own `$metadata`). It is read-only here by design: PnP writable properties *are* twin desired " +
-			"properties, so they are managed with `iothub_device_twin` (component properties need the `\"__t\": \"c\"` marker).\n\n" +
-			"The endpoint answers for every device — a device that never announced a model has an empty `model_id` and a document " +
-			"without properties. Under SAS authentication the shared access policy needs *ServiceConnect* (`service` or `iothubowner`).",
+		MarkdownDescription: "The IoT Plug and Play **digital twin** of a device: the document the hub derives from the device twin " +
+			"and the device's DTDL model — `$dtId`, `$metadata.$model`, root-level properties and components (objects carrying their " +
+			"own `$metadata`). It is read-only: PnP writable properties *are* twin desired properties, so manage them with " +
+			"`iothub_device_twin` (component properties need the `\"__t\": \"c\"` marker). A device that never announced a model " +
+			"has a null `model_id` and a document without properties.",
 		Attributes: map[string]schema.Attribute{
 			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/digitaltwins/<digital_twin_id>`.", Computed: true},
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
@@ -57,7 +56,7 @@ func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 			},
 			"document": schema.StringAttribute{MarkdownDescription: "The digital twin document as a JSON string, verbatim from the hub. Use `jsondecode()`.", Computed: true},
 			"model_id": schema.StringAttribute{MarkdownDescription: "DTDL model ID (`$metadata.$model`) announced by the device; null when the device is not a Plug and Play device.", Computed: true},
-			"etag":     schema.StringAttribute{MarkdownDescription: "ETag of the digital twin (equals the device twin's ETag).", Computed: true},
+			"etag":     schema.StringAttribute{MarkdownDescription: "ETag of the digital twin.", Computed: true},
 		},
 	}
 }

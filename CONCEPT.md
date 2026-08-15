@@ -561,7 +561,7 @@ flowchart TB
 | Contract | Request/response shapes validated against `service.json` (2021-04-12), plus recorded fixtures for the verified service deviations (Appendix D) |
 | Acceptance (`TF_ACC=1`) | Real hub (F1 free tier verified sufficient: twins, methods, jobs, configurations, deployments all available). Harness creates the hub via `azurerm` or uses `IOTHUB_TEST_HOSTNAME`; runs both auth modes; covers import, drift, ETag conflict + conflict inspection, throttling under `-parallelism=10`, edge parent/child, layered deployment; a simulated device (`az iot device simulate`, with `--model-id` for the Plug and Play command paths) for direct-method, PnP command and connection-state cases; a throw-away Standard_LRS storage account + container (created and destroyed by the harness) for the import/export action |
 | Matrix | Terraform 1.14 and latest × Go latest two |
-| Docs | `tfplugindocs` from schema + `examples/`; every resource page lists required RBAC data actions and throttle class |
+| Docs | `tfplugindocs` from schema + `examples/`; the user-facing docs describe the contract, not the mechanism or the evidence (rules in `CONTRIBUTING.md`); permissions per construct group on the provider index page; this document is the home of endpoints, verified service facts, tiers and rationale |
 | Release | GoReleaser, GPG signing, registry publish; `CHANGELOG.md`; SemVer with `0.x` until Phase 3 |
 
 ---

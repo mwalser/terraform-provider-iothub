@@ -82,7 +82,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		"target_condition": schema.StringAttribute{
 			MarkdownDescription: "Which devices (or modules) the " + r.kind.noun() + " targets: a query condition over `deviceId`, `tags` and " +
 				"`properties.reported` (e.g. `tags.site = 'munich'`), `*` for all devices, or `FROM devices.modules WHERE …` for module " +
-				"targets. Validated against the hub during `plan` whenever it changes.",
+				"targets.",
 			Required:   true,
 			Validators: []validator.String{stringvalidator.LengthAtLeast(1)},
 		},
@@ -100,7 +100,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		},
 		"metrics": schema.MapAttribute{
 			MarkdownDescription: "Custom metric queries, name → IoT Hub query (e.g. `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`). " +
-				"Validated against the hub during `plan` whenever they change; results are in `metric_results`.",
+				"Results are in `metric_results`.",
 			ElementType: types.StringType,
 			Optional:    true,
 			Validators:  []validator.Map{mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1))},
@@ -111,7 +111,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 		},
-		"etag":                  computed("ETag; used for optimistic concurrency on updates."),
+		"etag":                  computed("ETag of the " + r.kind.noun() + "."),
 		"created_time_utc":      computed("Creation time."),
 		"last_updated_time_utc": computed("Last update time."),
 		"system_metrics": schema.MapAttribute{
@@ -132,23 +132,21 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			CustomType: ModulesContentType,
 			MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON (`jsonencode(jsondecode(file(\"deployment.json\")).modulesContent)`): " +
 				"`$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules; a layered deployment carries " +
-				"`properties.desired.modules.<name>` entries under `$edgeAgent`. **Immutable** — a change replaces the deployment " +
-				"(the service silently ignores content changes on update; the provider enforces the replacement).",
+				"`properties.desired.modules.<name>` entries under `$edgeAgent`. **Changing it replaces the deployment**, which " +
+				"re-evaluates every targeted device.",
 			Required:      true,
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 		}
-		description = "An IoT Edge deployment (`PUT/GET/DELETE /configurations/{id}` with `modulesContent`), including layered deployments. " +
-			"Deployments and configurations share the hub's limit of 100.\n\n" +
-			"`target_condition`, `priority`, `labels` and `metrics` update in place with an `If-Match` ETag check that fails with the " +
-			"changed fields if the deployment was modified outside Terraform since the last refresh; `modules_content` is immutable and " +
-			"replaces the deployment. `target_condition` and `metrics` are validated against the hub at plan time whenever they change " +
-			"(`POST /configurations/testQueries`); transient failures of that check degrade to a warning."
+		description = "An IoT Edge deployment, including layered deployments: the deployment manifest the hub applies to every edge " +
+			"device matching `target_condition`, by `priority`.\n\n" +
+			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place; **`modules_content` cannot — changing " +
+			"it replaces the deployment.**"
 	} else {
 		attrs["device_content"] = schema.StringAttribute{
 			CustomType: ContentType,
 			MarkdownDescription: "Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys " +
 				"(`jsonencode({ \"properties.desired.firmware\" = { channel = \"stable\" } })`). Exactly one of `device_content` and " +
-				"`module_content`. **Immutable** — a change replaces the configuration.",
+				"`module_content`. **Changing it replaces the configuration**, which re-evaluates every targeted device.",
 			Optional:      true,
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 			Validators:    []validator.String{stringvalidator.ExactlyOneOf(path.MatchRoot("device_content"), path.MatchRoot("module_content"))},
@@ -156,18 +154,15 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		attrs["module_content"] = schema.StringAttribute{
 			CustomType: ContentType,
 			MarkdownDescription: "Module twin desired properties to apply (`properties.desired.<path>` keys); use with a module target " +
-				"condition (`FROM devices.modules WHERE moduleId = '…'`). Exactly one of `device_content` and `module_content`. **Immutable**.",
+				"condition (`FROM devices.modules WHERE moduleId = '…'`). Exactly one of `device_content` and `module_content`. " +
+				"**Changing it replaces the configuration.**",
 			Optional:      true,
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 		}
-		description = "An automatic device management configuration (`PUT/GET/DELETE /configurations/{id}`): desired properties the hub " +
-			"applies to every device or module matching `target_condition`, by `priority`. Configurations and IoT Edge deployments " +
-			"share the hub's limit of 100.\n\n" +
-			"`target_condition`, `priority`, `labels` and `metrics` update in place with an `If-Match` ETag check that fails with the " +
-			"changed fields if the configuration was modified outside Terraform since the last refresh; the content is immutable and " +
-			"replaces the configuration (the service silently ignores content changes on update; the provider enforces the " +
-			"replacement). `target_condition` and `metrics` are validated against the hub at plan time whenever they change " +
-			"(`POST /configurations/testQueries`); transient failures of that check degrade to a warning."
+		description = "An automatic device management configuration: desired properties the hub applies to every device or " +
+			"module matching `target_condition`, by `priority`.\n\n" +
+			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place; **the content cannot — changing it " +
+			"replaces the configuration.**"
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: description,

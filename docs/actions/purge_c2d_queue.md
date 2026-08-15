@@ -3,12 +3,12 @@
 page_title: "iothub_purge_c2d_queue Action - iothub"
 subcategory: ""
 description: |-
-  Deletes every pending cloud-to-device message of a device (DELETE /devices/{id}/commands) and reports how many were purged. Typical use: an action_trigger before re-commissioning a device, or ad hoc with terraform apply -invoke.
+  Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical use: an action_trigger before re-commissioning a device, or ad hoc with terraform apply -invoke.
 ---
 
 # iothub_purge_c2d_queue (Action)
 
-Deletes every pending cloud-to-device message of a device (`DELETE /devices/{id}/commands`) and reports how many were purged. Typical use: an `action_trigger` before re-commissioning a device, or ad hoc with `terraform apply -invoke`.
+Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical use: an `action_trigger` before re-commissioning a device, or ad hoc with `terraform apply -invoke`.
 
 ## Example Usage
 

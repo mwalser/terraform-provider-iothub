@@ -3,13 +3,13 @@
 page_title: "iothub_device_credentials Ephemeral Resource - iothub"
 subcategory: ""
 description: |-
-  The symmetric keys and connection strings of a device, read from the identity registry and never written to state or plan. Feed them into write-only arguments (e.g. azurerm_key_vault_secret.value_wo). Devices with X.509 authentication have no keys; the key attributes are then null.
+  The symmetric keys and connection strings of a device, never written to state or plan. Feed them into write-only arguments (e.g. azurerm_key_vault_secret.value_wo). Devices with X.509 authentication have no keys; the key attributes are then null.
   Terraform opens ephemeral resources during plan as well as apply. When the device does not exist yet because it is created in the same run, the plan shows the values as known after apply (with a "Device not found (yet)" warning) and they are read at apply time.
 ---
 
 # iothub_device_credentials (Ephemeral Resource)
 
-The symmetric keys and connection strings of a device, read from the identity registry and never written to state or plan. Feed them into write-only arguments (e.g. `azurerm_key_vault_secret.value_wo`). Devices with X.509 authentication have no keys; the key attributes are then null.
+The symmetric keys and connection strings of a device, never written to state or plan. Feed them into write-only arguments (e.g. `azurerm_key_vault_secret.value_wo`). Devices with X.509 authentication have no keys; the key attributes are then null.
 
 Terraform opens ephemeral resources during `plan` as well as `apply`. When the device does not exist yet because it is created in the same run, the plan shows the values as known after apply (with a "Device not found (yet)" warning) and they are read at apply time.
 

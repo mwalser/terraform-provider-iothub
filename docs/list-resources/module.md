@@ -3,12 +3,12 @@
 page_title: "iothub_module List Resource - iothub"
 subcategory: ""
 description: |-
-  Lists module identities for terraform query (SELECT deviceId, moduleId FROM devices.modules WHERE …, confirmed with a registry read). The hub's system modules ($edgeAgent, $edgeHub) are skipped: they cannot be managed by iothub_module.
+  Lists module identities for terraform query, e.g. to generate import blocks for an existing fleet. The hub's system modules ($edgeAgent, $edgeHub) are skipped because iothub_module cannot manage them.
 ---
 
 # iothub_module (List Resource)
 
-Lists module identities for `terraform query` (`SELECT deviceId, moduleId FROM devices.modules WHERE …`, confirmed with a registry read). The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped: they cannot be managed by `iothub_module`.
+Lists module identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet. The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them.
 
 ## Example Usage
 

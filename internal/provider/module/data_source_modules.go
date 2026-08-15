@@ -38,8 +38,8 @@ func (d *modulesDataSource) Metadata(_ context.Context, req datasource.MetadataR
 
 func (d *modulesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "All module identities of a device (`GET /devices/{id}/modules`), including the hub-managed " +
-			"`$edgeAgent`/`$edgeHub` on IoT Edge devices. No key material; use `iothub_module_credentials` for that.",
+		MarkdownDescription: "All module identities of a device, including the hub-managed `$edgeAgent`/`$edgeHub` on IoT " +
+			"Edge devices. Symmetric keys are not exposed; use `iothub_module_credentials` for those.",
 		Attributes: map[string]schema.Attribute{
 			"id":        schema.StringAttribute{MarkdownDescription: "`<hostname>/devices/<device_id>/modules`.", Computed: true},
 			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},

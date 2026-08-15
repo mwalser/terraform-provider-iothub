@@ -3,12 +3,12 @@
 page_title: "iothub_configuration List Resource - iothub"
 subcategory: ""
 description: |-
-  Lists every configuration of the hub for terraform query (GET /configurations, filtered by content kind).
+  Lists every configuration of the hub for terraform query.
 ---
 
 # iothub_configuration (List Resource)
 
-Lists every configuration of the hub for `terraform query` (`GET /configurations`, filtered by content kind).
+Lists every configuration of the hub for `terraform query`.
 
 ## Example Usage
 

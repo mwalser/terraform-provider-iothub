@@ -77,23 +77,14 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A module identity on a device (`PUT/GET/DELETE /devices/{id}/modules/{mid}`). Modules have their own " +
-			"credentials and twin (manage the twin with `iothub_module_twin`) but no status of their own — a disabled " +
-			"device disables its modules.\n\n" +
-			"Credentials and concurrency work exactly as for `iothub_device`: hub-generated SAS keys by default (stored " +
-			"sensitive), write-only `primary_key_wo` / `secondary_key_wo` to keep keys out of state, " +
-			"`iothub_module_credentials` for connection strings, and `If-Match` updates that fail with the changed fields " +
-			"if the module was modified outside Terraform since the last refresh.\n\n" +
-			"IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub; those are not created " +
+		MarkdownDescription: "A module identity on a device. Modules have their own credentials and twin (manage the twin " +
+			"with `iothub_module_twin`) but no status of their own — a disabled device disables its modules.\n\n" +
+			"Credentials work as for `iothub_device`: hub-generated SAS keys by default (stored sensitive), write-only " +
+			"`primary_key_wo` / `secondary_key_wo` to keep keys out of state, `iothub_module_credentials` for connection " +
+			"strings. IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub; those are not created " +
 			"through this resource.\n\n" +
-			"**Refresh cost.** As for `iothub_device`, a refresh reads the module *twin* first and only falls back to the " +
-			"identity registry when the twin's `deviceEtag` (the module identity's ETag) or the connection state changed; " +
-			"needs `twins/read` (or a SAS policy with *ServiceConnect*), otherwise the registry is read as before.\n\n" +
-			"~> **Disabled devices under SAS authentication.** Verified: with a shared access policy (even `iothubowner`) the " +
-			"service refuses module identity operations (read, create, update, delete) on a *disabled* device with 401; module " +
-			"twins and Entra ID are unaffected. An unchanged module on a disabled device still refreshes (through the twin), but " +
-			"creating, changing or destroying it needs the device enabled first — or Entra ID authentication. The provider " +
-			"reports this case by name instead of a bare 401.",
+			"~> With shared-access-policy (SAS) authentication the hub refuses to create, change or delete modules of a " +
+			"*disabled* device; enable the device first or authenticate with Entra ID. Reading an unchanged module keeps working.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>` — also the import ID.",
@@ -131,7 +122,7 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 			"authentication": identity.AuthAttribute("module"),
 			// ---- computed ----
-			"etag": computed("Module ETag; used for optimistic concurrency on updates."),
+			"etag": computed("ETag of the module identity."),
 			"generation_id": schema.StringAttribute{
 				MarkdownDescription: "Hub-generated ID distinguishing re-creations of the same module.",
 				Computed:            true,

@@ -3,12 +3,12 @@
 page_title: "iothub_import_export_job Data Source - iothub"
 subcategory: ""
 description: |-
-  A bulk import/export job (GET /jobs/{id}), e.g. one started by the iothub_import_export_job action. The job record never echoes the container URIs.
+  A bulk import/export job, e.g. one started by the iothub_import_export_job action. The job record does not include the container URIs.
 ---
 
 # iothub_import_export_job (Data Source)
 
-A bulk import/export job (`GET /jobs/{id}`), e.g. one started by the `iothub_import_export_job` action. The job record never echoes the container URIs.
+A bulk import/export job, e.g. one started by the `iothub_import_export_job` action. The job record does not include the container URIs.
 
 ## Example Usage
 
@@ -37,7 +37,7 @@ output "export_status" {
 
 - `end_time` (String) End time.
 - `exclude_keys_in_export` (Boolean) Whether keys were excluded from the export.
-- `failure_reason` (String) Failure reason, if any (per-line import errors are not reported here — see importErrors.log).
+- `failure_reason` (String) Failure reason, if any. Per-line import errors are not reported here; the hub writes them to `importErrors.log` in the output container.
 - `id` (String) `<hostname>/jobs/<job_id>`.
 - `include_configurations` (Boolean) Whether configurations were included.
 - `progress` (Number) Progress in percent.

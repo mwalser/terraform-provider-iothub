@@ -41,9 +41,7 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Lists device identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet. " +
-			"Devices are found through the hub's query index (`SELECT deviceId FROM devices WHERE …`) and confirmed with a registry " +
-			"read, so devices deleted recently but still in the index are not listed.",
+		MarkdownDescription: "Lists device identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"query_condition": schema.StringAttribute{

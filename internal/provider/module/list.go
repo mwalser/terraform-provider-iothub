@@ -43,9 +43,8 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Lists module identities for `terraform query` (`SELECT deviceId, moduleId FROM devices.modules WHERE …`, " +
-			"confirmed with a registry read). The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped: they cannot be managed by " +
-			"`iothub_module`.",
+		MarkdownDescription: "Lists module identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet. " +
+			"The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Only modules of this device.", Optional: true},

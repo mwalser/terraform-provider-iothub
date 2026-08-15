@@ -54,10 +54,9 @@ func (e *sasTokenEphemeral) Metadata(_ context.Context, req ephemeral.MetadataRe
 
 func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A device (or module) shared access signature, minted locally from the identity's symmetric key " +
-			"after one registry read: `SharedAccessSignature sr=<hostname>/devices/<id>[/modules/<mid>]&sig=…&se=<expiry>`. " +
-			"Never written to state or plan; hand it to a write-only argument or a provisioning step that needs a " +
-			"short-lived device credential without exposing the key itself.\n\n" +
+		MarkdownDescription: "A device (or module) shared access signature (`SharedAccessSignature sr=…&sig=…&se=…`), " +
+			"signed with the identity's symmetric key. Never written to state or plan; hand it to a write-only argument or a " +
+			"provisioning step that needs a short-lived device credential without exposing the key itself.\n\n" +
 			"Like `iothub_device_credentials`, an identity that does not exist yet (created in the same run) yields " +
 			"unknown values at plan time and the real token at apply.",
 		Attributes: map[string]schema.Attribute{

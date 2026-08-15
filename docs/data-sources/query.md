@@ -3,15 +3,15 @@
 page_title: "iothub_query Data Source - iothub"
 subcategory: ""
 description: |-
-  Runs an IoT Hub query language https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language statement against the hub (POST /devices/query) and returns every result page.
-  Results are JSON strings — SELECT * FROM devices yields whole twins, projections yield the selected columns, FROM devices.jobs yields job records — so use jsondecode() on them. The query index is eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed for a while afterwards. Queries are among the most tightly throttled operations (20/min/unit on S1), so prefer iothub_device / iothub_device_twin data sources for point lookups.
+  Runs an IoT Hub query language https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language statement against the hub and returns all results.
+  Results are JSON strings — SELECT * FROM devices yields whole twins, projections yield the selected columns, FROM devices.jobs yields job records — so use jsondecode() on them. The query index is eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed for a while afterwards. Prefer the iothub_device / iothub_device_twin data sources for point lookups.
 ---
 
 # iothub_query (Data Source)
 
-Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) statement against the hub (`POST /devices/query`) and returns every result page.
+Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) statement against the hub and returns all results.
 
-Results are JSON strings — `SELECT * FROM devices` yields whole twins, projections yield the selected columns, `FROM devices.jobs` yields job records — so use `jsondecode()` on them. The query index is eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed for a while afterwards. Queries are among the most tightly throttled operations (20/min/unit on S1), so prefer `iothub_device` / `iothub_device_twin` data sources for point lookups.
+Results are JSON strings — `SELECT * FROM devices` yields whole twins, projections yield the selected columns, `FROM devices.jobs` yields job records — so use `jsondecode()` on them. The query index is eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed for a while afterwards. Prefer the `iothub_device` / `iothub_device_twin` data sources for point lookups.
 
 ## Example Usage
 
@@ -48,7 +48,7 @@ output "stale_firmware_count" {
 
 ### Read-Only
 
-- `id` (String) `<hostname>/query/<short hash of the query>` (first 8 bytes of its SHA-256, hex).
+- `id` (String) `<hostname>/query/<short hash of the query>`.
 - `item_type` (String) `Raw` (projection), `Twin` (`SELECT *`) or `DeviceJob`, as reported by the hub.
 - `result_count` (Number) Number of results.
 - `results` (List of String) One JSON string per result row, in the order the hub returns them.

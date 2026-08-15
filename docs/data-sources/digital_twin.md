@@ -3,15 +3,12 @@
 page_title: "iothub_digital_twin Data Source - iothub"
 subcategory: ""
 description: |-
-  The IoT Plug and Play digital twin of a device (GET /digitaltwins/{id}): the document the hub derives from the device twin and the device's DTDL model — $dtId, $metadata.$model, root-level properties and components (objects carrying their own $metadata). It is read-only here by design: PnP writable properties are twin desired properties, so they are managed with iothub_device_twin (component properties need the "__t": "c" marker).
-  The endpoint answers for every device — a device that never announced a model has an empty model_id and a document without properties. Under SAS authentication the shared access policy needs ServiceConnect (service or iothubowner).
+  The IoT Plug and Play digital twin of a device: the document the hub derives from the device twin and the device's DTDL model — $dtId, $metadata.$model, root-level properties and components (objects carrying their own $metadata). It is read-only: PnP writable properties are twin desired properties, so manage them with iothub_device_twin (component properties need the "__t": "c" marker). A device that never announced a model has a null model_id and a document without properties.
 ---
 
 # iothub_digital_twin (Data Source)
 
-The IoT Plug and Play **digital twin** of a device (`GET /digitaltwins/{id}`): the document the hub derives from the device twin and the device's DTDL model — `$dtId`, `$metadata.$model`, root-level properties and components (objects carrying their own `$metadata`). It is read-only here by design: PnP writable properties *are* twin desired properties, so they are managed with `iothub_device_twin` (component properties need the `"__t": "c"` marker).
-
-The endpoint answers for every device — a device that never announced a model has an empty `model_id` and a document without properties. Under SAS authentication the shared access policy needs *ServiceConnect* (`service` or `iothubowner`).
+The IoT Plug and Play **digital twin** of a device: the document the hub derives from the device twin and the device's DTDL model — `$dtId`, `$metadata.$model`, root-level properties and components (objects carrying their own `$metadata`). It is read-only: PnP writable properties *are* twin desired properties, so manage them with `iothub_device_twin` (component properties need the `"__t": "c"` marker). A device that never announced a model has a null `model_id` and a document without properties.
 
 ## Example Usage
 
@@ -64,6 +61,6 @@ resource "iothub_device_twin" "controller" {
 ### Read-Only
 
 - `document` (String) The digital twin document as a JSON string, verbatim from the hub. Use `jsondecode()`.
-- `etag` (String) ETag of the digital twin (equals the device twin's ETag).
+- `etag` (String) ETag of the digital twin.
 - `id` (String) `<hostname>/digitaltwins/<digital_twin_id>`.
 - `model_id` (String) DTDL model ID (`$metadata.$model`) announced by the device; null when the device is not a Plug and Play device.

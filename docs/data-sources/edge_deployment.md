@@ -40,7 +40,7 @@ output "base_deployment_health" {
 ### Read-Only
 
 - `created_time_utc` (String) Creation time.
-- `etag` (String) ETag.
+- `etag` (String) ETag of the IoT Edge deployment.
 - `id` (String) `<hostname>/configurations/<id>`.
 - `labels` (Map of String) Labels.
 - `last_updated_time_utc` (String) Last update time.
