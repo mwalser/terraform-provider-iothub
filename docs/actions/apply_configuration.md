@@ -3,12 +3,18 @@
 page_title: "iothub_apply_configuration Action - iothub"
 subcategory: ""
 description: |-
-  Applies a deployment manifest's modulesContent to one IoT Edge device immediately. This bypasses iothub_edge_deployment targeting and is the equivalent of az iot edge set-modules. It is unrelated to iothub_configuration. Useful for one-off tests on a single gateway. For fleets, use iothub_edge_deployment. A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed. Fails for a device that is not an IoT Edge device.
+  Applies a deployment manifest's modulesContent to one IoT Edge device immediately. This bypasses iothub_edge_deployment targeting and is the equivalent of az iot edge set-modules. Fails for a device that is not an IoT Edge device.
+  Useful for one-off tests on a single gateway. For fleets, use iothub_edge_deployment. It is unrelated to iothub_configuration.
+  ~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed.
 ---
 
 # iothub_apply_configuration (Action)
 
-Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately. This bypasses `iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. It is unrelated to `iothub_configuration`. Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`. A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed. Fails for a device that is not an IoT Edge device.
+Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately. This bypasses `iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. Fails for a device that is not an IoT Edge device.
+
+Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`. It is unrelated to `iothub_configuration`.
+
+~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed.
 
 ## Example Usage
 

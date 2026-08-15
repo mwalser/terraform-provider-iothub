@@ -5,7 +5,9 @@ subcategory: ""
 description: |-
   Runs a bulk identity registry job. An export writes the registry to a blob container, optionally with configurations and deployments. An import reads a file in the same format from a container. The file format is described in Import and export IoT Hub device identities in bulk https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt.
   Blob access is either keyBased or identityBased. With keyBased you pass container SAS URIs. Action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS. With identityBased the hub uses its system-assigned or a user-assigned managed identity, which needs Storage Blob Data Contributor on the container.
-  With wait = true (default) the action waits for the job to finish. It fails if the job failed or was cancelled. An import job counts as completed even when individual lines failed. Those errors are only written to importErrors.log in the output container. The action names the log but does not read it. Only one import or export job runs per hub at a time, so the action waits for its turn within timeout. A role assignment that has just been granted can take a few minutes to become effective. The action retries during that window.
+  With wait = true (default) the action waits for the job to finish. It fails if the job failed or was cancelled.
+  ~> An import that finishes with per-line errors still counts as completed. The hub writes those errors to importErrors.log in the output container. The action tells you where the log is but does not read it, so check it after every import.
+  Only one import or export job runs per hub at a time, so the action waits for its turn within timeout. With identityBased, a role assignment that has just been granted can take a few minutes to become effective. The action retries during that window.
 ---
 
 # iothub_import_export_job (Action)
@@ -14,7 +16,11 @@ Runs a bulk identity registry job. An **export** writes the registry to a blob c
 
 Blob access is either `keyBased` or `identityBased`. With `keyBased` you pass container SAS URIs. Action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS. With `identityBased` the hub uses its system-assigned or a user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container.
 
-With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. **An import job counts as completed even when individual lines failed.** Those errors are only written to `importErrors.log` in the output container. The action names the log but does not read it. Only one import or export job runs per hub at a time, so the action waits for its turn within `timeout`. A role assignment that has just been granted can take a few minutes to become effective. The action retries during that window.
+With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled.
+
+~> **An import that finishes with per-line errors still counts as completed.** The hub writes those errors to `importErrors.log` in the output container. The action tells you where the log is but does not read it, so check it after every import.
+
+Only one import or export job runs per hub at a time, so the action waits for its turn within `timeout`. With `identityBased`, a role assignment that has just been granted can take a few minutes to become effective. The action retries during that window.
 
 ## Example Usage
 
@@ -29,7 +35,7 @@ action "iothub_import_export_job" "export" {
     storage_authentication_type = "identityBased"
     exclude_keys_in_export      = true
     include_configurations      = true
-    output_blob_name            = "devices-${formatdate("YYYY-MM-DD", timestamp())}.txt"
+    output_blob_name            = "devices-${formatdate("YYYY-MM-DD", plantimestamp())}.txt"
   }
 }
 
@@ -67,11 +73,11 @@ action "iothub_import_export_job" "import" {
 - `configurations_blob_name` (String) Configurations file name (default `configurations.txt`).
 - `exclude_keys_in_export` (Boolean) Export without symmetric keys (default `false`). The hub then writes a plain-text warning as the first line of the export file.
 - `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-- `include_configurations` (Boolean) Also export or import configurations and deployments, in the file named by `configurations_blob_name`.
-- `input_blob_container_uri` (String) Container holding the import file. Only for `import`. With `keyBased`, the container URL followed by a SAS query string with at least read and list permissions. With `identityBased`, the plain container URL.
+- `include_configurations` (Boolean) Also export or import configurations and deployments, in the file named by `configurations_blob_name` (default `false`).
+- `input_blob_container_uri` (String) Container holding the import file. Required for `import`, ignored for `export`. With `keyBased`, the container URL followed by a SAS query string with at least read and list permissions. With `identityBased`, the plain container URL.
 - `input_blob_name` (String) Import file name (default `devices.txt`).
 - `output_blob_name` (String) Export file name (default `devices.txt`).
 - `storage_authentication_type` (String) `keyBased` for SAS URIs (default), or `identityBased` for the hub's managed identity.
-- `timeout` (String) Overall deadline for the invocation as a Go duration (default `1h`). It covers waiting for a free job slot and, when `wait` is true, the job's execution.
+- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `1h`). It covers waiting for a free job slot and, when `wait` is true, the job's execution.
 - `user_assigned_identity` (String) Resource ID of a user-assigned managed identity of the hub, for `identityBased`. The system-assigned identity is used when omitted.
 - `wait` (Boolean) Wait for the job to finish (default `true`). With `false` the action returns as soon as the job is created.

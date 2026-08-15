@@ -1,3 +1,4 @@
+# The outcome of the fw_channel job started by the iothub_scheduled_job example.
 data "iothub_scheduled_job" "fw_channel" {
   job_id = "fw-channel-1-4-0"
 }

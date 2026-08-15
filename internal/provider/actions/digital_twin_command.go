@@ -59,12 +59,13 @@ func (a *digitalTwinCommandAction) Schema(_ context.Context, _ action.SchemaRequ
 		MarkdownDescription: "Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set " +
 			"`component_path` for a component command. Leave it out for a root-level command. The device's response status is " +
 			"compared with `expected_status_codes`. Any other status fails the apply. So does a device that is offline or does not " +
-			"exist. The answer's status and payload are reported as progress output.\n\n" +
-			"IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. The shared access " +
-			"policy needs *ServiceConnect*, for example `service` or `iothubowner`.\n\n" +
-			"~> **Requires SAS authentication.** Configure the provider with `connection_string`. Under Entra ID, invoke the " +
-			"equivalent direct method with `iothub_direct_method` and `method_name = \"<component>*<command>\"`.\n\n" +
-			"If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the command may already have run on the device.",
+			"exist. The device's status and payload are shown in the apply output.\n\n" +
+			"If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the command " +
+			"may already have run on the device.\n\n" +
+			"~> **Requires SAS authentication.** IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the " +
+			"caller's role. Configure the provider with a `connection_string` whose policy has *ServiceConnect*, for example " +
+			"`service` or `iothubowner`. Under Entra ID, call the equivalent direct method with `iothub_direct_method` and " +
+			"`method_name = \"<component>*<command>\"`.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":        hostnameAttribute(),
 			"digital_twin_id": schema.StringAttribute{MarkdownDescription: "The device ID. A digital twin has the same ID as its device.", Required: true, Validators: []validator.String{identity.IDValidator()}},

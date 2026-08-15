@@ -69,7 +69,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"status_reason":                 c("Free-text reason for the status, if any."),
 			"edge_enabled":                  schema.BoolAttribute{MarkdownDescription: "Whether the device is an IoT Edge device.", Computed: true},
 			"parent_scope":                  c("Scope of the parent edge device, if the device is a child."),
-			"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority` or `none`."),
+			"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules."),
 			"primary_thumbprint":            c("Primary X.509 thumbprint, for `selfSigned` authentication."),
 			"secondary_thumbprint":          c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
 			"etag":                          c("ETag of the identity."),

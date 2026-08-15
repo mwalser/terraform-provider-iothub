@@ -2,7 +2,8 @@ terraform {
   required_version = ">= 1.14"
   required_providers {
     iothub = {
-      source = "mwalser/iothub"
+      source  = "mwalser/iothub"
+      version = "~> 0.1"
     }
   }
 }

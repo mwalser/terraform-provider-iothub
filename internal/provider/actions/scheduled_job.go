@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
@@ -48,6 +49,10 @@ type scheduledJobModel struct {
 	Timeout                 types.String `tfsdk:"timeout"`
 }
 
+// scheduledJobIDPattern is the hub's job ID charset (verified: uppercase,
+// underscores, dots and other punctuation are rejected; 64 characters at most).
+var scheduledJobIDPattern = regexp.MustCompile(`^[a-z0-9\-']{1,64}$`)
+
 type twinPatchModel struct {
 	Tags              jsondoc.Value `tfsdk:"tags"`
 	DesiredProperties jsondoc.Value `tfsdk:"desired_properties"`
@@ -78,9 +83,10 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"hostname": hostnameAttribute(),
 			"job_id": schema.StringAttribute{
-				MarkdownDescription: "Job ID, unique per hub. Generated as `tf-<random>` when omitted.",
-				Optional:            true,
-				Validators:          []validator.String{stringvalidator.LengthBetween(1, 128)},
+				MarkdownDescription: "Job ID, unique per hub: 1 to 64 lowercase letters, digits and hyphens. Generated as `tf-<random>` " +
+					"when omitted and shown in the apply output, so you can read or cancel the job later.",
+				Optional:   true,
+				Validators: []validator.String{stringvalidator.RegexMatches(scheduledJobIDPattern, "must be 1 to 64 lowercase letters, digits and hyphens")},
 			},
 			"type": schema.StringAttribute{
 				MarkdownDescription: "`scheduleUpdateTwin`, which needs `twin_patch`, or `scheduleDeviceMethod`, which needs `method`.",
@@ -98,7 +104,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Optional: true,
 			},
 			"max_execution_time_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub may run the job, in seconds. Devices not reached in time count as failed. Hub default when omitted.",
+				MarkdownDescription: "How long the hub may run the job, in seconds. Devices not reached in time count as failed. When omitted, the hub applies its own default; set it explicitly if devices may be offline for long.",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.AtLeast(1)},
 			},

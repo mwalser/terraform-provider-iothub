@@ -58,7 +58,8 @@ func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest,
 			"signed with the identity's symmetric key. It is never written to state or plan. Hand it to a write-only argument or " +
 			"to a provisioning step that needs a short-lived device credential without exposing the key itself.\n\n" +
 			"A new token is minted on every run. When you hand it to a write-only argument, change that argument's version each " +
-			"time you want the new token written. Fails for identities without symmetric keys, that is X.509 authentication. " +
+			"time you want the new token written. Fails for identities that authenticate with X.509 certificates, because they " +
+			"have no symmetric key. " +
 			"As with `iothub_device_credentials`, an identity that is created in the same run yields unknown values at plan " +
 			"time and the real token at apply.",
 		Attributes: map[string]schema.Attribute{
@@ -66,7 +67,7 @@ func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest,
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"module_id": schema.StringAttribute{MarkdownDescription: "Module ID, for a module token.", Optional: true},
 			"ttl": schema.StringAttribute{
-				MarkdownDescription: "Token lifetime as a Go duration such as `30m`, `24h` or `168h` (default `1h`). Counted from the moment the token is minted.",
+				MarkdownDescription: "Token lifetime, for example `30m`, `24h` or `168h` (default `1h`). Counted from the moment the token is minted.",
 				Optional:            true,
 			},
 			"key": schema.StringAttribute{

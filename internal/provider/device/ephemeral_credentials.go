@@ -51,15 +51,15 @@ func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaReque
 		Attributes: map[string]schema.Attribute{
 			"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
-			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, `certificateAuthority` or `none`.", Computed: true},
-			"primary_key":         schema.StringAttribute{MarkdownDescription: "Primary key, base64 encoded (sas only).", Computed: true, Sensitive: true},
-			"secondary_key":       schema.StringAttribute{MarkdownDescription: "Secondary key, base64 encoded (sas only).", Computed: true, Sensitive: true},
+			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.", Computed: true},
+			"primary_key":         schema.StringAttribute{MarkdownDescription: "Primary key, base64 encoded. Null unless `authentication_type` is `sas`.", Computed: true, Sensitive: true},
+			"secondary_key":       schema.StringAttribute{MarkdownDescription: "Secondary key, base64 encoded. Null unless `authentication_type` is `sas`.", Computed: true, Sensitive: true},
 			"primary_connection_string": schema.StringAttribute{
-				MarkdownDescription: "`HostName=…;DeviceId=…;SharedAccessKey=<primary key>` (sas only).",
+				MarkdownDescription: "`HostName=…;DeviceId=…;SharedAccessKey=<primary key>`. Null unless `authentication_type` is `sas`.",
 				Computed:            true, Sensitive: true,
 			},
 			"secondary_connection_string": schema.StringAttribute{
-				MarkdownDescription: "`HostName=…;DeviceId=…;SharedAccessKey=<secondary key>` (sas only).",
+				MarkdownDescription: "`HostName=…;DeviceId=…;SharedAccessKey=<secondary key>`. Null unless `authentication_type` is `sas`.",
 				Computed:            true, Sensitive: true,
 			},
 		},

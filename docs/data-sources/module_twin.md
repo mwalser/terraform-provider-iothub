@@ -18,7 +18,7 @@ data "iothub_module_twin" "edge_agent" {
   module_id = "$edgeAgent"
 }
 
-output "edge_agent_runtime_status" {
+output "edge_agent_platform" {
   value = try(jsondecode(data.iothub_module_twin.edge_agent.reported_properties).runtime.platform, null)
 }
 ```

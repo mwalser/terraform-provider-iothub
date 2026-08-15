@@ -5,16 +5,21 @@ variable "release" {
 
 # A base deployment from a standard deployment manifest file.
 resource "iothub_edge_deployment" "base" {
+  # A changed manifest replaces the deployment. A version in the ID plus
+  # create_before_destroy avoids a window without a deployment.
   deployment_id    = "base-${replace(var.release, ".", "-")}"
   target_condition = "tags.site = 'munich'"
   priority         = 10
   labels           = { release = var.release }
 
-  # Immutable: a changed manifest replaces the deployment (use a versioned ID).
   modules_content = jsonencode(jsondecode(file("${path.module}/deployment.json")).modulesContent)
 
   metrics = {
     healthy = "SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 

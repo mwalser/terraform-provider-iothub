@@ -22,7 +22,7 @@ const (
 // no timeouts block); covers says what the deadline spans for this action.
 func timeoutAttribute(def, covers string) schema.StringAttribute {
 	return schema.StringAttribute{
-		MarkdownDescription: "Overall deadline for the invocation as a Go duration (default `" + def + "`). " + covers,
+		MarkdownDescription: "Overall deadline for the invocation, for example `30m` (default `" + def + "`). " + covers,
 		Optional:            true,
 	}
 }

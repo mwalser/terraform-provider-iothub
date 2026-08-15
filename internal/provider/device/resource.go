@@ -126,8 +126,8 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				Validators:          []validator.String{stringvalidator.LengthAtMost(128)},
 			},
 			"edge_enabled": schema.BoolAttribute{
-				MarkdownDescription: "Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and " +
-					"the `$edgeAgent` and `$edgeHub` module identities.",
+				MarkdownDescription: "Whether the device is an IoT Edge device (default `false`). Edge devices get a hub-generated " +
+					"`device_scope` and the `$edgeAgent` and `$edgeHub` module identities.",
 				Optional:      true,
 				Computed:      true,
 				Default:       booldefault.StaticBool(false),
@@ -135,7 +135,8 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 			"parent_scope": schema.StringAttribute{
 				MarkdownDescription: "The `device_scope` of the parent IoT Edge device. Setting it makes this device a child of " +
-					"that gateway, either as a leaf device or as a nested edge device. A device has at most one parent.",
+					"that gateway, either as a leaf device or as a nested edge device. Remove it to detach the device from its " +
+					"parent. A device has at most one parent.",
 				Optional:   true,
 				Validators: []validator.String{stringvalidator.RegexMatches(regexpPrefix(parentScopePrefix), "must be an edge device scope starting with "+parentScopePrefix)},
 			},
@@ -159,7 +160,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 		},
 		Blocks: map[string]schema.Block{
-			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),
+			"timeouts": timeouts.Block(ctx, common.TimeoutsOpts("20m")),
 		},
 	}
 	for name, a := range identity.WriteOnlyKeyAttributes() {

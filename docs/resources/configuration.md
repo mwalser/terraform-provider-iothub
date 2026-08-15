@@ -4,29 +4,42 @@ page_title: "iothub_configuration Resource - iothub"
 subcategory: ""
 description: |-
   An automatic device management configuration. The hub applies its desired properties to every device or module that matches target_condition, in order of priority.
-  target_condition, priority, labels and metrics can be changed in place. Changing device_content or module_content replaces the configuration.
+  target_condition, priority, labels, metrics and schema_version can be changed in place. target_condition and the metrics queries are checked against the hub at plan time. Changing device_content or module_content replaces the configuration. The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }.
+  Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 ---
 
 # iothub_configuration (Resource)
 
 An automatic device management configuration. The hub applies its desired properties to every device or module that matches `target_condition`, in order of `priority`.
 
-`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing `device_content` or `module_content` replaces the configuration.**
+`target_condition`, `priority`, `labels`, `metrics` and `schema_version` can be changed in place. `target_condition` and the `metrics` queries are checked against the hub at plan time. **Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`.
+
+Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 
 ## Example Usage
 
 ```terraform
+variable "release" {
+  type    = string
+  default = "1.4.0"
+}
+
 # Push a desired firmware channel to every EU leaf device (device twins).
 resource "iothub_configuration" "fw_channel" {
-  configuration_id = "fw-channel-stable"
+  # Changing the content replaces the configuration. A version in the ID plus
+  # create_before_destroy avoids a window without a configuration.
+  configuration_id = "fw-channel-${replace(var.release, ".", "-")}"
   target_condition = "tags.fleet.region = 'eu' AND tags.kind = 'leaf'"
   priority         = 10
-  labels           = { owner = "platform" }
+  labels           = { owner = "platform", release = var.release }
 
-  # Immutable: changing the content replaces the configuration.
   device_content = jsonencode({
-    "properties.desired.firmware" = { channel = "stable" }
+    "properties.desired.firmware" = { channel = "stable", release = var.release }
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   # Custom metrics. Results appear in `metric_results`.
   metrics = {
@@ -61,14 +74,14 @@ resource "iothub_configuration" "telemetry_interval" {
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.
 - `module_content` (String) Module twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys. Use it with a module target condition such as `FROM devices.modules WHERE moduleId = '…'`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
 - `priority` (Number) Priority, 0 or higher (default 0). When several configurations target the same device, the highest priority wins.
-- `schema_version` (String) Optional version string of the configuration document, for example `1.0` as the Azure CLI writes it. Omit it unless you need a specific value. The hub's value is then accepted as-is.
+- `schema_version` (String) Optional version string of the configuration document, for example `1.0` as the Azure CLI writes it. When omitted, whatever the hub reports is accepted and never shows as drift.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
 - `created_time_utc` (String) Creation time.
 - `etag` (String) ETag of the configuration.
-- `id` (String) `<hostname>/configurations/<id>`. Also the import ID.
+- `id` (String) `<hostname>/configurations/<configuration_id>`. Also the import ID.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration.
@@ -78,10 +91,10 @@ resource "iothub_configuration" "telemetry_interval" {
 
 Optional:
 
-- `create` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours).
-- `delete` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours). Setting a timeout for a Delete operation is only applicable if changes are saved into state before the destroy operation occurs.
-- `read` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours). Read operations occur during any refresh or planning operation when refresh is enabled.
-- `update` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours).
+- `create` (String) How long to wait for the create to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `delete` (String) How long to wait for the delete to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `read` (String) How long to wait for the read to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `update` (String) How long to wait for the update to finish, including retries of throttled requests (default `20m`), for example `30m`.
 
 ## Import
 

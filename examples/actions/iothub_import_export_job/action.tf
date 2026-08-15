@@ -8,7 +8,7 @@ action "iothub_import_export_job" "export" {
     storage_authentication_type = "identityBased"
     exclude_keys_in_export      = true
     include_configurations      = true
-    output_blob_name            = "devices-${formatdate("YYYY-MM-DD", timestamp())}.txt"
+    output_blob_name            = "devices-${formatdate("YYYY-MM-DD", plantimestamp())}.txt"
   }
 }
 

@@ -3,18 +3,21 @@
 page_title: "iothub_module Resource - iothub"
 subcategory: ""
 description: |-
-  A module identity on a device. A module has its own credentials and its own twin. Manage the twin with iothub_module_twin. Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules. Only device_id, module_id and hostname force replacement. Every other attribute changes in place.
+  A module identity on a device. A module has its own credentials and its own twin. Manage the twin with iothub_module_twin. Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules.
+  Only device_id, module_id and hostname force replacement. Every other attribute changes in place.
   Credentials work as for iothub_device. The hub generates SAS keys by default and they are stored in state as sensitive values. Use the write-only primary_key_wo and secondary_key_wo arguments to keep keys out of state, and iothub_module_credentials to read connection strings. IoT Edge devices get the system modules $edgeAgent and $edgeHub from the hub. Those are not created through this resource.
-  ~> With SAS authentication the hub refuses to create, change or delete modules of a disabled device. Enable the device first, or authenticate with Entra ID. Reading an unchanged module keeps working.
+  ~> With SAS authentication the hub refuses to create, change or delete modules of a disabled device. Enable the device first, or authenticate with Entra ID. Refreshing an existing module still works.
 ---
 
 # iothub_module (Resource)
 
-A module identity on a device. A module has its own credentials and its own twin. Manage the twin with `iothub_module_twin`. Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules. Only `device_id`, `module_id` and `hostname` force replacement. Every other attribute changes in place.
+A module identity on a device. A module has its own credentials and its own twin. Manage the twin with `iothub_module_twin`. Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules.
+
+Only `device_id`, `module_id` and `hostname` force replacement. Every other attribute changes in place.
 
 Credentials work as for `iothub_device`. The hub generates SAS keys by default and they are stored in state as sensitive values. Use the write-only `primary_key_wo` and `secondary_key_wo` arguments to keep keys out of state, and `iothub_module_credentials` to read connection strings. IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub. Those are not created through this resource.
 
-~> With SAS authentication the hub refuses to create, change or delete modules of a *disabled* device. Enable the device first, or authenticate with Entra ID. Reading an unchanged module keeps working.
+~> With SAS authentication the hub refuses to create, change or delete modules of a *disabled* device. Enable the device first, or authenticate with Entra ID. Refreshing an existing module still works.
 
 ## Example Usage
 
@@ -74,9 +77,9 @@ resource "iothub_module" "diagnostics" {
 - `authentication` (Attributes) How the module authenticates. When omitted, the hub generates SAS keys. After an import, omitting it keeps the module's existing credentials. (see [below for nested schema](#nestedatt--authentication))
 - `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the module.
 - `managed_by` (String) Free-text owner of the module. The hub sets `iotEdge` on its system modules.
-- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version`. Changing the key value alone has no effect. Change the version whenever you change the key.
+- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version`. Changing the key value alone has no effect. Change the version whenever you change the key. Cannot be combined with `authentication.primary_key`. Set `secondary_key_wo` as well: with only one write-only key, the hub generates the other and it is stored in state.
 - `primary_key_wo_version` (Number) Version marker for `primary_key_wo`. Change it to rotate the key.
-- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key. Works like `primary_key_wo`.
+- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key. Works like `primary_key_wo`. Cannot be combined with `authentication.secondary_key`.
 - `secondary_key_wo_version` (Number) Version marker for `secondary_key_wo`. Change it to rotate the key.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
@@ -95,9 +98,9 @@ resource "iothub_module" "diagnostics" {
 
 Optional:
 
-- `primary_key` (String, Sensitive) Primary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.
+- `primary_key` (String, Sensitive) Primary key, base64 encoded (16 to 64 bytes). Generated by the hub on create when omitted. A key rotated outside Terraform is adopted on refresh unless you set it explicitly. Not returned when `primary_key_wo` is used.
 - `primary_thumbprint` (String) Primary X.509 thumbprint for `selfSigned`: 40 or 64 hex characters without separators.
-- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.
+- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (16 to 64 bytes). Generated by the hub on create when omitted. A key rotated outside Terraform is adopted on refresh unless you set it explicitly. Not returned when `secondary_key_wo` is used.
 - `secondary_thumbprint` (String) Secondary X.509 thumbprint for `selfSigned`.
 - `type` (String) `sas` for symmetric keys (default), `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates.
 
@@ -107,10 +110,10 @@ Optional:
 
 Optional:
 
-- `create` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours).
-- `delete` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours). Setting a timeout for a Delete operation is only applicable if changes are saved into state before the destroy operation occurs.
-- `read` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours). Read operations occur during any refresh or planning operation when refresh is enabled.
-- `update` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours).
+- `create` (String) How long to wait for the create to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `delete` (String) How long to wait for the delete to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `read` (String) How long to wait for the read to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `update` (String) How long to wait for the update to finish, including retries of throttled requests (default `20m`), for example `30m`.
 
 ## Import
 

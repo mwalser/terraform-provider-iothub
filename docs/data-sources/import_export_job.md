@@ -43,5 +43,5 @@ output "export_status" {
 - `progress` (Number) Progress in percent.
 - `start_time` (String) Start time.
 - `status` (String) `enqueued`, `running`, `completed`, `failed` or `cancelled`.
-- `storage_authentication_type` (String) `keyBased` or `identityBased`, when reported.
+- `storage_authentication_type` (String) `keyBased` or `identityBased`. Null when the hub does not report it.
 - `type` (String) `export` or `import`.

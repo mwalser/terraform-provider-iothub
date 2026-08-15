@@ -1,15 +1,26 @@
 ---
 page_title: "iothub Provider"
 description: |-
-  Manages the Azure IoT Hub data plane: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself, and everything else under Azure Resource Manager, is managed with the azurerm provider.
-  Authentication is Microsoft Entra ID by default. Setting connection_string switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically until the operation's timeout. Requires Terraform 1.14 or later.
+  Manages the Azure IoT Hub data plane: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play. The hub itself, and everything else under Azure Resource Manager, is managed with the azurerm provider.
+  Requirements:
+  Terraform 1.14 or later.An IoT Hub in the Azure public cloud. Sovereign clouds are not supported.Either an Entra ID identity with an IoT Hub data-plane role on the hub, or a shared access policy connection string (see Permissions below).
+  Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, and Device Provisioning Service enrollments.
+  Authentication is Microsoft Entra ID by default. Setting connection_string switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically until the operation's timeout. The provider is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every such change.
 ---
 
 # iothub Provider
 
-Manages the Azure IoT Hub **data plane**: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.
+Manages the Azure IoT Hub **data plane**: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play. The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.
 
-Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically until the operation's timeout. Requires Terraform 1.14 or later.
+Requirements:
+
+- Terraform 1.14 or later.
+- An IoT Hub in the Azure public cloud. Sovereign clouds are not supported.
+- Either an Entra ID identity with an IoT Hub data-plane role on the hub, or a shared access policy connection string (see Permissions below).
+
+Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, and Device Provisioning Service enrollments.
+
+Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically until the operation's timeout. The provider is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every such change.
 
 ## Example Usage
 
@@ -18,7 +29,8 @@ terraform {
   required_version = ">= 1.14"
   required_providers {
     iothub = {
-      source = "mwalser/iothub"
+      source  = "mwalser/iothub"
+      version = "~> 0.1"
     }
   }
 }
@@ -52,10 +64,13 @@ policy (SAS). Narrower permissions work for subsets:
 
 | To use | Entra ID role | SAS policy permissions |
 |---|---|---|
-| `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
+| `iothub_device`, `iothub_module`, their data sources, `iothub_device_credentials`, `iothub_module_credentials` and `iothub_device_sas_token` | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
 | Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, the `iothub_device` and `iothub_module` list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
 | Configurations and deployments (resources, data sources, list resources), jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
 | `iothub_digital_twin_command` | not possible, SAS only (see below) | ServiceConnect |
+
+The identity that runs `terraform plan` needs the read permissions too:
+refresh reads every managed object, and ephemeral resources open during plan.
 
 Two service restrictions depend on the authentication mode:
 
@@ -69,8 +84,8 @@ Two service restrictions depend on the authentication mode:
 Every resource, data source, ephemeral resource, action and list resource
 accepts its own `hostname`. This lets a single provider block manage several
 hubs. It also lets you reference a hub that the same configuration creates,
-for example `azurerm_iothub.x.hostname`. Hostnames are given in lowercase,
-for example `contoso.azure-devices.net`.
+for example `azurerm_iothub.x.hostname`. Write hostnames in lowercase, for
+example `contoso.azure-devices.net`. Other spellings are rejected.
 
 <!-- schema generated by tfplugindocs -->
 ## Schema
@@ -82,9 +97,9 @@ for example `contoso.azure-devices.net`.
 - `client_id` (String) Entra ID application (client) ID. Falls back to `ARM_CLIENT_ID` or `AZURE_CLIENT_ID`.
 - `client_secret` (String, Sensitive) Client secret for service-principal authentication. Falls back to `ARM_CLIENT_SECRET` or `AZURE_CLIENT_SECRET`.
 - `connection_string` (String, Sensitive) Connection string of a hub shared access policy (`HostName=…;SharedAccessKeyName=…;SharedAccessKey=…`). Setting it selects SAS authentication instead of Entra ID. Falls back to `IOTHUB_CONNECTION_STRING`. `azurerm_iothub_shared_access_policy` exposes it as `primary_connection_string`.
-- `hostname` (String) Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source, ephemeral resource, action and list resource can override it with its own `hostname`. Falls back to `IOTHUB_HOSTNAME`. Derived from `connection_string` when that is set.
+- `hostname` (String) Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source, ephemeral resource, action and list resource can override it with its own `hostname`. Falls back to `IOTHUB_HOSTNAME`. When `connection_string` is set you can omit `hostname`, which is then taken from the connection string. If you set both, they must name the same hub.
 - `oidc_token_file_path` (String) File containing the federated token when `use_oidc` is set. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` or `AZURE_FEDERATED_TOKEN_FILE`.
 - `tenant_id` (String) Entra ID tenant. Falls back to `ARM_TENANT_ID` or `AZURE_TENANT_ID`.
 - `use_cli` (Boolean) Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`.
 - `use_msi` (Boolean) Authenticate with the managed identity of the machine running Terraform. Falls back to `ARM_USE_MSI`.
-- `use_oidc` (Boolean) Authenticate with a federated workload identity token, as used by GitHub Actions, HCP Terraform or Kubernetes. Falls back to `ARM_USE_OIDC`.
+- `use_oidc` (Boolean) Authenticate with a federated workload identity token read from `oidc_token_file_path`, as Kubernetes workload identity provides it. Falls back to `ARM_USE_OIDC`. `ARM_OIDC_TOKEN` and the GitHub Actions request URL are not supported. In GitHub Actions, log in with `azure/login` and let the provider use the Azure CLI session.

@@ -79,14 +79,14 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A module identity on a device. A module has its own credentials and its own twin. Manage the twin " +
 			"with `iothub_module_twin`. Deleting a module deletes its twin. Modules have no status of their own: a disabled device " +
-			"disables its modules. Only `device_id`, `module_id` and `hostname` force replacement. Every other attribute changes " +
-			"in place.\n\n" +
+			"disables its modules.\n\n" +
+			"Only `device_id`, `module_id` and `hostname` force replacement. Every other attribute changes in place.\n\n" +
 			"Credentials work as for `iothub_device`. The hub generates SAS keys by default and they are stored in state as " +
 			"sensitive values. Use the write-only `primary_key_wo` and `secondary_key_wo` arguments to keep keys out of state, " +
 			"and `iothub_module_credentials` to read connection strings. IoT Edge devices get the system modules `$edgeAgent` " +
 			"and `$edgeHub` from the hub. Those are not created through this resource.\n\n" +
 			"~> With SAS authentication the hub refuses to create, change or delete modules of a *disabled* device. Enable the " +
-			"device first, or authenticate with Entra ID. Reading an unchanged module keeps working.",
+			"device first, or authenticate with Entra ID. Refreshing an existing module still works.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>`. Also the import ID.",
@@ -139,7 +139,7 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 		},
 		Blocks: map[string]schema.Block{
-			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),
+			"timeouts": timeouts.Block(ctx, common.TimeoutsOpts("20m")),
 		},
 	}
 	for name, a := range identity.WriteOnlyKeyAttributes() {

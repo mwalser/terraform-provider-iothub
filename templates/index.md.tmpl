@@ -26,10 +26,13 @@ policy (SAS). Narrower permissions work for subsets:
 
 | To use | Entra ID role | SAS policy permissions |
 |---|---|---|
-| `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
+| `iothub_device`, `iothub_module`, their data sources, `iothub_device_credentials`, `iothub_module_credentials` and `iothub_device_sas_token` | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
 | Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, the `iothub_device` and `iothub_module` list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
 | Configurations and deployments (resources, data sources, list resources), jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
 | `iothub_digital_twin_command` | not possible, SAS only (see below) | ServiceConnect |
+
+The identity that runs `terraform plan` needs the read permissions too:
+refresh reads every managed object, and ephemeral resources open during plan.
 
 Two service restrictions depend on the authentication mode:
 
@@ -43,7 +46,7 @@ Two service restrictions depend on the authentication mode:
 Every resource, data source, ephemeral resource, action and list resource
 accepts its own `hostname`. This lets a single provider block manage several
 hubs. It also lets you reference a hub that the same configuration creates,
-for example `azurerm_iothub.x.hostname`. Hostnames are given in lowercase,
-for example `contoso.azure-devices.net`.
+for example `azurerm_iothub.x.hostname`. Write hostnames in lowercase, for
+example `contoso.azure-devices.net`. Other spellings are rejected.
 
 {{ .SchemaMarkdown | trimspace }}

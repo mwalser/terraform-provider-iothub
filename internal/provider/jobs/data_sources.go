@@ -221,7 +221,7 @@ func (d *importExportJobDataSource) Schema(_ context.Context, _ datasource.Schem
 			"failure_reason":              c("Failure reason, if any. Per-line import errors are not reported here. The hub writes them to `importErrors.log` in the output container."),
 			"exclude_keys_in_export":      schema.BoolAttribute{MarkdownDescription: "Whether keys were excluded from the export.", Computed: true},
 			"include_configurations":      schema.BoolAttribute{MarkdownDescription: "Whether configurations were included.", Computed: true},
-			"storage_authentication_type": c("`keyBased` or `identityBased`, when reported."),
+			"storage_authentication_type": c("`keyBased` or `identityBased`. Null when the hub does not report it."),
 		},
 	}
 }

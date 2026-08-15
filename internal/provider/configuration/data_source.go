@@ -78,11 +78,11 @@ func (d *configDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	attrs := map[string]schema.Attribute{
-		"id":                    c("`<hostname>/configurations/<id>`."),
+		"id":                    c("`<hostname>/configurations/<" + d.kind.idAttr() + ">`."),
 		"hostname":              schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 		d.kind.idAttr():         schema.StringAttribute{MarkdownDescription: "ID of the " + d.kind.noun() + ".", Required: true},
-		"target_condition":      c("Which devices or modules the " + d.kind.noun() + " targets, as a query condition."),
-		"priority":              schema.Int64Attribute{MarkdownDescription: "Priority. Higher wins when several target the same device.", Computed: true},
+		"target_condition":      c(targetConditionSummary(d.kind)),
+		"priority":              schema.Int64Attribute{MarkdownDescription: "Priority. Higher wins when several " + d.kind.noun() + "s target the same device.", Computed: true},
 		"labels":                schema.MapAttribute{MarkdownDescription: "Free-form labels.", ElementType: types.StringType, Computed: true},
 		"metrics":               schema.MapAttribute{MarkdownDescription: "Custom metrics: a map from metric name to an IoT Hub query.", ElementType: types.StringType, Computed: true},
 		"schema_version":        c("Version string of the " + d.kind.noun() + " document, if set."),

@@ -59,7 +59,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 	attrs := map[string]schema.Attribute{
 		"id": schema.StringAttribute{
-			MarkdownDescription: "`<hostname>/configurations/<id>`. Also the import ID.",
+			MarkdownDescription: "`<hostname>/configurations/<" + r.kind.idAttr() + ">`. Also the import ID.",
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 		},
@@ -104,7 +104,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			Validators:          []validator.Map{mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1))},
 		},
 		"schema_version": schema.StringAttribute{
-			MarkdownDescription: "Optional version string of the " + r.kind.noun() + " document, for example `1.0` as the Azure CLI writes it. Omit it unless you need a specific value. The hub's value is then accepted as-is.",
+			MarkdownDescription: "Optional version string of the " + r.kind.noun() + " document, for example `1.0` as the Azure CLI writes it. When omitted, whatever the hub reports is accepted and never shows as drift.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
@@ -135,9 +135,16 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 		}
 		description = "An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every " +
-			"IoT Edge device that matches `target_condition`, in order of `priority`.\n\n" +
-			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing `modules_content` " +
-			"replaces the deployment.**"
+			"IoT Edge device that matches `target_condition`, in order of `priority`. There is no separate flag for layered " +
+			"deployments: a deployment is layered when its `$edgeAgent` content sets `properties.desired.modules.<name>` keys " +
+			"instead of a full `properties.desired`.\n\n" +
+			"`target_condition`, `priority`, `labels`, `metrics` and `schema_version` can be changed in place. `target_condition` " +
+			"and the `metrics` queries are checked against the hub at plan time. **Changing `modules_content` replaces the " +
+			"deployment.** The content is compared by value, so reformatting it is not a change. A replacement deletes the " +
+			"deployment and creates it again under the same ID. To avoid a window without a deployment, put a version in " +
+			"`deployment_id` and use `lifecycle { create_before_destroy = true }`, as the example shows.\n\n" +
+			"Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment " +
+			"targets them."
 	} else {
 		attrs["device_content"] = schema.StringAttribute{
 			CustomType: ContentType,
@@ -159,14 +166,19 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		}
 		description = "An automatic device management configuration. The hub applies its desired properties to every device or " +
 			"module that matches `target_condition`, in order of `priority`.\n\n" +
-			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing `device_content` or " +
-			"`module_content` replaces the configuration.**"
+			"`target_condition`, `priority`, `labels`, `metrics` and `schema_version` can be changed in place. `target_condition` " +
+			"and the `metrics` queries are checked against the hub at plan time. **Changing `device_content` or `module_content` " +
+			"replaces the configuration.** The content is compared by value, so reformatting it is not a change. A replacement " +
+			"deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a " +
+			"version in `configuration_id` and use `lifecycle { create_before_destroy = true }`.\n\n" +
+			"Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until " +
+			"another configuration or a twin resource changes them."
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: description,
 		Attributes:          attrs,
 		Blocks: map[string]schema.Block{
-			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),
+			"timeouts": timeouts.Block(ctx, common.TimeoutsOpts("20m")),
 		},
 	}
 }
@@ -556,4 +568,12 @@ func systemMetricsDescription(k kind) string {
 			"`reportedFailedCount`. Empty until the hub has evaluated the deployment."
 	}
 	return "Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration."
+}
+
+// targetConditionSummary is the short data-source form of targetConditionDescription.
+func targetConditionSummary(k kind) string {
+	if k.isEdge() {
+		return "Which IoT Edge devices the deployment targets, as a query condition."
+	}
+	return "Which devices or modules the configuration targets, as a query condition."
 }

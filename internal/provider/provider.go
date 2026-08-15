@@ -65,16 +65,25 @@ func (p *IoTHubProvider) Metadata(_ context.Context, _ provider.MetadataRequest,
 func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages the Azure IoT Hub **data plane**: device and module identities, twins, " +
-			"automatic device management configurations, IoT Edge deployments, jobs and direct methods. " +
+			"automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play. " +
 			"The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.\n\n" +
+			"Requirements:\n\n" +
+			"- Terraform 1.14 or later.\n" +
+			"- An IoT Hub in the Azure public cloud. Sovereign clouds are not supported.\n" +
+			"- Either an Entra ID identity with an IoT Hub data-plane role on the hub, or a shared access policy connection " +
+			"string (see Permissions below).\n\n" +
+			"Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, " +
+			"and Device Provisioning Service enrollments.\n\n" +
 			"Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to SAS authentication with a " +
-			"hub shared access policy. Throttled requests are retried automatically until the operation's timeout. Requires " +
-			"Terraform 1.14 or later.",
+			"hub shared access policy. Throttled requests are retried automatically until the operation's timeout. The provider " +
+			"is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every " +
+			"such change.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
 				MarkdownDescription: "Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source, " +
 					"ephemeral resource, action and list resource can override it with its own `hostname`. Falls back to " +
-					"`IOTHUB_HOSTNAME`. Derived from `connection_string` when that is set.",
+					"`IOTHUB_HOSTNAME`. When `connection_string` is set you can omit `hostname`, which is then taken from the " +
+					"connection string. If you set both, they must name the same hub.",
 				Optional: true,
 			},
 			"tenant_id": schema.StringAttribute{
@@ -100,8 +109,10 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Sensitive:           true,
 			},
 			"use_oidc": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with a federated workload identity token, as used by GitHub Actions, HCP Terraform or Kubernetes. Falls back to `ARM_USE_OIDC`.",
-				Optional:            true,
+				MarkdownDescription: "Authenticate with a federated workload identity token read from `oidc_token_file_path`, as Kubernetes " +
+					"workload identity provides it. Falls back to `ARM_USE_OIDC`. `ARM_OIDC_TOKEN` and the GitHub Actions request URL " +
+					"are not supported. In GitHub Actions, log in with `azure/login` and let the provider use the Azure CLI session.",
+				Optional: true,
 			},
 			"oidc_token_file_path": schema.StringAttribute{
 				MarkdownDescription: "File containing the federated token when `use_oidc` is set. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` or `AZURE_FEDERATED_TOKEN_FILE`.",

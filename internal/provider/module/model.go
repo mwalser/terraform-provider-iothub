@@ -52,7 +52,7 @@ func infoAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"module_id":                     c("Module ID."),
 		"managed_by":                    c("Owner of the module, for example `iotEdge` for system modules."),
-		"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority` or `none`."),
+		"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules."),
 		"primary_thumbprint":            c("Primary X.509 thumbprint, for `selfSigned` authentication."),
 		"secondary_thumbprint":          c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
 		"etag":                          c("ETag of the module identity."),

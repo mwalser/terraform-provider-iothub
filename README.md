@@ -66,7 +66,7 @@ resource "iothub_device" "sensor" {
   parent_scope = iothub_device.gateway.device_scope
 }
 
-# Manage exactly these values of the twin. Anything else in it is left alone.
+# Manage exactly these keys of the twin. Anything else in it is left alone.
 resource "iothub_device_twin" "sensor" {
   device_id = iothub_device.sensor.device_id
   tags      = jsonencode({ site = "munich", fleet = { ring = 2 } })
@@ -76,12 +76,13 @@ resource "iothub_device_twin" "sensor" {
   })
 }
 
-# Roll a firmware channel out to the whole EU fleet.
-resource "iothub_configuration" "fw_channel" {
-  configuration_id = "fw-channel-stable"
+# Set the maintenance window for the whole EU fleet. Configurations and twin
+# resources should not write the same desired property.
+resource "iothub_configuration" "maintenance" {
+  configuration_id = "maintenance-window-eu"
   target_condition = "tags.fleet.region = 'eu'"
   priority         = 10
-  device_content   = jsonencode({ "properties.desired.firmware" = { channel = "stable" } })
+  device_content   = jsonencode({ "properties.desired.maintenance" = { window = "02:00-04:00" } })
 }
 
 # Reboot the sensor whenever its twin changes.

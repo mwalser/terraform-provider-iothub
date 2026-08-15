@@ -50,8 +50,8 @@ resource "azurerm_key_vault_secret" "telemetry" {
 
 ### Read-Only
 
-- `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority` or `none`.
-- `primary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<primary key>` (sas only).
-- `primary_key` (String, Sensitive) Primary key, base64 encoded (sas only).
-- `secondary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<secondary key>` (sas only).
-- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (sas only).
+- `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.
+- `primary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<primary key>`. Null unless `authentication_type` is `sas`.
+- `primary_key` (String, Sensitive) Primary key, base64 encoded. Null unless `authentication_type` is `sas`.
+- `secondary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<secondary key>`. Null unless `authentication_type` is `sas`.
+- `secondary_key` (String, Sensitive) Secondary key, base64 encoded. Null unless `authentication_type` is `sas`.

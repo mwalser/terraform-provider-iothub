@@ -1,14 +1,24 @@
+variable "release" {
+  type    = string
+  default = "1.4.0"
+}
+
 # Push a desired firmware channel to every EU leaf device (device twins).
 resource "iothub_configuration" "fw_channel" {
-  configuration_id = "fw-channel-stable"
+  # Changing the content replaces the configuration. A version in the ID plus
+  # create_before_destroy avoids a window without a configuration.
+  configuration_id = "fw-channel-${replace(var.release, ".", "-")}"
   target_condition = "tags.fleet.region = 'eu' AND tags.kind = 'leaf'"
   priority         = 10
-  labels           = { owner = "platform" }
+  labels           = { owner = "platform", release = var.release }
 
-  # Immutable: changing the content replaces the configuration.
   device_content = jsonencode({
-    "properties.desired.firmware" = { channel = "stable" }
+    "properties.desired.firmware" = { channel = "stable", release = var.release }
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   # Custom metrics. Results appear in `metric_results`.
   metrics = {

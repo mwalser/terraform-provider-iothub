@@ -5,8 +5,9 @@ subcategory: ""
 description: |-
   Manages part of a module twin: the tags and desired properties you declare. Reported properties are read-only and available from the iothub_module_twin data source.
   Ownership and lifecycle
-  The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the values you declare in tags and desired_properties. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write desired.firmware.lastCheck beside your desired.firmware.channel without Terraform noticing. Several resources, teams and systems can therefore share one twin, as long as they declare different values. If two resources declare the same value, each apply overwrites the other's and both keep showing drift.
-  Removing a value from the configuration removes it from the twin. Destroying the resource removes all values it manages. To stop managing a twin without touching it, use removed { … lifecycle { destroy = false } }. An imported twin starts without managed values. The first apply adopts the values your configuration declares and deletes nothing else. Changes made outside Terraform to managed values show up as drift.
+  The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the keys you declare in tags and desired_properties, down to the innermost key. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write desired.firmware.lastCheck beside your desired.firmware.channel without Terraform noticing.
+  Several resources, teams and systems can therefore share one twin, as long as they declare different keys. If two writers declare the same key, each apply overwrites the other's value and both keep showing drift. That includes desired properties pushed by iothub_configuration and by iothub_scheduled_job twin patches, so do not declare a desired property here that a configuration also targets.
+  Removing a key from the configuration removes it from the twin. Destroying the resource removes every key it manages. To stop managing a twin without touching it, use removed { … lifecycle { destroy = false } }. An imported twin starts without managed keys. The first apply adopts the keys your configuration declares and deletes nothing else. Changes made outside Terraform to managed keys show up as drift.
   Keys and values must follow the twin format rules https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format. Violations are reported at plan time. Values are compared by content: key order, whitespace and 2 versus 2.0 count as equal, so they never show as drift from the hub. Reformatting a value in your own configuration still appears in the plan as an update, but that update writes nothing.
 ---
 
@@ -16,9 +17,11 @@ Manages part of a module twin: the tags and desired properties you declare. Repo
 
 ## Ownership and lifecycle
 
-The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the values you declare in `tags` and `desired_properties`. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write `desired.firmware.lastCheck` beside your `desired.firmware.channel` without Terraform noticing. Several resources, teams and systems can therefore share one twin, as long as they declare different values. If two resources declare the same value, each apply overwrites the other's and both keep showing drift.
+The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write `desired.firmware.lastCheck` beside your `desired.firmware.channel` without Terraform noticing.
 
-Removing a value from the configuration removes it from the twin. Destroying the resource removes all values it manages. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. An imported twin starts without managed values. The first apply adopts the values your configuration declares and deletes nothing else. Changes made outside Terraform to managed values show up as drift.
+Several resources, teams and systems can therefore share one twin, as long as they declare different keys. If two writers declare the same key, each apply overwrites the other's value and both keep showing drift. That includes desired properties pushed by `iothub_configuration` and by `iothub_scheduled_job` twin patches, so do not declare a desired property here that a configuration also targets.
+
+Removing a key from the configuration removes it from the twin. Destroying the resource removes every key it manages. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. An imported twin starts without managed keys. The first apply adopts the keys your configuration declares and deletes nothing else. Changes made outside Terraform to managed keys show up as drift.
 
 Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). Violations are reported at plan time. Values are compared by content: key order, whitespace and `2` versus `2.0` count as equal, so they never show as drift from the hub. Reformatting a value in your own configuration still appears in the plan as an update, but that update writes nothing.
 
@@ -30,6 +33,8 @@ resource "iothub_module" "telemetry" {
   module_id = "telemetry"
 }
 
+# Terraform manages exactly these keys: desired.interval and desired.sinks.
+# Anything else in the module twin is neither read nor written.
 resource "iothub_module_twin" "telemetry" {
   device_id = iothub_module.telemetry.device_id
   module_id = iothub_module.telemetry.module_id
@@ -51,15 +56,15 @@ resource "iothub_module_twin" "telemetry" {
 
 ### Optional
 
-- `desired_properties` (String) The desired properties this resource manages, as a JSON object (use `jsonencode`). Only the values declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no desired properties.
+- `desired_properties` (String) The desired properties this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no desired properties.
 - `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
-- `tags` (String) The tags this resource manages, as a JSON object (use `jsonencode`). Only the values declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.
+- `tags` (String) The tags this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
 - `etag` (String) ETag of the twin.
-- `id` (String) `<hostname>/twins/<device_id>/modules/<module_id>`. Also the import ID.
+- `id` (String) `<hostname>/twins/<device_id>/modules/<module_id>`. Also the import ID. Every twin resource that manages the same twin has the same `id`.
 - `version` (Number) Version of the twin.
 
 <a id="nestedblock--timeouts"></a>
@@ -67,10 +72,10 @@ resource "iothub_module_twin" "telemetry" {
 
 Optional:
 
-- `create` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours).
-- `delete` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours). Setting a timeout for a Delete operation is only applicable if changes are saved into state before the destroy operation occurs.
-- `read` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours). Read operations occur during any refresh or planning operation when refresh is enabled.
-- `update` (String) A string that can be [parsed as a duration](https://pkg.go.dev/time#ParseDuration) consisting of numbers and unit suffixes, such as "30s" or "2h45m". Valid time units are "s" (seconds), "m" (minutes), "h" (hours).
+- `create` (String) How long to wait for the create to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `delete` (String) How long to wait for the delete to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `read` (String) How long to wait for the read to finish, including retries of throttled requests (default `20m`), for example `30m`.
+- `update` (String) How long to wait for the update to finish, including retries of throttled requests (default `20m`), for example `30m`.
 
 ## Import
 
@@ -80,7 +85,7 @@ The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/c
 
 ```shell
 # Import ID: <hostname>/twins/<device_id>/modules/<module_id>. The imported
-# resource manages nothing yet. The first apply adopts the values your
+# resource manages nothing yet. The first apply adopts the keys your
 # configuration declares.
 terraform import iothub_module_twin.telemetry contoso.azure-devices.net/twins/sensor-0001/modules/telemetry
 ```

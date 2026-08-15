@@ -3,21 +3,18 @@
 page_title: "iothub_digital_twin_command Action - iothub"
 subcategory: ""
 description: |-
-  Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set component_path for a component command. Leave it out for a root-level command. The device's response status is compared with expected_status_codes. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
-  IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. The shared access policy needs ServiceConnect, for example service or iothubowner.
-  ~> Requires SAS authentication. Configure the provider with connection_string. Under Entra ID, invoke the equivalent direct method with iothub_direct_method and method_name = "<component>*<command>".
+  Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set component_path for a component command. Leave it out for a root-level command. The device's response status is compared with expected_status_codes. Any other status fails the apply. So does a device that is offline or does not exist. The device's status and payload are shown in the apply output.
   If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the command may already have run on the device.
+  ~> Requires SAS authentication. IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with a connection_string whose policy has ServiceConnect, for example service or iothubowner. Under Entra ID, call the equivalent direct method with iothub_direct_method and method_name = "<component>*<command>".
 ---
 
 # iothub_digital_twin_command (Action)
 
-Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set `component_path` for a component command. Leave it out for a root-level command. The device's response status is compared with `expected_status_codes`. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
-
-IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. The shared access policy needs *ServiceConnect*, for example `service` or `iothubowner`.
-
-~> **Requires SAS authentication.** Configure the provider with `connection_string`. Under Entra ID, invoke the equivalent direct method with `iothub_direct_method` and `method_name = "<component>*<command>"`.
+Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set `component_path` for a component command. Leave it out for a root-level command. The device's response status is compared with `expected_status_codes`. Any other status fails the apply. So does a device that is offline or does not exist. The device's status and payload are shown in the apply output.
 
 If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the command may already have run on the device.
+
+~> **Requires SAS authentication.** IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with a `connection_string` whose policy has *ServiceConnect*, for example `service` or `iothubowner`. Under Entra ID, call the equivalent direct method with `iothub_direct_method` and `method_name = "<component>*<command>"`.
 
 ## Example Usage
 

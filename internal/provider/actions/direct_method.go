@@ -62,7 +62,7 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Invokes a direct method on a device or module and waits for the device's answer. The device's " +
 			"response status is compared with `expected_status_codes`. Any other status fails the apply. So does a device that is " +
-			"offline or does not exist. The answer's status and payload are reported as progress output.\n\n" +
+			"offline or does not exist. The device's status and payload are shown in the apply output.\n\n" +
 			"Trigger the action from a resource lifecycle, for example `action_trigger { events = [after_update] … }` to reboot a " +
 			"device after its twin changed. Or run it ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. " +
 			"If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the method may already have run on the device.",

@@ -41,13 +41,13 @@ output "base_deployment_health" {
 
 - `created_time_utc` (String) Creation time.
 - `etag` (String) ETag of the IoT Edge deployment.
-- `id` (String) `<hostname>/configurations/<id>`.
+- `id` (String) `<hostname>/configurations/<deployment_id>`.
 - `labels` (Map of String) Free-form labels.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query.
 - `modules_content` (String) The deployment's `modulesContent` as a JSON string.
-- `priority` (Number) Priority. Higher wins when several target the same device.
+- `priority` (Number) Priority. Higher wins when several IoT Edge deployments target the same device.
 - `schema_version` (String) Version string of the IoT Edge deployment document, if set.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
-- `target_condition` (String) Which devices or modules the IoT Edge deployment targets, as a query condition.
+- `target_condition` (String) Which IoT Edge devices the deployment targets, as a query condition.

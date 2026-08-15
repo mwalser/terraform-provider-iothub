@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/action"
@@ -49,7 +50,18 @@ func TestDTDLNamePattern(t *testing.T) {
 }
 
 func TestJobHelpers(t *testing.T) {
-	if id := newJobID("tf"); len(id) != 3+16 {
+	id := newJobID("tf")
+	if len(id) != 3+16 || !scheduledJobIDPattern.MatchString(id) {
 		t.Errorf("job id %q", id)
+	}
+	for _, ok := range []string{"fw-channel-1-4-0", "123", "-lead", "trail-"} {
+		if !scheduledJobIDPattern.MatchString(ok) {
+			t.Errorf("%q should be a valid job ID", ok)
+		}
+	}
+	for _, bad := range []string{"", "Upper", "with_underscore", "with.dot", "with space", strings.Repeat("a", 65)} {
+		if scheduledJobIDPattern.MatchString(bad) {
+			t.Errorf("%q should not be a valid job ID", bad)
+		}
 	}
 }

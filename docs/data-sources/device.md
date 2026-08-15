@@ -35,7 +35,7 @@ output "gateway_scope" {
 
 ### Read-Only
 
-- `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority` or `none`.
+- `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.
 - `cloud_to_device_message_count` (Number) Queued cloud-to-device messages.
 - `connection_state` (String) `Connected` or `Disconnected`. Approximate.
 - `connection_state_updated_time` (String) When the connection state last changed.

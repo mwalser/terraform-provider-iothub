@@ -12,12 +12,12 @@ ephemeral "iothub_device_sas_token" "sensor" {
 # Hand it to a write-only argument, for example a Key Vault secret the device
 # provisioning pipeline reads. The secret is only written when its version
 # changes, so tie the version to the run: here the token is renewed on every
-# apply that happens in a new hour.
+# apply that happens in a new hour. plantimestamp() is known at plan time.
 resource "azurerm_key_vault_secret" "sensor_token" {
   name             = "sensor-0001-sas"
   key_vault_id     = azurerm_key_vault.devices.id
   value_wo         = ephemeral.iothub_device_sas_token.sensor.token
-  value_wo_version = formatdate("YYYYMMDDhh", timestamp())
+  value_wo_version = tonumber(formatdate("YYYYMMDDhh", plantimestamp()))
 }
 
 # Module tokens sign for <hostname>/devices/<device_id>/modules/<module_id>.

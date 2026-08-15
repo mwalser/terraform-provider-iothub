@@ -47,8 +47,9 @@ Leave out:
   limit changes what the user must do.
 - Design rationale ("by design", "no knob", "lossless", references to
   `CONCEPT.md` sections).
-- Internal plan-time behaviour that only ever surfaces as an error the user
-  will read anyway.
+- Internal plan-time mechanics. One sentence saying that a value is checked
+  at plan time is fine when it saves the user an apply; how the check works
+  is not.
 - Azure's own file formats beyond a pointer.
 
 Style: a one- or two-sentence summary, then the attributes. Plain language

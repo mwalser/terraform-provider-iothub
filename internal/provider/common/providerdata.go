@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -107,4 +108,16 @@ func QueryIDs(ctx context.Context, c *client.Client, query, column string) ([]st
 		}
 	}
 	return out, diags
+}
+
+// TimeoutsOpts is the timeouts block every resource declares: all four
+// operations, each with the same default and a description that names it.
+func TimeoutsOpts(def string) timeouts.Opts {
+	desc := func(op string) string {
+		return "How long to wait for the " + op + " to finish, including retries of throttled requests (default `" + def + "`), for example `30m`."
+	}
+	return timeouts.Opts{
+		Create: true, Read: true, Update: true, Delete: true,
+		CreateDescription: desc("create"), ReadDescription: desc("read"), UpdateDescription: desc("update"), DeleteDescription: desc("delete"),
+	}
 }

@@ -57,7 +57,7 @@ func (a *cancelJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp
 				Required:            true,
 				Validators:          []validator.String{stringvalidator.OneOf(kindScheduled, kindImportExport)},
 			},
-			"timeout": timeoutAttribute("5m", "How long to wait for the hub to report the job cancelled."),
+			"timeout": schema.StringAttribute{MarkdownDescription: "How long to wait for the hub to report the job cancelled, for example `5m` (default).", Optional: true},
 		},
 	}
 }
