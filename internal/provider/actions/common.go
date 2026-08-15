@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
@@ -77,3 +78,9 @@ func (c *configured) Configure(_ context.Context, req action.ConfigureRequest, r
 	resp.Diagnostics.Append(diags...)
 	c.pd = pd
 }
+
+// diagnostics is a local alias to keep signatures short.
+type diagnostics = diag.Diagnostics
+
+// objectAsOptions tolerates null/unknown nested values when decoding.
+var objectAsOptions = basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true}

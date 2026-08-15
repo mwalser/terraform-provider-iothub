@@ -1,0 +1,235 @@
+package actions
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/action"
+	"github.com/hashicorp/terraform-plugin-framework/action/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	"github.com/mwalser/terraform-provider-iothub/internal/client"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
+)
+
+var (
+	_ action.Action                   = &importExportJobAction{}
+	_ action.ActionWithConfigure      = &importExportJobAction{}
+	_ action.ActionWithValidateConfig = &importExportJobAction{}
+)
+
+// NewImportExportJobAction returns the iothub_import_export_job action.
+func NewImportExportJobAction() action.Action { return &importExportJobAction{} }
+
+type importExportJobAction struct {
+	configured
+}
+
+type importExportJobModel struct {
+	Hostname                  types.String `tfsdk:"hostname"`
+	Type                      types.String `tfsdk:"type"`
+	InputBlobContainerURI     types.String `tfsdk:"input_blob_container_uri"`
+	OutputBlobContainerURI    types.String `tfsdk:"output_blob_container_uri"`
+	StorageAuthenticationType types.String `tfsdk:"storage_authentication_type"`
+	UserAssignedIdentity      types.String `tfsdk:"user_assigned_identity"`
+	ExcludeKeysInExport       types.Bool   `tfsdk:"exclude_keys_in_export"`
+	IncludeConfigurations     types.Bool   `tfsdk:"include_configurations"`
+	InputBlobName             types.String `tfsdk:"input_blob_name"`
+	OutputBlobName            types.String `tfsdk:"output_blob_name"`
+	ConfigurationsBlobName    types.String `tfsdk:"configurations_blob_name"`
+	Wait                      types.Bool   `tfsdk:"wait"`
+	Timeout                   types.String `tfsdk:"timeout"`
+}
+
+const (
+	quotaRetryInterval = 15 * time.Second
+	rbacRetryWindow    = 5 * time.Minute
+)
+
+func (a *importExportJobAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_import_export_job"
+}
+
+func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		MarkdownDescription: "Runs a bulk identity registry job (`POST /jobs/create`): **export** the registry (`devices.txt`, one " +
+			"`ExportImportDevice` JSON per line, modules on their own lines; optionally `configurations.txt`) to a blob container, or " +
+			"**import** such a file (`create` / `update` / `updateTwin` / `delete` per line — every line needs `status`) from one. Blob " +
+			"access is either `keyBased` (container SAS URIs — action configuration is never stored in state, but it does appear in " +
+			"plan output, so prefer short-lived SAS) or `identityBased` (the hub's system-assigned or a user-assigned managed identity " +
+			"with *Storage Blob Data Contributor* on the container).\n\n" +
+			"With `wait = true` (default) the action polls the job and fails on `failed`/`cancelled`. **An import job reports " +
+			"`completed` even when individual lines failed** — those errors are only written to `importErrors.log` in the output " +
+			"container; the action reports the job status and names the log, it does not read blobs. Only one import/export job " +
+			"runs per hub at a time (403 `JobQuotaExceeded`), which the action waits out within `timeout`; with `identityBased` " +
+			"a `BlobContainerValidationError` is retried for a few minutes because a fresh role assignment takes time to propagate.",
+		Attributes: map[string]schema.Attribute{
+			"hostname": hostnameAttribute(),
+			"type": schema.StringAttribute{
+				MarkdownDescription: "`export` or `import`.",
+				Required:            true,
+				Validators:          []validator.String{stringvalidator.OneOf(client.JobTypeExport, client.JobTypeImport)},
+			},
+			"input_blob_container_uri": schema.StringAttribute{
+				MarkdownDescription: "Container holding the import file (`import` only). With `keyBased` a container SAS URI with at least read and list permissions.",
+				Optional:            true,
+			},
+			"output_blob_container_uri": schema.StringAttribute{
+				MarkdownDescription: "Destination container for exports and for `importErrors.log` of imports. With `keyBased` a container SAS URI with read, write, delete and list permissions (the hub deletes an existing blob before writing; verified: `Unauthorized to delete from output blob container` otherwise).",
+				Required:            true,
+			},
+			"storage_authentication_type": schema.StringAttribute{
+				MarkdownDescription: "`keyBased` (default; SAS in the URIs) or `identityBased` (managed identity of the hub).",
+				Optional:            true,
+				Validators:          []validator.String{stringvalidator.OneOf(client.StorageAuthKeyBased, client.StorageAuthIdentityBased)},
+			},
+			"user_assigned_identity": schema.StringAttribute{
+				MarkdownDescription: "Resource ID of a user-assigned managed identity of the hub to use with `identityBased` (system-assigned when omitted).",
+				Optional:            true,
+			},
+			"exclude_keys_in_export": schema.BoolAttribute{
+				MarkdownDescription: "Export without symmetric keys (default `false`). Note: the hub then writes a plain-text warning as the first line of the export blob.",
+				Optional:            true,
+			},
+			"include_configurations": schema.BoolAttribute{
+				MarkdownDescription: "Also export/import configurations and deployments (`configurations.txt`).",
+				Optional:            true,
+			},
+			"input_blob_name":          schema.StringAttribute{MarkdownDescription: "Import file name (default `devices.txt`).", Optional: true},
+			"output_blob_name":         schema.StringAttribute{MarkdownDescription: "Export file name (default `devices.txt`).", Optional: true},
+			"configurations_blob_name": schema.StringAttribute{MarkdownDescription: "Configurations file name (default `configurations.txt`).", Optional: true},
+			"wait":                     waitAttribute(),
+			"timeout":                  timeoutAttribute("1h"),
+		},
+	}
+}
+
+func (a *importExportJobAction) ValidateConfig(ctx context.Context, req action.ValidateConfigRequest, resp *action.ValidateConfigResponse) {
+	var data importExportJobModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if data.Type.ValueString() == client.JobTypeImport && data.InputBlobContainerURI.IsNull() {
+		resp.Diagnostics.AddAttributeError(path.Root("input_blob_container_uri"), "input_blob_container_uri is required for imports", "Point it at the container holding the import file.")
+	}
+	if data.Type.ValueString() == client.JobTypeExport && !data.InputBlobContainerURI.IsNull() {
+		resp.Diagnostics.AddAttributeError(path.Root("input_blob_container_uri"), "input_blob_container_uri is not used by exports", "Remove it.")
+	}
+	if !data.UserAssignedIdentity.IsNull() && data.StorageAuthenticationType.ValueString() != client.StorageAuthIdentityBased {
+		resp.Diagnostics.AddAttributeError(path.Root("user_assigned_identity"), "user_assigned_identity needs identityBased authentication", "Set storage_authentication_type = \"identityBased\".")
+	}
+	if _, d := parseTimeout(data.Timeout, defaultJobTimeout); d.HasError() {
+		resp.Diagnostics.Append(d...)
+	}
+}
+
+func (a *importExportJobAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
+	var data importExportJobModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	timeout, diags := parseTimeout(data.Timeout, defaultJobTimeout)
+	resp.Diagnostics.Append(diags...)
+	c, d := clientFor(ctx, a.pd, data.Hostname)
+	resp.Diagnostics.Append(d...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	spec := client.ImportExportJobSpec{
+		Type:                      data.Type.ValueString(),
+		InputBlobContainerURI:     data.InputBlobContainerURI.ValueString(),
+		OutputBlobContainerURI:    data.OutputBlobContainerURI.ValueString(),
+		StorageAuthenticationType: data.StorageAuthenticationType.ValueString(),
+		UserAssignedIdentity:      data.UserAssignedIdentity.ValueString(),
+		ExcludeKeysInExport:       boolOr(data.ExcludeKeysInExport, false),
+		IncludeConfigurations:     boolOr(data.IncludeConfigurations, false),
+		InputBlobName:             data.InputBlobName.ValueString(),
+		OutputBlobName:            data.OutputBlobName.ValueString(),
+		ConfigurationsBlobName:    data.ConfigurationsBlobName.ValueString(),
+	}
+	if spec.StorageAuthenticationType == "" {
+		spec.StorageAuthenticationType = client.StorageAuthKeyBased
+	}
+	identityBased := spec.StorageAuthenticationType == client.StorageAuthIdentityBased
+
+	progress(resp, "Creating %s job…", spec.Type)
+	tflog.Info(ctx, "creating import/export job", map[string]any{"type": spec.Type, "auth": spec.StorageAuthenticationType})
+	var job *client.ImportExportJob
+	started := time.Now()
+	for {
+		var err error
+		job, err = c.CreateImportExportJob(ctx, spec)
+		if err == nil {
+			break
+		}
+		switch {
+		case client.IsJobQuotaExceeded(err):
+			progress(resp, "Another import/export job is running on %s; waiting for it to finish…", c.Hostname())
+		case client.IsBlobContainerValidationError(err) && identityBased && time.Since(started) < rbacRetryWindow:
+			progress(resp, "The hub cannot access the container yet (%s); retrying — a new role assignment for the hub's identity can take a few minutes to propagate…", firstSentence(err))
+		default:
+			if client.IsBlobContainerValidationError(err) {
+				resp.Diagnostics.AddError("The hub cannot access the blob container",
+					fmt.Sprintf("%s\n\nkeyBased: check the SAS URI (container SAS with read/write/delete/list for the output container, read/list for the input container, not expired). identityBased: the hub's managed identity needs Storage Blob Data Contributor on the container.", common.DescribeError(err)))
+				return
+			}
+			resp.Diagnostics.AddError("Cannot create import/export job", common.DescribeError(err))
+			return
+		}
+		if err := sleepCtx(ctx, quotaRetryInterval); err != nil {
+			resp.Diagnostics.AddError("Timed out waiting to create the import/export job", "The job could not be created within `timeout`: "+common.DescribeError(err))
+			return
+		}
+	}
+	progress(resp, "Job %q created (status %s).", job.JobID, job.Status)
+	if !boolOr(data.Wait, true) {
+		return
+	}
+
+	last := ""
+	for !job.IsTerminal() {
+		if job.Status != last {
+			last = job.Status
+			progress(resp, "Job %q is %s (%d%%)…", job.JobID, job.Status, job.Progress)
+		}
+		if err := sleepCtx(ctx, pollInterval); err != nil {
+			resp.Diagnostics.AddError("Timed out waiting for the import/export job",
+				fmt.Sprintf("Job %q did not finish within the action's timeout (last status %q, %d%%). It keeps running on the hub; cancel it with iothub_cancel_job or raise `timeout`.", job.JobID, last, job.Progress))
+			return
+		}
+		fresh, err := c.GetImportExportJob(ctx, job.JobID)
+		if err != nil {
+			resp.Diagnostics.AddError("Cannot read import/export job", common.DescribeError(err))
+			return
+		}
+		job = fresh
+	}
+	switch job.Status {
+	case client.JobStatusCompleted:
+		if spec.Type == client.JobTypeImport {
+			progress(resp, "Import job %q completed. Per-line failures, if any, are in importErrors.log in the output container (the hub reports the job as completed even then).", job.JobID)
+		} else {
+			progress(resp, "Export job %q completed.", job.JobID)
+		}
+	default:
+		resp.Diagnostics.AddError(fmt.Sprintf("Import/export job %s", job.Status),
+			fmt.Sprintf("Job %q ended with status %s (%d%%). %s", job.JobID, job.Status, job.Progress, job.FailureReason))
+	}
+}
+
+func firstSentence(err error) string {
+	if e, ok := client.AsError(err); ok && e.Message != "" {
+		return e.Message
+	}
+	return err.Error()
+}

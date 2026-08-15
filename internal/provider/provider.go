@@ -20,6 +20,7 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/configuration"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/device"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/jobs"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/module"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/query"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/statistics"
@@ -251,6 +252,8 @@ func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.Data
 		twin.NewModuleDataSource,
 		configuration.NewConfigurationDataSource,
 		configuration.NewEdgeDeploymentDataSource,
+		jobs.NewScheduledJobDataSource,
+		jobs.NewImportExportJobDataSource,
 		query.NewDataSource,
 		statistics.NewDataSource,
 	}
@@ -269,6 +272,9 @@ func (p *IoTHubProvider) Actions(_ context.Context) []func() action.Action {
 		actions.NewDirectMethodAction,
 		actions.NewApplyConfigurationAction,
 		actions.NewPurgeC2DQueueAction,
+		actions.NewScheduledJobAction,
+		actions.NewImportExportJobAction,
+		actions.NewCancelJobAction,
 	}
 }
 
