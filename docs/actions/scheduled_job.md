@@ -5,7 +5,7 @@ subcategory: ""
 description: |-
   Runs a scheduled job on every device that matches query_condition, now or at a future start_time. A scheduleUpdateTwin job merges tags and desired properties into the twins. A scheduleDeviceMethod job invokes a direct method on the devices.
   With wait = true (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With fail_on_device_failures (default) it also fails if any targeted device failed. Read a job's outcome later with the iothub_scheduled_job data source.
-  A hub runs only a limited number of jobs at a time. While all slots are taken, the action waits for a free one within timeout. A duplicate job_id is an error.
+  A hub runs only a limited number of jobs https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-quotas-throttling at a time. While all slots are taken, the action waits for a free one within timeout. Re-running with the same job_id fails while the hub still remembers the earlier job. Use a new ID per run, or omit job_id.
 ---
 
 # iothub_scheduled_job (Action)
@@ -14,7 +14,7 @@ Runs a scheduled job on every device that matches `query_condition`, now or at a
 
 With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With `fail_on_device_failures` (default) it also fails if any targeted device failed. Read a job's outcome later with the `iothub_scheduled_job` data source.
 
-A hub runs only a limited number of jobs at a time. While all slots are taken, the action waits for a free one within `timeout`. A duplicate `job_id` is an error.
+A hub runs only a [limited number of jobs](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-quotas-throttling) at a time. While all slots are taken, the action waits for a free one within `timeout`. Re-running with the same `job_id` fails while the hub still remembers the earlier job. Use a new ID per run, or omit `job_id`.
 
 ## Example Usage
 
@@ -38,7 +38,7 @@ action "iothub_scheduled_job" "reboot_gateways" {
   config {
     type            = "scheduleDeviceMethod"
     query_condition = "tags.site = 'munich' AND capabilities.iotEdge = true"
-    start_time      = "2026-08-16T02:00:00Z" # at most 168 h ahead
+    start_time      = "2026-08-16T02:00:00Z" # at most 7 days ahead
     method = {
       name                     = "reboot"
       payload                  = jsonencode({ delaySec = 30 })
@@ -75,7 +75,7 @@ variable "release" {
 ### Optional
 
 - `fail_on_device_failures` (Boolean) With `wait`, fail the apply when the job completed but some devices failed (default `true`).
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `job_id` (String) Job ID, unique per hub. Generated as `tf-<random>` when omitted.
 - `max_execution_time_seconds` (Number) How long the hub may run the job, in seconds. Devices not reached in time count as failed. Hub default when omitted.
 - `method` (Attributes) For `scheduleDeviceMethod`: the direct method to invoke on every targeted device. (see [below for nested schema](#nestedatt--method))
@@ -94,7 +94,7 @@ Required:
 Optional:
 
 - `connect_timeout_seconds` (Number) Per-device connect timeout in seconds, 0 to 300 (default 0).
-- `payload` (String) JSON payload, any JSON value. Sent as `null` when omitted.
+- `payload` (String) JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.
 - `response_timeout_seconds` (Number) Per-device response timeout in seconds, 5 to 300 (default 30).
 
 
@@ -103,5 +103,5 @@ Optional:
 
 Optional:
 
-- `desired_properties` (String) Desired properties to merge, as a JSON object.
-- `tags` (String) Tags to merge, as a JSON object.
+- `desired_properties` (String) Desired properties to merge, as a JSON object. Set a value to `null` to remove it from the twins.
+- `tags` (String) Tags to merge, as a JSON object. Set a value to `null` to remove it from the twins.

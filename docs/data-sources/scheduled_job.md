@@ -35,7 +35,7 @@ output "fw_channel_rollout" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 

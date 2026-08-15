@@ -3,12 +3,12 @@
 page_title: "iothub_apply_configuration Action - iothub"
 subcategory: ""
 description: |-
-  Applies a deployment manifest's modulesContent to one IoT Edge device immediately. This bypasses iothub_edge_deployment targeting and is the equivalent of az iot edge set-modules. Useful for one-off tests on a single gateway. For fleets, use iothub_edge_deployment. Fails for a device that is not an IoT Edge device.
+  Applies a deployment manifest's modulesContent to one IoT Edge device immediately. This bypasses iothub_edge_deployment targeting and is the equivalent of az iot edge set-modules. It is unrelated to iothub_configuration. Useful for one-off tests on a single gateway. For fleets, use iothub_edge_deployment. A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed. Fails for a device that is not an IoT Edge device.
 ---
 
 # iothub_apply_configuration (Action)
 
-Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately. This bypasses `iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`. Fails for a device that is not an IoT Edge device.
+Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately. This bypasses `iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. It is unrelated to `iothub_configuration`. Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`. A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed. Fails for a device that is not an IoT Edge device.
 
 ## Example Usage
 
@@ -49,4 +49,4 @@ resource "terraform_data" "lab_release" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).

@@ -49,7 +49,7 @@ func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListRe
 			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Only modules of this device.", Optional: true},
 			"query_condition": schema.StringAttribute{
-				MarkdownDescription: "Additional `WHERE` clause over `devices.modules`, for example `moduleId = 'telemetry'` or `tags.x = 1`.",
+				MarkdownDescription: "`WHERE` clause over `devices.modules`, for example `moduleId = 'telemetry'` or `tags.x = 1`. Combined with `device_id` when both are set.",
 				Optional:            true,
 			},
 		},

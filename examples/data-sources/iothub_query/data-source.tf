@@ -1,4 +1,4 @@
-# Device IDs of every device in the Munich site (a projection: item_type "Raw").
+# Device IDs and rings of every device in the Munich site (a projection: item_type "Raw").
 data "iothub_query" "munich" {
   query = "SELECT deviceId, tags.fleet.ring AS ring FROM devices WHERE tags.site = 'munich'"
 }

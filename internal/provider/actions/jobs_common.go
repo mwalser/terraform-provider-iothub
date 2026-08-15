@@ -19,12 +19,11 @@ const (
 )
 
 // timeoutAttribute is the explicit deadline of a job action (actions have
-// no timeouts block).
-func timeoutAttribute(def string) schema.StringAttribute {
+// no timeouts block); covers says what the deadline spans for this action.
+func timeoutAttribute(def, covers string) schema.StringAttribute {
 	return schema.StringAttribute{
-		MarkdownDescription: "Overall deadline for the invocation as a Go duration (default `" + def + "`). It covers waiting for a free " +
-			"job slot, waiting for the scheduled start, and the job's execution when `wait` is true.",
-		Optional: true,
+		MarkdownDescription: "Overall deadline for the invocation as a Go duration (default `" + def + "`). " + covers,
+		Optional:            true,
 	}
 }
 

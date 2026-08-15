@@ -4,14 +4,14 @@ page_title: "iothub_digital_twin Data Source - iothub"
 subcategory: ""
 description: |-
   The IoT Plug and Play digital twin of a device. The hub derives this document from the device twin and the device's DTDL model. It contains $dtId, $metadata.$model, root-level properties and components. Components are objects with their own $metadata.
-  The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with iothub_device_twin. Component properties need the "__t": "c" marker there. A device that never announced a model has a null model_id and a document without properties.
+  The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with iothub_device_twin. In iothub_device_twin, component properties need the "__t": "c" marker. A device that never announced a model has a null model_id and a document without properties.
 ---
 
 # iothub_digital_twin (Data Source)
 
 The IoT Plug and Play digital twin of a device. The hub derives this document from the device twin and the device's DTDL model. It contains `$dtId`, `$metadata.$model`, root-level properties and components. Components are objects with their own `$metadata`.
 
-The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with `iothub_device_twin`. Component properties need the `"__t": "c"` marker there. A device that never announced a model has a null `model_id` and a document without properties.
+The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with `iothub_device_twin`. In `iothub_device_twin`, component properties need the `"__t": "c"` marker. A device that never announced a model has a null `model_id` and a document without properties.
 
 ## Example Usage
 
@@ -59,7 +59,7 @@ resource "iothub_device_twin" "controller" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 

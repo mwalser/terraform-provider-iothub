@@ -18,14 +18,21 @@ resource "iothub_module" "updater" {
   }
 }
 
-# Keys that never enter state: write-only arguments plus a version to rotate.
-ephemeral "random_bytes" "diagnostics" {
+# Keys that never enter state: both keys as write-only arguments, plus a
+# version to rotate. Change the version whenever you change a key.
+ephemeral "random_bytes" "diagnostics_primary" {
+  length = 32
+}
+
+ephemeral "random_bytes" "diagnostics_secondary" {
   length = 32
 }
 
 resource "iothub_module" "diagnostics" {
-  device_id              = iothub_device.sensor.device_id
-  module_id              = "diagnostics"
-  primary_key_wo         = ephemeral.random_bytes.diagnostics.base64
-  primary_key_wo_version = 1
+  device_id                = iothub_device.sensor.device_id
+  module_id                = "diagnostics"
+  primary_key_wo           = ephemeral.random_bytes.diagnostics_primary.base64
+  primary_key_wo_version   = 1
+  secondary_key_wo         = ephemeral.random_bytes.diagnostics_secondary.base64
+  secondary_key_wo_version = 1
 }

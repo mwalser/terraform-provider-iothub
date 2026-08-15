@@ -17,6 +17,7 @@ import (
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/jsondoc"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/twin"
 )
 
@@ -48,8 +49,8 @@ type scheduledJobModel struct {
 }
 
 type twinPatchModel struct {
-	Tags              twin.Document `tfsdk:"tags"`
-	DesiredProperties twin.Document `tfsdk:"desired_properties"`
+	Tags              jsondoc.Value `tfsdk:"tags"`
+	DesiredProperties jsondoc.Value `tfsdk:"desired_properties"`
 }
 
 type jobMethodModel struct {
@@ -71,8 +72,9 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 			"With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With " +
 			"`fail_on_device_failures` (default) it also fails if any targeted device failed. Read a job's outcome later with the " +
 			"`iothub_scheduled_job` data source.\n\n" +
-			"A hub runs only a limited number of jobs at a time. While all slots are taken, the action waits for a free one within " +
-			"`timeout`. A duplicate `job_id` is an error.",
+			"A hub runs only a [limited number of jobs](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-quotas-throttling) " +
+			"at a time. While all slots are taken, the action waits for a free one within `timeout`. Re-running with the same " +
+			"`job_id` fails while the hub still remembers the earlier job. Use a new ID per run, or omit `job_id`.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": hostnameAttribute(),
 			"job_id": schema.StringAttribute{
@@ -104,8 +106,8 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				MarkdownDescription: "For `scheduleUpdateTwin`: the tags and desired properties merged into every targeted twin. Same JSON documents as `iothub_device_twin`.",
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
-					"tags":               schema.StringAttribute{CustomType: twin.DocumentType, MarkdownDescription: "Tags to merge, as a JSON object.", Optional: true},
-					"desired_properties": schema.StringAttribute{CustomType: twin.DocumentType, MarkdownDescription: "Desired properties to merge, as a JSON object.", Optional: true},
+					"tags":               schema.StringAttribute{CustomType: twin.PatchDocumentType, MarkdownDescription: "Tags to merge, as a JSON object. Set a value to `null` to remove it from the twins.", Optional: true},
+					"desired_properties": schema.StringAttribute{CustomType: twin.PatchDocumentType, MarkdownDescription: "Desired properties to merge, as a JSON object. Set a value to `null` to remove it from the twins.", Optional: true},
 				},
 			},
 			"method": schema.SingleNestedAttribute{
@@ -113,7 +115,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
 					"name":                     schema.StringAttribute{MarkdownDescription: "Method name.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
-					"payload":                  schema.StringAttribute{MarkdownDescription: "JSON payload, any JSON value. Sent as `null` when omitted.", Optional: true},
+					"payload":                  schema.StringAttribute{MarkdownDescription: "JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.", Optional: true},
 					"response_timeout_seconds": schema.Int64Attribute{MarkdownDescription: "Per-device response timeout in seconds, 5 to 300 (default 30).", Optional: true, Validators: []validator.Int64{int64validator.Between(5, 300)}},
 					"connect_timeout_seconds":  schema.Int64Attribute{MarkdownDescription: "Per-device connect timeout in seconds, 0 to 300 (default 0).", Optional: true, Validators: []validator.Int64{int64validator.Between(0, 300)}},
 				},
@@ -123,7 +125,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				MarkdownDescription: "With `wait`, fail the apply when the job completed but some devices failed (default `true`).",
 				Optional:            true,
 			},
-			"timeout": timeoutAttribute("1h"),
+			"timeout": timeoutAttribute("1h", "It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true."),
 		},
 	}
 }

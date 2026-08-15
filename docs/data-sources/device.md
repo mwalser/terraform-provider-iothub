@@ -31,7 +31,7 @@ output "gateway_scope" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
@@ -42,13 +42,13 @@ output "gateway_scope" {
 - `device_scope` (String) The device's own scope. Hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty.
 - `edge_enabled` (Boolean) Whether the device is an IoT Edge device.
 - `etag` (String) ETag of the identity.
-- `generation_id` (String) Hub-generated generation ID.
+- `generation_id` (String) Hub-generated ID that changes when a device with the same `device_id` is re-created.
 - `id` (String) `<hostname>/devices/<device_id>`.
-- `last_activity_time` (String) Last activity time.
+- `last_activity_time` (String) Last time the device connected, sent or received a message.
 - `parent_scope` (String) Scope of the parent edge device, if the device is a child.
-- `parent_scopes` (List of String) Parent scopes as reported by the hub.
+- `parent_scopes` (List of String) The parent's scope as a one-element list, as the hub reports it. Empty for a device without a parent.
 - `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.
 - `secondary_thumbprint` (String) Secondary X.509 thumbprint, for `selfSigned` authentication.
 - `status` (String) `enabled` or `disabled`.
-- `status_reason` (String) Reason for the status, if any.
+- `status_reason` (String) Free-text reason for the status, if any.
 - `status_updated_time` (String) When the status last changed.

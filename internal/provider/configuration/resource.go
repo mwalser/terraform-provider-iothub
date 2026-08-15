@@ -64,7 +64,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 		},
 		"hostname": schema.StringAttribute{
-			MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the resource.",
+			MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the " + r.kind.noun() + ".",
 			Optional:            true,
 			Computed:            true,
 			Validators:          common.HostnameValidators(),
@@ -74,20 +74,19 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 		},
 		r.kind.idAttr(): schema.StringAttribute{
-			MarkdownDescription: strings.ToUpper(r.kind.noun()[:1]) + r.kind.noun()[1:] + " ID: " + idDescription + ". Changing it replaces the " + r.kind.noun() + ".",
-			Required:            true,
-			PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
-			Validators:          []validator.String{stringvalidator.RegexMatches(idPattern, "must be "+idDescription)},
+			MarkdownDescription: strings.ToUpper(r.kind.noun()[:1]) + r.kind.noun()[1:] + " ID: " + idDescription + ". It must be unique among all " +
+				"configurations and IoT Edge deployments of the hub. Changing it replaces the " + r.kind.noun() + ".",
+			Required:      true,
+			PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+			Validators:    []validator.String{stringvalidator.RegexMatches(idPattern, "must be "+idDescription)},
 		},
 		"target_condition": schema.StringAttribute{
-			MarkdownDescription: "Which devices or modules the " + r.kind.noun() + " targets. A query condition over `deviceId`, `tags` and " +
-				"`properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices, or `FROM devices.modules WHERE …` " +
-				"to target modules.",
-			Required:   true,
-			Validators: []validator.String{stringvalidator.LengthAtLeast(1)},
+			MarkdownDescription: targetConditionDescription(r.kind),
+			Required:            true,
+			Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
 		},
 		"priority": schema.Int64Attribute{
-			MarkdownDescription: "Priority, 0 or higher (default 0). When several " + r.kind.noun() + "s target the same device, the highest priority wins.",
+			MarkdownDescription: priorityDescription(r.kind),
 			Optional:            true,
 			Computed:            true,
 			Default:             int64default.StaticInt64(0),
@@ -99,14 +98,13 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			Optional:            true,
 		},
 		"metrics": schema.MapAttribute{
-			MarkdownDescription: "Custom metrics: a map from metric name to an IoT Hub query, for example " +
-				"`SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.",
-			ElementType: types.StringType,
-			Optional:    true,
-			Validators:  []validator.Map{mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1))},
+			MarkdownDescription: "Custom metrics: a map from metric name to an IoT Hub query, for example " + metricsExample(r.kind) + ". Results are in `metric_results`.",
+			ElementType:         types.StringType,
+			Optional:            true,
+			Validators:          []validator.Map{mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1))},
 		},
 		"schema_version": schema.StringAttribute{
-			MarkdownDescription: "Schema version of the configuration document. The Azure CLI writes `1.0`. Left as the hub reports it when omitted.",
+			MarkdownDescription: "Optional version string of the " + r.kind.noun() + " document, for example `1.0` as the Azure CLI writes it. Omit it unless you need a specific value. The hub's value is then accepted as-is.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
@@ -115,10 +113,9 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		"created_time_utc":      computed("Creation time."),
 		"last_updated_time_utc": computed("Last update time."),
 		"system_metrics": schema.MapAttribute{
-			MarkdownDescription: "Latest system metrics computed by the hub: `targetedCount` and `appliedCount`, plus `reportedSuccessfulCount` " +
-				"and `reportedFailedCount` for deployments. Empty until the hub has evaluated the " + r.kind.noun() + ".",
-			ElementType: types.Int64Type,
-			Computed:    true,
+			MarkdownDescription: systemMetricsDescription(r.kind),
+			ElementType:         types.Int64Type,
+			Computed:            true,
 		},
 		"metric_results": schema.MapAttribute{
 			MarkdownDescription: "Latest results of the custom `metrics`, by name.",
@@ -138,7 +135,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 		}
 		description = "An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every " +
-			"edge device that matches `target_condition`, in order of `priority`.\n\n" +
+			"IoT Edge device that matches `target_condition`, in order of `priority`.\n\n" +
 			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing `modules_content` " +
 			"replaces the deployment.**"
 	} else {
@@ -162,8 +159,8 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		}
 		description = "An automatic device management configuration. The hub applies its desired properties to every device or " +
 			"module that matches `target_condition`, in order of `priority`.\n\n" +
-			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing the content replaces the " +
-			"configuration.**"
+			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing `device_content` or " +
+			"`module_content` replaces the configuration.**"
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: description,
@@ -525,4 +522,38 @@ func (r *configResource) client(ctx context.Context, hostname types.String) (*cl
 		return nil, "", diags
 	}
 	return c, c.Hostname(), nil
+}
+
+// ---- kind-specific attribute texts ------------------------------------------
+
+func targetConditionDescription(k kind) string {
+	if k.isEdge() {
+		return "Which IoT Edge devices the deployment targets. A query condition over `deviceId`, `tags` and `properties.reported`, " +
+			"for example `tags.site = 'munich'`. Use `*` for all devices."
+	}
+	return "Which devices or modules the configuration targets. A query condition over `deviceId`, `tags` and `properties.reported`, " +
+		"for example `tags.site = 'munich'`. Use `*` for all devices, or `FROM devices.modules WHERE …` to target modules."
+}
+
+func priorityDescription(k kind) string {
+	if k.isEdge() {
+		return "Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. " +
+			"Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base."
+	}
+	return "Priority, 0 or higher (default 0). When several configurations target the same device, the highest priority wins."
+}
+
+func metricsExample(k kind) string {
+	if k.isEdge() {
+		return "`SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200`"
+	}
+	return "`SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`"
+}
+
+func systemMetricsDescription(k kind) string {
+	if k.isEdge() {
+		return "Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and " +
+			"`reportedFailedCount`. Empty until the hub has evaluated the deployment."
+	}
+	return "Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration."
 }

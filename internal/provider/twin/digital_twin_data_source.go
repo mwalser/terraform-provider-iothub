@@ -45,8 +45,8 @@ func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 			"the device's DTDL model. It contains `$dtId`, `$metadata.$model`, root-level properties and components. Components are " +
 			"objects with their own `$metadata`.\n\n" +
 			"The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with " +
-			"`iothub_device_twin`. Component properties need the `\"__t\": \"c\"` marker there. A device that never announced a " +
-			"model has a null `model_id` and a document without properties.",
+			"`iothub_device_twin`. In `iothub_device_twin`, component properties need the `\"__t\": \"c\"` marker. A device that " +
+			"never announced a model has a null `model_id` and a document without properties.",
 		Attributes: map[string]schema.Attribute{
 			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/digitaltwins/<digital_twin_id>`.", Computed: true},
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},

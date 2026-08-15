@@ -22,20 +22,29 @@ resource "iothub_device" "downstream" {
   }
 }
 
-# Keys that never enter state: write-only arguments plus a version to rotate.
+# Keys that never enter state: both keys as write-only arguments, plus a
+# version to rotate. Change the version whenever you change a key. A changed
+# key alone is not sent. (With only primary_key_wo set, the hub generates the
+# secondary key and it is stored in state.)
 variable "key_rotation" {
   type    = number
   default = 1
 }
 
-ephemeral "random_bytes" "meter" {
+ephemeral "random_bytes" "meter_primary" {
+  length = 32
+}
+
+ephemeral "random_bytes" "meter_secondary" {
   length = 32
 }
 
 resource "iothub_device" "meter" {
-  device_id              = "meter-0001"
-  status                 = "disabled"
-  status_reason          = "awaiting commissioning"
-  primary_key_wo         = ephemeral.random_bytes.meter.base64
-  primary_key_wo_version = var.key_rotation
+  device_id                = "meter-0001"
+  status                   = "disabled"
+  status_reason            = "awaiting commissioning"
+  primary_key_wo           = ephemeral.random_bytes.meter_primary.base64
+  primary_key_wo_version   = var.key_rotation
+  secondary_key_wo         = ephemeral.random_bytes.meter_secondary.base64
+  secondary_key_wo_version = var.key_rotation
 }

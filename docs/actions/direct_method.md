@@ -4,14 +4,14 @@ page_title: "iothub_direct_method Action - iothub"
 subcategory: ""
 description: |-
   Invokes a direct method on a device or module and waits for the device's answer. The device's response status is compared with expected_status_codes. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
-  Trigger the action from a resource lifecycle, for example action_trigger { events = [after_update] … } to reboot a device after its twin changed. Or run it ad hoc with terraform apply -invoke=action.iothub_direct_method.<name>. A method invocation is never repeated after an ambiguous failure, because it may already have run.
+  Trigger the action from a resource lifecycle, for example action_trigger { events = [after_update] … } to reboot a device after its twin changed. Or run it ad hoc with terraform apply -invoke=action.iothub_direct_method.<name>. If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the method may already have run on the device.
 ---
 
 # iothub_direct_method (Action)
 
 Invokes a direct method on a device or module and waits for the device's answer. The device's response status is compared with `expected_status_codes`. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
 
-Trigger the action from a resource lifecycle, for example `action_trigger { events = [after_update] … }` to reboot a device after its twin changed. Or run it ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. A method invocation is never repeated after an ambiguous failure, because it may already have run.
+Trigger the action from a resource lifecycle, for example `action_trigger { events = [after_update] … }` to reboot a device after its twin changed. Or run it ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the method may already have run on the device.
 
 ## Example Usage
 
@@ -59,7 +59,7 @@ resource "iothub_device_twin" "sensor" {
 
 - `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0).
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `module_id` (String) Module ID, to call a module's method.
 - `payload` (String) JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.
 - `response_timeout_seconds` (Number) How long the hub waits for the device's response, 5 to 300 seconds (default 30).

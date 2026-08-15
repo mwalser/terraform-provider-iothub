@@ -44,7 +44,7 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Lists every " + l.kind.noun() + " of the hub for `terraform query`.",
+		MarkdownDescription: "Lists every " + l.kind.noun() + " of the hub for `terraform query`. " + listSibling(l.kind),
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 		},
@@ -116,4 +116,12 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 			}
 		}
 	}
+}
+
+// listSibling says which sibling kind is not part of the list.
+func listSibling(k kind) string {
+	if k.isEdge() {
+		return "Automatic device management configurations are not included. Use `iothub_configuration` for those."
+	}
+	return "IoT Edge deployments are not included. Use `iothub_edge_deployment` for those."
 }

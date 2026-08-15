@@ -4,14 +4,14 @@ page_title: "iothub_device_sas_token Ephemeral Resource - iothub"
 subcategory: ""
 description: |-
   A shared access signature for a device or module (SharedAccessSignature sr=…&sig=…&se=…), signed with the identity's symmetric key. It is never written to state or plan. Hand it to a write-only argument or to a provisioning step that needs a short-lived device credential without exposing the key itself.
-  As with iothub_device_credentials, an identity that is created in the same run yields unknown values at plan time and the real token at apply.
+  A new token is minted on every run. When you hand it to a write-only argument, change that argument's version each time you want the new token written. Fails for identities without symmetric keys, that is X.509 authentication. As with iothub_device_credentials, an identity that is created in the same run yields unknown values at plan time and the real token at apply.
 ---
 
 # iothub_device_sas_token (Ephemeral Resource)
 
 A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), signed with the identity's symmetric key. It is never written to state or plan. Hand it to a write-only argument or to a provisioning step that needs a short-lived device credential without exposing the key itself.
 
-As with `iothub_device_credentials`, an identity that is created in the same run yields unknown values at plan time and the real token at apply.
+A new token is minted on every run. When you hand it to a write-only argument, change that argument's version each time you want the new token written. Fails for identities without symmetric keys, that is X.509 authentication. As with `iothub_device_credentials`, an identity that is created in the same run yields unknown values at plan time and the real token at apply.
 
 ## Example Usage
 
@@ -20,20 +20,22 @@ resource "iothub_device" "sensor" {
   device_id = "sensor-0001"
 }
 
-# A 24-hour device token, minted from the primary key at apply time and
-# never written to state or plan.
+# A 24-hour device token, signed with the primary key. A new token is minted
+# on every run and never written to state or plan.
 ephemeral "iothub_device_sas_token" "sensor" {
   device_id = iothub_device.sensor.device_id
   ttl       = "24h"
 }
 
 # Hand it to a write-only argument, for example a Key Vault secret the device
-# provisioning pipeline reads.
+# provisioning pipeline reads. The secret is only written when its version
+# changes, so tie the version to the run: here the token is renewed on every
+# apply that happens in a new hour.
 resource "azurerm_key_vault_secret" "sensor_token" {
   name             = "sensor-0001-sas"
   key_vault_id     = azurerm_key_vault.devices.id
   value_wo         = ephemeral.iothub_device_sas_token.sensor.token
-  value_wo_version = 1
+  value_wo_version = formatdate("YYYYMMDDhh", timestamp())
 }
 
 # Module tokens sign for <hostname>/devices/<device_id>/modules/<module_id>.
@@ -53,7 +55,7 @@ ephemeral "iothub_device_sas_token" "telemetry" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `key` (String) Which key signs the token: `primary` (default) or `secondary`.
 - `module_id` (String) Module ID, for a module token.
 - `ttl` (String) Token lifetime as a Go duration such as `30m`, `24h` or `168h` (default `1h`). Counted from the moment the token is minted.
@@ -61,5 +63,5 @@ ephemeral "iothub_device_sas_token" "telemetry" {
 ### Read-Only
 
 - `expires_at` (String) Expiry time in RFC 3339 format (UTC).
-- `resource_uri` (String) The `sr` the token was signed for.
+- `resource_uri` (String) The resource URI (`sr`) the token was signed for, for example `<hostname>/devices/<device_id>`.
 - `token` (String, Sensitive) The `SharedAccessSignature …` token.

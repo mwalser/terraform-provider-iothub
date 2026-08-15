@@ -3,12 +3,12 @@
 page_title: "iothub_edge_deployment List Resource - iothub"
 subcategory: ""
 description: |-
-  Lists every IoT Edge deployment of the hub for terraform query.
+  Lists every IoT Edge deployment of the hub for terraform query. Automatic device management configurations are not included. Use iothub_configuration for those.
 ---
 
 # iothub_edge_deployment (List Resource)
 
-Lists every IoT Edge deployment of the hub for `terraform query`.
+Lists every IoT Edge deployment of the hub for `terraform query`. Automatic device management configurations are not included. Use `iothub_configuration` for those.
 
 ## Example Usage
 
@@ -26,4 +26,4 @@ list "iothub_edge_deployment" "all" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).

@@ -45,7 +45,7 @@ func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListRe
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"query_condition": schema.StringAttribute{
-				MarkdownDescription: "`WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, e.g. `tags.site = 'munich'` or " +
+				MarkdownDescription: "`WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, for example `tags.site = 'munich'` or " +
 					"`capabilities.iotEdge = true`. All devices when omitted.",
 				Optional: true,
 			},

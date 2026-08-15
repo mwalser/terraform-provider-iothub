@@ -27,8 +27,8 @@ policy (SAS). Narrower permissions work for subsets:
 | To use | Entra ID role | SAS policy permissions |
 |---|---|---|
 | `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
-| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
-| Configurations, deployments, jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
+| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, the `iothub_device` and `iothub_module` list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
+| Configurations and deployments (resources, data sources, list resources), jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
 | `iothub_digital_twin_command` | not possible, SAS only (see below) | ServiceConnect |
 
 Two service restrictions depend on the authentication mode:
@@ -42,8 +42,8 @@ Two service restrictions depend on the authentication mode:
 
 Every resource, data source, ephemeral resource, action and list resource
 accepts its own `hostname`. This lets a single provider block manage several
-hubs. It also lets you reference a hub that is created in the same
-configuration before it exists. Hostnames are given in lowercase, for example
-`contoso.azure-devices.net`.
+hubs. It also lets you reference a hub that the same configuration creates,
+for example `azurerm_iothub.x.hostname`. Hostnames are given in lowercase,
+for example `contoso.azure-devices.net`.
 
 {{ .SchemaMarkdown | trimspace }}

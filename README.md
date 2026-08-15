@@ -66,7 +66,7 @@ resource "iothub_device" "sensor" {
   parent_scope = iothub_device.gateway.device_scope
 }
 
-# Own exactly these leaves of the twin; anything else in it is left alone.
+# Manage exactly these values of the twin. Anything else in it is left alone.
 resource "iothub_device_twin" "sensor" {
   device_id = iothub_device.sensor.device_id
   tags      = jsonencode({ site = "munich", fleet = { ring = 2 } })

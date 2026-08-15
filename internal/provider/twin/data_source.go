@@ -101,7 +101,7 @@ func (d *twinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 		"model_id":            c("IoT Plug and Play model ID announced by the " + subject + ", if any."),
 		"status":              c("`enabled` or `disabled`, as set on the identity."),
 		"connection_state":    c("`Connected` or `Disconnected`. Approximate."),
-		"last_activity_time":  c("Last activity time."),
+		"last_activity_time":  c("Last time the " + subject + " connected, sent or received a message."),
 	}
 	if d.kind.isModule() {
 		attrs["module_id"] = schema.StringAttribute{MarkdownDescription: "Module ID.", Required: true}

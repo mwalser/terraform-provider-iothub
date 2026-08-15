@@ -143,8 +143,8 @@ func AuthFromHub(am *client.AuthenticationMechanism, keysInState bool) Auth {
 // "module") is used in descriptions.
 func AuthAttribute(subject string) schema.SingleNestedAttribute {
 	return schema.SingleNestedAttribute{
-		MarkdownDescription: "How the " + subject + " authenticates. When omitted, the hub generates SAS keys. An imported " +
-			subject + " keeps its existing credentials.",
+		MarkdownDescription: "How the " + subject + " authenticates. When omitted, the hub generates SAS keys. After an import, " +
+			"omitting it keeps the " + subject + "'s existing credentials.",
 		Optional: true,
 		Computed: true,
 		Attributes: map[string]schema.Attribute{
@@ -188,7 +188,8 @@ func WriteOnlyKeyAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"primary_key_wo": schema.StringAttribute{
 			MarkdownDescription: "Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored " +
-				"in state or plan. Requires `primary_key_wo_version`. Change the version to send the value again.",
+				"in state or plan. Requires `primary_key_wo_version`. Changing the key value alone has no effect. Change the version " +
+				"whenever you change the key.",
 			Optional:  true,
 			WriteOnly: true,
 			Sensitive: true,

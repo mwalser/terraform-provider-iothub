@@ -17,7 +17,7 @@ action "iothub_scheduled_job" "reboot_gateways" {
   config {
     type            = "scheduleDeviceMethod"
     query_condition = "tags.site = 'munich' AND capabilities.iotEdge = true"
-    start_time      = "2026-08-16T02:00:00Z" # at most 168 h ahead
+    start_time      = "2026-08-16T02:00:00Z" # at most 7 days ahead
     method = {
       name                     = "reboot"
       payload                  = jsonencode({ delaySec = 30 })

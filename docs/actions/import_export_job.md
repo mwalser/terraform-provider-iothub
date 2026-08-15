@@ -33,13 +33,19 @@ action "iothub_import_export_job" "export" {
   }
 }
 
-# Bulk import from a devices.txt prepared by a migration pipeline (SAS-based).
-# Per-line errors are written to importErrors.log in the output container.
+# Bulk import from a devices.txt prepared by a migration pipeline, with a
+# container SAS. A key-based container URI is the container URL followed by
+# the SAS query string. Per-line errors are written to importErrors.log in
+# the output container.
+locals {
+  migration_container_sas_uri = "${azurerm_storage_account.migration.primary_blob_endpoint}${azurerm_storage_container.migration.name}${data.azurerm_storage_account_blob_container_sas.migration.sas}"
+}
+
 action "iothub_import_export_job" "import" {
   config {
     type                      = "import"
-    input_blob_container_uri  = data.azurerm_storage_account_blob_container_sas.migration.sas
-    output_blob_container_uri = data.azurerm_storage_account_blob_container_sas.migration.sas
+    input_blob_container_uri  = local.migration_container_sas_uri
+    output_blob_container_uri = local.migration_container_sas_uri
     input_blob_name           = "devices.txt"
     timeout                   = "2h"
   }
@@ -53,19 +59,19 @@ action "iothub_import_export_job" "import" {
 
 ### Required
 
-- `output_blob_container_uri` (String) Destination container for exports and for the `importErrors.log` of imports. With `keyBased`, a container SAS URI with read, write, delete and list permissions. The hub deletes an existing blob before writing.
+- `output_blob_container_uri` (String) Destination container for exports and for the `importErrors.log` of imports. With `keyBased`, the container URL followed by a SAS query string with read, write, delete and list permissions. With `identityBased`, the plain container URL. The hub deletes an existing blob before writing.
 - `type` (String) `export` or `import`.
 
 ### Optional
 
 - `configurations_blob_name` (String) Configurations file name (default `configurations.txt`).
 - `exclude_keys_in_export` (Boolean) Export without symmetric keys (default `false`). The hub then writes a plain-text warning as the first line of the export file.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
-- `include_configurations` (Boolean) Also export or import configurations and deployments, in `configurations.txt`.
-- `input_blob_container_uri` (String) Container holding the import file. Only for `import`. With `keyBased`, a container SAS URI with at least read and list permissions.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
+- `include_configurations` (Boolean) Also export or import configurations and deployments, in the file named by `configurations_blob_name`.
+- `input_blob_container_uri` (String) Container holding the import file. Only for `import`. With `keyBased`, the container URL followed by a SAS query string with at least read and list permissions. With `identityBased`, the plain container URL.
 - `input_blob_name` (String) Import file name (default `devices.txt`).
 - `output_blob_name` (String) Export file name (default `devices.txt`).
 - `storage_authentication_type` (String) `keyBased` for SAS URIs (default), or `identityBased` for the hub's managed identity.
-- `timeout` (String) Overall deadline for the invocation as a Go duration (default `1h`). It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true.
+- `timeout` (String) Overall deadline for the invocation as a Go duration (default `1h`). It covers waiting for a free job slot and, when `wait` is true, the job's execution.
 - `user_assigned_identity` (String) Resource ID of a user-assigned managed identity of the hub, for `identityBased`. The system-assigned identity is used when omitted.
 - `wait` (Boolean) Wait for the job to finish (default `true`). With `false` the action returns as soon as the job is created.

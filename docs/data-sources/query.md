@@ -16,7 +16,7 @@ Results are JSON strings, so use `jsondecode()` on them. `SELECT * FROM devices`
 ## Example Usage
 
 ```terraform
-# Device IDs of every device in the Munich site (a projection: item_type "Raw").
+# Device IDs and rings of every device in the Munich site (a projection: item_type "Raw").
 data "iothub_query" "munich" {
   query = "SELECT deviceId, tags.fleet.ring AS ring FROM devices WHERE tags.site = 'munich'"
 }
@@ -44,11 +44,11 @@ output "stale_firmware_count" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `id` (String) `<hostname>/query/<short hash of the query>`.
-- `item_type` (String) The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT *`, or `DeviceJob`.
+- `item_type` (String) The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT * FROM devices` or `devices.modules`, `DeviceJob` for `FROM devices.jobs`.
 - `result_count` (Number) Number of results.
 - `results` (List of String) One JSON string per result row, in the order the hub returns them.

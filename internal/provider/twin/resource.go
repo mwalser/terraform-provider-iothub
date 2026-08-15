@@ -129,8 +129,9 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 		},
 		"desired_properties": schema.StringAttribute{
 			CustomType: DocumentType,
-			MarkdownDescription: "The desired properties this resource manages, as a JSON object (use `jsonencode`). The same " +
-				"rules as for `tags` apply. Omit to manage no desired properties.",
+			MarkdownDescription: "The desired properties this resource manages, as a JSON object (use `jsonencode`). Only the " +
+				"values declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no " +
+				"desired properties.",
 			Optional: true,
 		},
 		"etag":    schema.StringAttribute{MarkdownDescription: "ETag of the twin.", Computed: true},
@@ -145,20 +146,23 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 		}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages part of a " + subject + " twin: the tags and desired properties you declare.\n\n" +
+		MarkdownDescription: "Manages part of a " + subject + " twin: the tags and desired properties you declare. Reported " +
+			"properties are read-only and available from the `iothub_" + subject + "_twin` data source.\n\n" +
+			"## Ownership and lifecycle\n\n" +
 			"The twin exists as long as the " + subject + " does. This resource does not create or delete it. Terraform manages " +
 			"only the values you declare in `tags` and `desired_properties`. Everything else in the twin is left alone, including " +
 			"keys that other systems write next to yours. For example, a backend can write `desired.firmware.lastCheck` beside " +
 			"your `desired.firmware.channel` without Terraform noticing. Several resources, teams and systems can therefore " +
-			"share one twin.\n\n" +
+			"share one twin, as long as they declare different values. If two resources declare the same value, each apply " +
+			"overwrites the other's and both keep showing drift.\n\n" +
 			"Removing a value from the configuration removes it from the twin. Destroying the resource removes all values it " +
 			"manages. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. An imported " +
-			"twin starts without managed values. The first apply then adopts what the configuration declares and cannot delete " +
-			"anything else. Changes made outside Terraform to managed values show up as drift. Reported properties are read-only " +
-			"and available from the data source.\n\n" +
+			"twin starts without managed values. The first apply adopts the values your configuration declares and deletes " +
+			"nothing else. Changes made outside Terraform to managed values show up as drift.\n\n" +
 			"Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). " +
-			"Violations are reported at plan time. The JSON strings are compared by content, so key order, whitespace and `2` " +
-			"versus `2.0` never cause drift. Reformatting a value in the configuration shows as an update that writes nothing.",
+			"Violations are reported at plan time. Values are compared by content: key order, whitespace and `2` versus `2.0` " +
+			"count as equal, so they never show as drift from the hub. Reformatting a value in your own configuration still " +
+			"appears in the plan as an update, but that update writes nothing.",
 		Attributes: attrs,
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),

@@ -2,20 +2,22 @@ resource "iothub_device" "sensor" {
   device_id = "sensor-0001"
 }
 
-# A 24-hour device token, minted from the primary key at apply time and
-# never written to state or plan.
+# A 24-hour device token, signed with the primary key. A new token is minted
+# on every run and never written to state or plan.
 ephemeral "iothub_device_sas_token" "sensor" {
   device_id = iothub_device.sensor.device_id
   ttl       = "24h"
 }
 
 # Hand it to a write-only argument, for example a Key Vault secret the device
-# provisioning pipeline reads.
+# provisioning pipeline reads. The secret is only written when its version
+# changes, so tie the version to the run: here the token is renewed on every
+# apply that happens in a new hour.
 resource "azurerm_key_vault_secret" "sensor_token" {
   name             = "sensor-0001-sas"
   key_vault_id     = azurerm_key_vault.devices.id
   value_wo         = ephemeral.iothub_device_sas_token.sensor.token
-  value_wo_version = 1
+  value_wo_version = formatdate("YYYYMMDDhh", timestamp())
 }
 
 # Module tokens sign for <hostname>/devices/<device_id>/modules/<module_id>.

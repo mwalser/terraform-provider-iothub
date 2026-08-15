@@ -77,11 +77,11 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 				Validators:          []validator.String{stringvalidator.OneOf(client.JobTypeExport, client.JobTypeImport)},
 			},
 			"input_blob_container_uri": schema.StringAttribute{
-				MarkdownDescription: "Container holding the import file. Only for `import`. With `keyBased`, a container SAS URI with at least read and list permissions.",
+				MarkdownDescription: "Container holding the import file. Only for `import`. With `keyBased`, the container URL followed by a SAS query string with at least read and list permissions. With `identityBased`, the plain container URL.",
 				Optional:            true,
 			},
 			"output_blob_container_uri": schema.StringAttribute{
-				MarkdownDescription: "Destination container for exports and for the `importErrors.log` of imports. With `keyBased`, a container SAS URI with read, write, delete and list permissions. The hub deletes an existing blob before writing.",
+				MarkdownDescription: "Destination container for exports and for the `importErrors.log` of imports. With `keyBased`, the container URL followed by a SAS query string with read, write, delete and list permissions. With `identityBased`, the plain container URL. The hub deletes an existing blob before writing.",
 				Required:            true,
 			},
 			"storage_authentication_type": schema.StringAttribute{
@@ -98,14 +98,14 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 				Optional:            true,
 			},
 			"include_configurations": schema.BoolAttribute{
-				MarkdownDescription: "Also export or import configurations and deployments, in `configurations.txt`.",
+				MarkdownDescription: "Also export or import configurations and deployments, in the file named by `configurations_blob_name`.",
 				Optional:            true,
 			},
 			"input_blob_name":          schema.StringAttribute{MarkdownDescription: "Import file name (default `devices.txt`).", Optional: true},
 			"output_blob_name":         schema.StringAttribute{MarkdownDescription: "Export file name (default `devices.txt`).", Optional: true},
 			"configurations_blob_name": schema.StringAttribute{MarkdownDescription: "Configurations file name (default `configurations.txt`).", Optional: true},
 			"wait":                     waitAttribute(),
-			"timeout":                  timeoutAttribute("1h"),
+			"timeout":                  timeoutAttribute("1h", "It covers waiting for a free job slot and, when `wait` is true, the job's execution."),
 		},
 	}
 }

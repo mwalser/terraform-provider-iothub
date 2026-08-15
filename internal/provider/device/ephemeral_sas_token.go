@@ -57,6 +57,8 @@ func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest,
 		MarkdownDescription: "A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), " +
 			"signed with the identity's symmetric key. It is never written to state or plan. Hand it to a write-only argument or " +
 			"to a provisioning step that needs a short-lived device credential without exposing the key itself.\n\n" +
+			"A new token is minted on every run. When you hand it to a write-only argument, change that argument's version each " +
+			"time you want the new token written. Fails for identities without symmetric keys, that is X.509 authentication. " +
 			"As with `iothub_device_credentials`, an identity that is created in the same run yields unknown values at plan " +
 			"time and the real token at apply.",
 		Attributes: map[string]schema.Attribute{
@@ -74,7 +76,7 @@ func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest,
 			},
 			"token":        schema.StringAttribute{MarkdownDescription: "The `SharedAccessSignature …` token.", Computed: true, Sensitive: true},
 			"expires_at":   schema.StringAttribute{MarkdownDescription: "Expiry time in RFC 3339 format (UTC).", Computed: true},
-			"resource_uri": schema.StringAttribute{MarkdownDescription: "The `sr` the token was signed for.", Computed: true},
+			"resource_uri": schema.StringAttribute{MarkdownDescription: "The resource URI (`sr`) the token was signed for, for example `<hostname>/devices/<device_id>`.", Computed: true},
 		},
 	}
 }

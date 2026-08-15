@@ -56,10 +56,10 @@ func infoAttributes() map[string]schema.Attribute {
 		"primary_thumbprint":            c("Primary X.509 thumbprint, for `selfSigned` authentication."),
 		"secondary_thumbprint":          c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
 		"etag":                          c("ETag of the module identity."),
-		"generation_id":                 c("Hub-generated generation ID."),
+		"generation_id":                 c("Hub-generated ID that changes when a module with the same ID is re-created."),
 		"connection_state":              c("`Connected` or `Disconnected`. Approximate."),
 		"connection_state_updated_time": c("When the connection state last changed."),
-		"last_activity_time":            c("Last activity time."),
+		"last_activity_time":            c("Last time the module connected, sent or received a message."),
 		"cloud_to_device_message_count": schema.Int64Attribute{MarkdownDescription: "Queued cloud-to-device messages.", Computed: true},
 	}
 }

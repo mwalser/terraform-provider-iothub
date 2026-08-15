@@ -35,19 +35,19 @@ output "base_deployment_health" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `created_time_utc` (String) Creation time.
 - `etag` (String) ETag of the IoT Edge deployment.
 - `id` (String) `<hostname>/configurations/<id>`.
-- `labels` (Map of String) Labels.
+- `labels` (Map of String) Free-form labels.
 - `last_updated_time_utc` (String) Last update time.
-- `metric_results` (Map of Number) Latest custom metric results by name.
-- `metrics` (Map of String) Custom metric queries by name.
+- `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
+- `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query.
 - `modules_content` (String) The deployment's `modulesContent` as a JSON string.
-- `priority` (Number) Priority.
-- `schema_version` (String) Schema version, if set.
-- `system_metrics` (Map of Number) Latest system metrics computed by the hub, such as `targetedCount` and `appliedCount`.
-- `target_condition` (String) Target condition.
+- `priority` (Number) Priority. Higher wins when several target the same device.
+- `schema_version` (String) Version string of the IoT Edge deployment document, if set.
+- `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
+- `target_condition` (String) Which devices or modules the IoT Edge deployment targets, as a query condition.

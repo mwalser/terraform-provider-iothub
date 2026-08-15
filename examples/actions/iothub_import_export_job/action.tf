@@ -12,13 +12,19 @@ action "iothub_import_export_job" "export" {
   }
 }
 
-# Bulk import from a devices.txt prepared by a migration pipeline (SAS-based).
-# Per-line errors are written to importErrors.log in the output container.
+# Bulk import from a devices.txt prepared by a migration pipeline, with a
+# container SAS. A key-based container URI is the container URL followed by
+# the SAS query string. Per-line errors are written to importErrors.log in
+# the output container.
+locals {
+  migration_container_sas_uri = "${azurerm_storage_account.migration.primary_blob_endpoint}${azurerm_storage_container.migration.name}${data.azurerm_storage_account_blob_container_sas.migration.sas}"
+}
+
 action "iothub_import_export_job" "import" {
   config {
     type                      = "import"
-    input_blob_container_uri  = data.azurerm_storage_account_blob_container_sas.migration.sas
-    output_blob_container_uri = data.azurerm_storage_account_blob_container_sas.migration.sas
+    input_blob_container_uri  = local.migration_container_sas_uri
+    output_blob_container_uri = local.migration_container_sas_uri
     input_blob_name           = "devices.txt"
     timeout                   = "2h"
   }

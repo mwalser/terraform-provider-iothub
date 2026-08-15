@@ -85,7 +85,8 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A device identity in the IoT Hub identity registry.\n\n" +
 			"Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. " +
-			"Deleting a device deletes its twin and its modules.\n\n" +
+			"Deleting a device deletes its twin and its modules. Only `device_id` and `hostname` force replacement. Every " +
+			"other attribute changes in place.\n\n" +
 			"**Credentials.** With `authentication.type = \"sas\"` and no keys given, the hub generates the keys. They are " +
 			"stored in state as sensitive values. To keep keys out of state, pass them through the write-only " +
 			"`primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the `iothub_device_credentials` " +
@@ -126,7 +127,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 			"edge_enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and " +
-					"the `$edgeAgent` and `$edgeHub` module identities. Can be changed in place.",
+					"the `$edgeAgent` and `$edgeHub` module identities.",
 				Optional:      true,
 				Computed:      true,
 				Default:       booldefault.StaticBool(false),
@@ -152,7 +153,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				Computed:            true,
 			},
 			"parent_scopes": schema.ListAttribute{
-				MarkdownDescription: "Scopes of the parent edge device(s) as reported by the hub.",
+				MarkdownDescription: "The parent's scope as a one-element list, as the hub reports it. Empty for a device without a parent.",
 				ElementType:         types.StringType,
 				Computed:            true,
 			},

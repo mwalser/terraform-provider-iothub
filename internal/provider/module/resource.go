@@ -78,13 +78,15 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A module identity on a device. A module has its own credentials and its own twin. Manage the twin " +
-			"with `iothub_module_twin`. Modules have no status of their own: a disabled device disables its modules.\n\n" +
+			"with `iothub_module_twin`. Deleting a module deletes its twin. Modules have no status of their own: a disabled device " +
+			"disables its modules. Only `device_id`, `module_id` and `hostname` force replacement. Every other attribute changes " +
+			"in place.\n\n" +
 			"Credentials work as for `iothub_device`. The hub generates SAS keys by default and they are stored in state as " +
 			"sensitive values. Use the write-only `primary_key_wo` and `secondary_key_wo` arguments to keep keys out of state, " +
 			"and `iothub_module_credentials` to read connection strings. IoT Edge devices get the system modules `$edgeAgent` " +
 			"and `$edgeHub` from the hub. Those are not created through this resource.\n\n" +
-			"~> With shared-access-policy (SAS) authentication the hub refuses to create, change or delete modules of a " +
-			"*disabled* device. Enable the device first, or authenticate with Entra ID. Reading an unchanged module keeps working.",
+			"~> With SAS authentication the hub refuses to create, change or delete modules of a *disabled* device. Enable the " +
+			"device first, or authenticate with Entra ID. Reading an unchanged module keeps working.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>`. Also the import ID.",
@@ -129,7 +131,7 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"connection_state":              computed("`Connected` or `Disconnected`. Updated by the service and approximate."),
-			"connection_state_updated_time": computed("When the connection state last changed (re-read from the registry when `connection_state` changed)."),
+			"connection_state_updated_time": computed("When the connection state last changed."),
 			"last_activity_time":            computed("Last time the module connected, sent or received a message."),
 			"cloud_to_device_message_count": schema.Int64Attribute{
 				MarkdownDescription: "Number of cloud-to-device messages queued for the module.",

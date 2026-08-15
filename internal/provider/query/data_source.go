@@ -64,7 +64,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 				Computed:            true,
 			},
 			"result_count": schema.Int64Attribute{MarkdownDescription: "Number of results.", Computed: true},
-			"item_type":    schema.StringAttribute{MarkdownDescription: "The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT *`, or `DeviceJob`.", Computed: true},
+			"item_type":    schema.StringAttribute{MarkdownDescription: "The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT * FROM devices` or `devices.modules`, `DeviceJob` for `FROM devices.jobs`.", Computed: true},
 		},
 	}
 }

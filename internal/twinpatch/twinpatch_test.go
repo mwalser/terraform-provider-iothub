@@ -275,3 +275,26 @@ func TestHasPrefix(t *testing.T) {
 		t.Error("HasPrefix")
 	}
 }
+
+func TestValidatePatch(t *testing.T) {
+	// nulls as object values are allowed (they delete keys), everything else is
+	// checked as by Validate
+	for _, s := range []string{`{"a":null}`, `{"a":{"b":null},"c":1}`} {
+		if p := ValidatePatch(doc(t, s)); len(p) != 0 {
+			t.Errorf("%s: unexpected problems %v", s, p)
+		}
+	}
+	for s, want := range map[string]string{
+		`{"a":[1,null]}`: "array element 1 is null",
+		`{"a.b":null}`:   "key must not contain",
+	} {
+		p := ValidatePatch(doc(t, s))
+		if len(p) == 0 || !strings.Contains(p[0].Message, want) {
+			t.Errorf("%s: expected a problem containing %q, got %v", s, want, p)
+		}
+	}
+	// and Validate still rejects nulls
+	if p := Validate(doc(t, `{"a":null}`)); len(p) == 0 {
+		t.Error("Validate must still reject nulls")
+	}
+}

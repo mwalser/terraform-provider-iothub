@@ -4,7 +4,7 @@ page_title: "iothub_device Resource - iothub"
 subcategory: ""
 description: |-
   A device identity in the IoT Hub identity registry.
-  Creating a device also creates its twin. Manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and its modules.
+  Creating a device also creates its twin. Manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and its modules. Only device_id and hostname force replacement. Every other attribute changes in place.
   Credentials. With authentication.type = "sas" and no keys given, the hub generates the keys. They are stored in state as sensitive values. To keep keys out of state, pass them through the write-only primary_key_wo and secondary_key_wo arguments and read connection strings with the iothub_device_credentials ephemeral resource. To rotate a write-only key, change the matching *_wo_version.
 ---
 
@@ -12,7 +12,7 @@ description: |-
 
 A device identity in the IoT Hub identity registry.
 
-Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. Deleting a device deletes its twin and its modules.
+Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. Deleting a device deletes its twin and its modules. Only `device_id` and `hostname` force replacement. Every other attribute changes in place.
 
 **Credentials.** With `authentication.type = "sas"` and no keys given, the hub generates the keys. They are stored in state as sensitive values. To keep keys out of state, pass them through the write-only `primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the `iothub_device_credentials` ephemeral resource. To rotate a write-only key, change the matching `*_wo_version`.
 
@@ -43,22 +43,31 @@ resource "iothub_device" "downstream" {
   }
 }
 
-# Keys that never enter state: write-only arguments plus a version to rotate.
+# Keys that never enter state: both keys as write-only arguments, plus a
+# version to rotate. Change the version whenever you change a key. A changed
+# key alone is not sent. (With only primary_key_wo set, the hub generates the
+# secondary key and it is stored in state.)
 variable "key_rotation" {
   type    = number
   default = 1
 }
 
-ephemeral "random_bytes" "meter" {
+ephemeral "random_bytes" "meter_primary" {
+  length = 32
+}
+
+ephemeral "random_bytes" "meter_secondary" {
   length = 32
 }
 
 resource "iothub_device" "meter" {
-  device_id              = "meter-0001"
-  status                 = "disabled"
-  status_reason          = "awaiting commissioning"
-  primary_key_wo         = ephemeral.random_bytes.meter.base64
-  primary_key_wo_version = var.key_rotation
+  device_id                = "meter-0001"
+  status                   = "disabled"
+  status_reason            = "awaiting commissioning"
+  primary_key_wo           = ephemeral.random_bytes.meter_primary.base64
+  primary_key_wo_version   = var.key_rotation
+  secondary_key_wo         = ephemeral.random_bytes.meter_secondary.base64
+  secondary_key_wo_version = var.key_rotation
 }
 ```
 
@@ -73,11 +82,11 @@ resource "iothub_device" "meter" {
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `authentication` (Attributes) How the device authenticates. When omitted, the hub generates SAS keys. An imported device keeps its existing credentials. (see [below for nested schema](#nestedatt--authentication))
-- `edge_enabled` (Boolean) Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and the `$edgeAgent` and `$edgeHub` module identities. Can be changed in place.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the device.
+- `authentication` (Attributes) How the device authenticates. When omitted, the hub generates SAS keys. After an import, omitting it keeps the device's existing credentials. (see [below for nested schema](#nestedatt--authentication))
+- `edge_enabled` (Boolean) Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and the `$edgeAgent` and `$edgeHub` module identities.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the device.
 - `parent_scope` (String) The `device_scope` of the parent IoT Edge device. Setting it makes this device a child of that gateway, either as a leaf device or as a nested edge device. A device has at most one parent.
-- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version`. Change the version to send the value again.
+- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version`. Changing the key value alone has no effect. Change the version whenever you change the key.
 - `primary_key_wo_version` (Number) Version marker for `primary_key_wo`. Change it to rotate the key.
 - `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key. Works like `primary_key_wo`.
 - `secondary_key_wo_version` (Number) Version marker for `secondary_key_wo`. Change it to rotate the key.
@@ -95,7 +104,7 @@ resource "iothub_device" "meter" {
 - `generation_id` (String) Hub-generated ID that changes when a device with the same `device_id` is re-created.
 - `id` (String) `<hostname>/devices/<device_id>`. Also the import ID.
 - `last_activity_time` (String) Last time the device connected, sent or received a message.
-- `parent_scopes` (List of String) Scopes of the parent edge device(s) as reported by the hub.
+- `parent_scopes` (List of String) The parent's scope as a one-element list, as the hub reports it. Empty for a device without a parent.
 - `status_updated_time` (String) When `status` last changed.
 
 <a id="nestedatt--authentication"></a>

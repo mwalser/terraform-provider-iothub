@@ -67,13 +67,14 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 		MarkdownDescription: "Manages the Azure IoT Hub **data plane**: device and module identities, twins, " +
 			"automatic device management configurations, IoT Edge deployments, jobs and direct methods. " +
 			"The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.\n\n" +
-			"Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to a hub shared access " +
-			"policy (SAS). Throttled requests are retried automatically until the operation's timeout.",
+			"Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to SAS authentication with a " +
+			"hub shared access policy. Throttled requests are retried automatically until the operation's timeout. Requires " +
+			"Terraform 1.14 or later.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
-				MarkdownDescription: "Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source " +
-					"and action can override it with its own `hostname`. Falls back to `IOTHUB_HOSTNAME`. Derived from " +
-					"`connection_string` when that is set.",
+				MarkdownDescription: "Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source, " +
+					"ephemeral resource, action and list resource can override it with its own `hostname`. Falls back to " +
+					"`IOTHUB_HOSTNAME`. Derived from `connection_string` when that is set.",
 				Optional: true,
 			},
 			"tenant_id": schema.StringAttribute{
@@ -111,7 +112,7 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Optional:            true,
 			},
 			"use_cli": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`. When no method is selected explicitly, the provider tries the environment, workload identity, managed identity and the Azure CLI, in that order.",
+				MarkdownDescription: "Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`.",
 				Optional:            true,
 			},
 			"connection_string": schema.StringAttribute{

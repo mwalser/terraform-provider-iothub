@@ -4,17 +4,20 @@ page_title: "iothub_digital_twin_command Action - iothub"
 subcategory: ""
 description: |-
   Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set component_path for a component command. Leave it out for a root-level command. The device's response status is compared with expected_status_codes. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
-  ~> Requires shared-access-policy (SAS) authentication. IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with connection_string to use this action. The policy needs ServiceConnect, for example service or iothubowner. As an alternative that works with both authentication modes, invoke the equivalent direct method with iothub_direct_method and method_name = "<component>*<command>".
-  A command invocation is never repeated after an ambiguous failure, because it may already have run.
+  IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. The shared access policy needs ServiceConnect, for example service or iothubowner.
+  ~> Requires SAS authentication. Configure the provider with connection_string. Under Entra ID, invoke the equivalent direct method with iothub_direct_method and method_name = "<component>*<command>".
+  If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the command may already have run on the device.
 ---
 
 # iothub_digital_twin_command (Action)
 
 Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set `component_path` for a component command. Leave it out for a root-level command. The device's response status is compared with `expected_status_codes`. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
 
-~> **Requires shared-access-policy (SAS) authentication.** IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with `connection_string` to use this action. The policy needs *ServiceConnect*, for example `service` or `iothubowner`. As an alternative that works with both authentication modes, invoke the equivalent direct method with `iothub_direct_method` and `method_name = "<component>*<command>"`.
+IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. The shared access policy needs *ServiceConnect*, for example `service` or `iothubowner`.
 
-A command invocation is never repeated after an ambiguous failure, because it may already have run.
+~> **Requires SAS authentication.** Configure the provider with `connection_string`. Under Entra ID, invoke the equivalent direct method with `iothub_direct_method` and `method_name = "<component>*<command>"`.
+
+If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the command may already have run on the device.
 
 ## Example Usage
 
@@ -81,6 +84,6 @@ resource "iothub_device_twin" "controller" {
 - `component_path` (String) Component name for a component command. Omit it for a root-level command.
 - `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0).
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `payload` (String) JSON request payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.
 - `response_timeout_seconds` (Number) How long the hub waits for the device's response, 5 to 300 seconds (default 30).

@@ -33,12 +33,23 @@ func (p Problem) String() string {
 // sends: key charset and length, string value length, object nesting depth
 // and the absence of null values (a null in a merge patch deletes a key; to
 // stop managing a key, omit it).
-func Validate(doc map[string]any) []Problem {
+func Validate(doc map[string]any) []Problem { return validate(doc, false) }
+
+// ValidatePatch is Validate for a document that is sent as a merge patch
+// and nothing else (a scheduled twin-update job): a null object value is
+// allowed and means "delete this key" (verified: nulls at any depth remove
+// the key). Nulls inside arrays are still rejected — the service refuses them.
+func ValidatePatch(doc map[string]any) []Problem { return validate(doc, true) }
+
+func validate(doc map[string]any, allowNullLeaves bool) []Problem {
 	var out []Problem
 	var walk func(p Path, v any)
 	walk = func(p Path, v any) {
 		switch t := v.(type) {
 		case nil:
+			if allowNullLeaves {
+				return
+			}
 			out = append(out, Problem{p, "null is not a twin value; omit the key instead (a null in a merge patch deletes the key)"})
 		case string:
 			if len(t) > MaxValueBytes {

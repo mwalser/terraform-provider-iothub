@@ -65,7 +65,7 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 			"offline or does not exist. The answer's status and payload are reported as progress output.\n\n" +
 			"Trigger the action from a resource lifecycle, for example `action_trigger { events = [after_update] … }` to reboot a " +
 			"device after its twin changed. Or run it ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. " +
-			"A method invocation is never repeated after an ambiguous failure, because it may already have run.",
+			"If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the method may already have run on the device.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":    hostnameAttribute(),
 			"device_id":   schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},

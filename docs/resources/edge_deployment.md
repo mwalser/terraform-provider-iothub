@@ -3,13 +3,13 @@
 page_title: "iothub_edge_deployment Resource - iothub"
 subcategory: ""
 description: |-
-  An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every edge device that matches target_condition, in order of priority.
+  An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches target_condition, in order of priority.
   target_condition, priority, labels and metrics can be changed in place. Changing modules_content replaces the deployment.
 ---
 
 # iothub_edge_deployment (Resource)
 
-An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every edge device that matches `target_condition`, in order of `priority`.
+An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches `target_condition`, in order of `priority`.
 
 `target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing `modules_content` replaces the deployment.**
 
@@ -59,17 +59,17 @@ resource "iothub_edge_deployment" "temp_sensor" {
 
 ### Required
 
-- `deployment_id` (String) IoT Edge deployment ID: 1 to 128 characters from `a-z 0-9 - + % _ * ! '`, lowercase only. Changing it replaces the IoT Edge deployment.
+- `deployment_id` (String) IoT Edge deployment ID: 1 to 128 characters from `a-z 0-9 - + % _ * ! '`, lowercase only. It must be unique among all configurations and IoT Edge deployments of the hub. Changing it replaces the IoT Edge deployment.
 - `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON, for example `jsonencode(jsondecode(file("deployment.json")).modulesContent)`. It holds `$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries under `$edgeAgent`. **Changing it replaces the deployment**, and the hub re-evaluates every targeted device.
-- `target_condition` (String) Which devices or modules the IoT Edge deployment targets. A query condition over `deviceId`, `tags` and `properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices, or `FROM devices.modules WHERE …` to target modules.
+- `target_condition` (String) Which IoT Edge devices the deployment targets. A query condition over `deviceId`, `tags` and `properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices.
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the IoT Edge deployment.
 - `labels` (Map of String) Free-form labels (string map).
-- `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.
-- `priority` (Number) Priority, 0 or higher (default 0). When several IoT Edge deployments target the same device, the highest priority wins.
-- `schema_version` (String) Schema version of the configuration document. The Azure CLI writes `1.0`. Left as the hub reports it when omitted.
+- `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200`. Results are in `metric_results`.
+- `priority` (Number) Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base.
+- `schema_version` (String) Optional version string of the IoT Edge deployment document, for example `1.0` as the Azure CLI writes it. Omit it unless you need a specific value. The hub's value is then accepted as-is.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
@@ -79,7 +79,7 @@ resource "iothub_edge_deployment" "temp_sensor" {
 - `id` (String) `<hostname>/configurations/<id>`. Also the import ID.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
-- `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`, plus `reportedSuccessfulCount` and `reportedFailedCount` for deployments. Empty until the hub has evaluated the IoT Edge deployment.
+- `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
 
 <a id="nestedblock--timeouts"></a>
 ### Nested Schema for `timeouts`

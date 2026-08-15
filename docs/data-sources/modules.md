@@ -32,7 +32,7 @@ output "custom_modules" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
@@ -49,8 +49,8 @@ Read-Only:
 - `connection_state` (String) `Connected` or `Disconnected`. Approximate.
 - `connection_state_updated_time` (String) When the connection state last changed.
 - `etag` (String) ETag of the module identity.
-- `generation_id` (String) Hub-generated generation ID.
-- `last_activity_time` (String) Last activity time.
+- `generation_id` (String) Hub-generated ID that changes when a module with the same ID is re-created.
+- `last_activity_time` (String) Last time the module connected, sent or received a message.
 - `managed_by` (String) Owner of the module, for example `iotEdge` for system modules.
 - `module_id` (String) Module ID.
 - `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.

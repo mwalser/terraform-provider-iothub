@@ -20,6 +20,17 @@ var DocumentType = jsondoc.Type{Name: "twin", Validate: func(doc map[string]any)
 	return out
 }}
 
+// PatchDocumentType is DocumentType for a document that is only ever sent
+// as a merge patch (the twin update of a scheduled job): a null value is
+// allowed and removes the key from the twins.
+var PatchDocumentType = jsondoc.Type{Name: "twin patch", Validate: func(doc map[string]any) []string {
+	var out []string
+	for _, p := range twinpatch.ValidatePatch(doc) {
+		out = append(out, p.String())
+	}
+	return out
+}}
+
 // Document is a DocumentType value.
 type Document = jsondoc.Value
 
