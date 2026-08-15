@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/actions"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/configuration"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/device"
@@ -264,7 +265,11 @@ func (p *IoTHubProvider) EphemeralResources(_ context.Context) []func() ephemera
 }
 
 func (p *IoTHubProvider) Actions(_ context.Context) []func() action.Action {
-	return []func() action.Action{}
+	return []func() action.Action{
+		actions.NewDirectMethodAction,
+		actions.NewApplyConfigurationAction,
+		actions.NewPurgeC2DQueueAction,
+	}
 }
 
 func (p *IoTHubProvider) ListResources(_ context.Context) []func() list.ListResource {

@@ -98,12 +98,42 @@ type retryPolicy struct {
 	log  Logger
 }
 
+// perRequest tunes the retry policy for one call (carried in the request
+// context): non-idempotent operations such as direct methods and job
+// creation must not be re-sent after an ambiguous failure, and calls that
+// legitimately take long (a direct method waiting for a device response)
+// need a longer per-try timeout.
+type perRequest struct {
+	// OnlyThrottleRetries limits retries to 429 (the request was not
+	// processed) — no retry on 5xx/408/network errors.
+	OnlyThrottleRetries bool
+	// TryTimeout overrides RetryOptions.TryTimeout when > 0.
+	TryTimeout time.Duration
+}
+
+type perRequestKey struct{}
+
+// withPerRequest attaches per-call retry tuning to ctx.
+func withPerRequest(ctx context.Context, pr perRequest) context.Context {
+	return context.WithValue(ctx, perRequestKey{}, pr)
+}
+
+func perRequestFrom(ctx context.Context) perRequest {
+	pr, _ := ctx.Value(perRequestKey{}).(perRequest)
+	return pr
+}
+
 func (p *retryPolicy) Do(req *policy.Request) (*http.Response, error) {
 	ctx := req.Raw().Context()
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, p.opts.MaxElapsed)
 		defer cancel()
+	}
+	pr := perRequestFrom(ctx)
+	tryTimeout := p.opts.TryTimeout
+	if pr.TryTimeout > 0 {
+		tryTimeout = pr.TryTimeout
 	}
 
 	var (
@@ -116,17 +146,20 @@ func (p *retryPolicy) Do(req *policy.Request) (*http.Response, error) {
 				return nil, err
 			}
 		}
-		tryCtx, cancel := context.WithTimeout(ctx, p.opts.TryTimeout)
+		tryCtx, cancel := context.WithTimeout(ctx, tryTimeout)
 		resp, err := req.Clone(tryCtx).Next()
 
 		// ---- decide ----------------------------------------------------
 		retry, throttle := false, false
 		switch {
 		case err != nil:
-			retry = retryableError(err) && ctx.Err() == nil
+			retry = retryableError(err) && ctx.Err() == nil && !pr.OnlyThrottleRetries
 		case retryableStatus(resp.StatusCode):
 			retry = ctx.Err() == nil
 			throttle = resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable
+			if pr.OnlyThrottleRetries && resp.StatusCode != http.StatusTooManyRequests {
+				retry = false
+			}
 		}
 		var delay time.Duration
 		if retry {

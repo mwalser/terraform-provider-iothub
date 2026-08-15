@@ -148,6 +148,8 @@ type request struct {
 	body    any // marshalled as JSON when non-nil
 	// okStatuses lists the statuses treated as success (default: any 2xx).
 	okStatuses []int
+	// retry tunes the retry policy for this call (see perRequest).
+	retry perRequest
 }
 
 // result carries what callers need besides the decoded body.
@@ -164,6 +166,9 @@ func (c *Client) do(ctx context.Context, r request, out any) (*result, error) {
 	u := url.URL{Scheme: "https", Host: c.hostname, Path: r.path}
 	if len(r.query) > 0 {
 		u.RawQuery = r.query.Encode()
+	}
+	if r.retry != (perRequest{}) {
+		ctx = withPerRequest(ctx, r.retry)
 	}
 	req, err := runtime.NewRequest(ctx, r.method, u.String())
 	if err != nil {
