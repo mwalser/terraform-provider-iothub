@@ -69,11 +69,10 @@ var ProtoV6ProviderFactoriesWithEcho = map[string]func() (tfprotov6.ProviderServ
 	"echo":   echoprovider.NewProviderServer(),
 }
 
-// Client returns a service client for the test hub using the same
+// NewClient returns a service client for the test hub using the same
 // credentials the provider under test uses (Entra ID via the azidentity
 // default chain, or IOTHUB_CONNECTION_STRING).
-func Client(t *testing.T) *client.Client {
-	t.Helper()
+func NewClient() (*client.Client, error) {
 	cfg := client.Config{Version: "acctest"}
 	if cs := os.Getenv("IOTHUB_CONNECTION_STRING"); cs != "" {
 		parts := map[string]string{}
@@ -86,17 +85,23 @@ func Client(t *testing.T) *client.Client {
 	} else {
 		cred, err := azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
-			t.Fatalf("credential: %v", err)
+			return nil, fmt.Errorf("credential: %w", err)
 		}
 		cfg.Credential = cred
 	}
 	f, err := client.NewFactory(cfg)
 	if err != nil {
-		t.Fatalf("client factory: %v", err)
+		return nil, fmt.Errorf("client factory: %w", err)
 	}
-	c, err := f.Client(Hostname())
+	return f.Client(Hostname())
+}
+
+// Client is NewClient for tests: failures end the test.
+func Client(t *testing.T) *client.Client {
+	t.Helper()
+	c, err := NewClient()
 	if err != nil {
-		t.Fatalf("client: %v", err)
+		t.Fatalf("test hub client: %v", err)
 	}
 	return c
 }
@@ -107,8 +112,10 @@ func CheckDeviceDestroyed(ids ...string) func(*terraform.State) error {
 		if os.Getenv("TF_ACC") == "" {
 			return nil
 		}
-		t := &testing.T{}
-		c := Client(t)
+		c, err := NewClient()
+		if err != nil {
+			return err
+		}
 		for _, id := range ids {
 			_, err := c.GetDevice(context.Background(), id)
 			if err == nil {
