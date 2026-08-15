@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | Concept / RFC — v0.7, 2026-08-15 (decisions resolved, §15; verified against a live hub, Appendix D) |
+| Status | Concept / RFC — v0.8, 2026-08-15 (decisions resolved, §15; verified against a live hub, Appendix D) |
 | Scope | IoT Hub **Service REST API** (`https://<hub>.azure-devices.net`, `api-version=2021-04-12`) |
 | Out of scope | Everything under Azure Resource Manager (`Microsoft.Devices/*`), the device-side Messaging API, AMQP-only operations, sovereign clouds |
 | Name | `terraform-provider-iothub`, registry `<namespace>/iothub`, resource prefix `iothub_` |
@@ -444,6 +444,7 @@ Consequences and design:
 ### 11.3 Secrets and key lifecycle
 
 - Hub-generated keys are stored `Sensitive` in state (decided — same posture as `azurerm`); user-supplied keys can use `*_wo` write-only arguments so they never enter state.
+- **What "never enter state" requires of the provider:** when `primary_key_wo`/`secondary_key_wo` is used, `Read` deliberately leaves the computed `primary_key`/`secondary_key` **null** instead of copying the hub's values back (otherwise the write-only path would be a fiction). Because identity updates are full-body `PUT`s that must carry both keys (§6.1), `Update` then re-reads the identity from the hub immediately before the `PUT` — one extra registry op per *update* (not per refresh) — and sends the write-only value(s) for the changed slot(s) plus the hub's current value for the other. That pre-`PUT` read also yields the fresh ETag, so most conflicts are caught before the request; the 412 path in §11.1 covers the remaining race.
 - Ephemeral resources for connection strings and SAS tokens.
 - SAS provider credentials and job blob URIs (which embed storage SAS) are `Sensitive`.
 - Documentation recommends Entra ID + `excludeKeysInExport` for exports + state encryption.
