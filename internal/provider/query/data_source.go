@@ -52,7 +52,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"for a while afterwards. Queries are among the most tightly throttled operations (20/min/unit on S1), so " +
 			"prefer `iothub_device` / `iothub_device_twin` data sources for point lookups.",
 		Attributes: map[string]schema.Attribute{
-			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/query/<sha256 of the query>`.", Computed: true},
+			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/query/<short hash of the query>` (first 8 bytes of its SHA-256, hex).", Computed: true},
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"query": schema.StringAttribute{
 				MarkdownDescription: "The statement, e.g. `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.",

@@ -288,12 +288,12 @@ func waitScheduledJob(ctx context.Context, c *client.Client, id string, resp *ac
 		}
 		if job.IsUnknown() {
 			// A freshly created job can briefly be unknown to the read path;
-			// a job that stays unknown was never created.
+			// a job that stays unknown (consecutive polls) was never created.
 			if unknown++; unknown > 6 {
 				diags.AddError("Scheduled job vanished", fmt.Sprintf("Job %q is unknown to %s.", id, c.Hostname()))
 				return nil, diags
 			}
-		} else if job.IsTerminal() {
+		} else if unknown = 0; job.IsTerminal() {
 			return job, diags
 		} else if job.Status != last {
 			last = job.Status

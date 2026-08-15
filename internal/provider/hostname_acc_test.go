@@ -18,6 +18,12 @@ import (
 // on every construct kind, before any hub is contacted.
 func TestAccHostname_mustBeLowercase(t *testing.T) {
 	lowercase := regexp.MustCompile(`must be lowercase`)
+	// The provider-block step must name the connection string's hub under
+	// SAS; without a test hub configured (plain unit run) any name will do.
+	hub := iotacc.Hostname()
+	if hub == "" {
+		hub = "contoso.azure-devices.net"
+	}
 	resource.UnitTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: iotacc.ProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -63,7 +69,7 @@ resource "terraform_data" "t" {
 				Config: fmt.Sprintf(`provider "iothub" {
   hostname = %q
 }
-data "iothub_statistics" "s" {}`, strings.ToUpper(iotacc.Hostname()[:1])+iotacc.Hostname()[1:]),
+data "iothub_statistics" "s" {}`, strings.ToUpper(hub[:1])+hub[1:]),
 				ExpectError: lowercase,
 			},
 			{ // other shape errors are still reported

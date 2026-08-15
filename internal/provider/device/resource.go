@@ -313,7 +313,7 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 	pk, sk := plan.keysInState()
-	resp.Diagnostics.Append(r.setState(ctx, &plan, hostname, created, pk, sk)...)
+	resp.Diagnostics.Append(setState(&plan, hostname, created, pk, sk)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -363,7 +363,7 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 	pk, sk := state.keysInState()
-	resp.Diagnostics.Append(r.setState(ctx, &state, hostname, dev, pk, sk)...)
+	resp.Diagnostics.Append(setState(&state, hostname, dev, pk, sk)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -458,7 +458,7 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 
 	pk, sk := plan.keysInState()
-	resp.Diagnostics.Append(r.setState(ctx, &plan, hostname, updated, pk, sk)...)
+	resp.Diagnostics.Append(setState(&plan, hostname, updated, pk, sk)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -577,7 +577,7 @@ func writtenFromState(state resourceModel, auth identity.Auth) writtenFields {
 }
 
 // setState maps a hub identity onto the model.
-func (r *deviceResource) setState(_ context.Context, m *resourceModel, hostname string, d *client.Device, primaryInState, secondaryInState bool) diag.Diagnostics {
+func setState(m *resourceModel, hostname string, d *client.Device, primaryInState, secondaryInState bool) diag.Diagnostics {
 	m.ID = types.StringValue(common.ResourceID(hostname, "devices", d.DeviceID))
 	m.Hostname = types.StringValue(hostname)
 	m.DeviceID = types.StringValue(d.DeviceID)

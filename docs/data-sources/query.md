@@ -48,7 +48,7 @@ output "stale_firmware_count" {
 
 ### Read-Only
 
-- `id` (String) `<hostname>/query/<sha256 of the query>`.
+- `id` (String) `<hostname>/query/<short hash of the query>` (first 8 bytes of its SHA-256, hex).
 - `item_type` (String) `Raw` (projection), `Twin` (`SELECT *`) or `DeviceJob`, as reported by the hub.
 - `result_count` (Number) Number of results.
 - `results` (List of String) One JSON string per result row, in the order the hub returns them.

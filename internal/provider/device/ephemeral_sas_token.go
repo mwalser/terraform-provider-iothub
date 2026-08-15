@@ -183,12 +183,12 @@ func (e *sasTokenEphemeral) Open(ctx context.Context, req ephemeral.OpenRequest,
 			fmt.Sprintf("The %s authenticates with %q; SAS tokens can only be minted for identities with `sas` authentication.", what, authType))
 		return
 	}
-	key := auth.SymmetricKey.PrimaryKey
+	key, which := auth.SymmetricKey.PrimaryKey, keyPrimary
 	if data.Key.ValueString() == keySecondary {
-		key = auth.SymmetricKey.SecondaryKey
+		key, which = auth.SymmetricKey.SecondaryKey, keySecondary
 	}
 	if key == "" {
-		resp.Diagnostics.AddAttributeError(path.Root("key"), "Key not set", fmt.Sprintf("The %s has no %s key.", what, data.Key.ValueString()))
+		resp.Diagnostics.AddAttributeError(path.Root("key"), "Key not set", fmt.Sprintf("The %s has no %s key.", what, which))
 		return
 	}
 	now := time.Now
