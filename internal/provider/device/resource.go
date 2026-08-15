@@ -91,7 +91,12 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"`primary_key_wo` / `secondary_key_wo` arguments (bump the matching `*_wo_version` to rotate) and read " +
 			"connection strings with the `iothub_device_credentials` ephemeral resource.\n\n" +
 			"**Concurrency.** Updates send `If-Match` with the ETag from the last refresh; if the identity changed " +
-			"outside Terraform in the meantime the apply fails and names the changed fields — run `terraform plan` again.",
+			"outside Terraform in the meantime the apply fails and names the changed fields — run `terraform plan` again.\n\n" +
+			"**Refresh cost.** A refresh reads the device *twin* first (100 reads/s on every tier) and only falls back to the " +
+			"identity registry (1.67 reads/s on S1) when the twin's `deviceEtag` shows the identity changed or the connection state " +
+			"moved — the twin's `deviceEtag` is the identity ETag, so this is lossless. It needs the `twins/read` data action " +
+			"(*IoT Hub Twin Contributor* / *Data Contributor*; *Registry Contributor* alone lacks it) or a SAS policy with " +
+			"*ServiceConnect*; without it the registry is read as before, silently.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "`<hostname>/devices/<device_id>` — also the import ID.",
@@ -145,7 +150,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"generation_id":                 computedStringStable("Hub-generated ID distinguishing re-creations of the same `device_id`."),
 			"device_scope":                  computedString("Own scope: hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty."),
 			"connection_state":              computedString("`Connected` or `Disconnected` (approximate, updated by the service)."),
-			"connection_state_updated_time": computedString("When the connection state last changed."),
+			"connection_state_updated_time": computedString("When the connection state last changed (re-read from the registry when `connection_state` changed)."),
 			"last_activity_time":            computedString("Last time the device connected, sent or received a message."),
 			"status_updated_time":           computedString("When `status` last changed."),
 			"cloud_to_device_message_count": schema.Int64Attribute{
@@ -332,6 +337,18 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	c, hostname, diags := r.client(ctx, state.Hostname)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	// ETag-gated refresh (CONCEPT.md §11.2): the twin is cheap to read and its
+	// deviceEtag is the identity ETag; when it matches, only the volatile
+	// fields need refreshing and the registry read is skipped.
+	if tw := r.pd.Refresh.TwinIfUnchanged(ctx, hostname, func(ctx context.Context) (*client.Twin, error) {
+		return c.GetDeviceTwin(ctx, state.DeviceID.ValueString())
+	}, state.ETag.ValueString(), state.ConnectionState.ValueString()); tw != nil {
+		state.LastActivityTime = identity.StringOrNull(tw.LastActivityTime)
+		state.CloudToDeviceMessageCount = types.Int64Value(tw.CloudToDeviceMessageCount)
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, state.DeviceID.ValueString())...)
 		return
 	}
 	dev, err := c.GetDevice(ctx, state.DeviceID.ValueString())

@@ -24,6 +24,8 @@ type ProviderData struct {
 	HostnameUnknown bool
 	// Clients creates per-hub clients sharing one pipeline and credential.
 	Clients *client.Factory
+	// Refresh gates the twin-first refresh of identities (see RefreshGate).
+	Refresh RefreshGate
 }
 
 // HostnameAttributeDescription documents the per-construct hostname attribute.

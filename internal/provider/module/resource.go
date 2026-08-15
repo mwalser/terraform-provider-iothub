@@ -85,7 +85,10 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"`iothub_module_credentials` for connection strings, and `If-Match` updates that fail with the changed fields " +
 			"if the module was modified outside Terraform since the last refresh.\n\n" +
 			"IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub; those are not created " +
-			"through this resource.",
+			"through this resource.\n\n" +
+			"**Refresh cost.** As for `iothub_device`, a refresh reads the module *twin* first and only falls back to the " +
+			"identity registry when the twin's `deviceEtag` (the module identity's ETag) or the connection state changed; " +
+			"needs `twins/read` (or a SAS policy with *ServiceConnect*), otherwise the registry is read as before.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>` — also the import ID.",
@@ -129,7 +132,7 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"connection_state":              computed("`Connected` or `Disconnected` (approximate, updated by the service)."),
-			"connection_state_updated_time": computed("When the connection state last changed."),
+			"connection_state_updated_time": computed("When the connection state last changed (re-read from the registry when `connection_state` changed)."),
 			"last_activity_time":            computed("Last time the module connected, sent or received a message."),
 			"cloud_to_device_message_count": schema.Int64Attribute{
 				MarkdownDescription: "Number of cloud-to-device messages queued for the module.",
@@ -295,6 +298,18 @@ func (r *moduleResource) Read(ctx context.Context, req resource.ReadRequest, res
 	c, hostname, diags := r.client(ctx, state.Hostname)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	// ETag-gated refresh (CONCEPT.md §11.2): the module twin's deviceEtag is
+	// the module identity's ETag; when it matches, only the volatile fields
+	// need refreshing and the registry read is skipped.
+	if tw := r.pd.Refresh.TwinIfUnchanged(ctx, hostname, func(ctx context.Context) (*client.Twin, error) {
+		return c.GetModuleTwin(ctx, state.DeviceID.ValueString(), state.ModuleID.ValueString())
+	}, state.ETag.ValueString(), state.ConnectionState.ValueString()); tw != nil {
+		state.LastActivityTime = identity.StringOrNull(tw.LastActivityTime)
+		state.CloudToDeviceMessageCount = types.Int64Value(tw.CloudToDeviceMessageCount)
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, state.DeviceID.ValueString(), state.ModuleID.ValueString())...)
 		return
 	}
 	mod, err := c.GetModule(ctx, state.DeviceID.ValueString(), state.ModuleID.ValueString())

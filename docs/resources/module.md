@@ -6,6 +6,7 @@ description: |-
   A module identity on a device (PUT/GET/DELETE /devices/{id}/modules/{mid}). Modules have their own credentials and twin (manage the twin with iothub_module_twin) but no status of their own — a disabled device disables its modules.
   Credentials and concurrency work exactly as for iothub_device: hub-generated SAS keys by default (stored sensitive), write-only primary_key_wo / secondary_key_wo to keep keys out of state, iothub_module_credentials for connection strings, and If-Match updates that fail with the changed fields if the module was modified outside Terraform since the last refresh.
   IoT Edge devices get the system modules $edgeAgent and $edgeHub from the hub; those are not created through this resource.
+  Refresh cost. As for iothub_device, a refresh reads the module twin first and only falls back to the identity registry when the twin's deviceEtag (the module identity's ETag) or the connection state changed; needs twins/read (or a SAS policy with ServiceConnect), otherwise the registry is read as before.
 ---
 
 # iothub_module (Resource)
@@ -15,6 +16,8 @@ A module identity on a device (`PUT/GET/DELETE /devices/{id}/modules/{mid}`). Mo
 Credentials and concurrency work exactly as for `iothub_device`: hub-generated SAS keys by default (stored sensitive), write-only `primary_key_wo` / `secondary_key_wo` to keep keys out of state, `iothub_module_credentials` for connection strings, and `If-Match` updates that fail with the changed fields if the module was modified outside Terraform since the last refresh.
 
 IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub; those are not created through this resource.
+
+**Refresh cost.** As for `iothub_device`, a refresh reads the module *twin* first and only falls back to the identity registry when the twin's `deviceEtag` (the module identity's ETag) or the connection state changed; needs `twins/read` (or a SAS policy with *ServiceConnect*), otherwise the registry is read as before.
 
 ## Example Usage
 
@@ -77,7 +80,7 @@ resource "iothub_module" "diagnostics" {
 
 - `cloud_to_device_message_count` (Number) Number of cloud-to-device messages queued for the module.
 - `connection_state` (String) `Connected` or `Disconnected` (approximate, updated by the service).
-- `connection_state_updated_time` (String) When the connection state last changed.
+- `connection_state_updated_time` (String) When the connection state last changed (re-read from the registry when `connection_state` changed).
 - `etag` (String) Module ETag; used for optimistic concurrency on updates.
 - `generation_id` (String) Hub-generated ID distinguishing re-creations of the same module.
 - `id` (String) `<hostname>/devices/<device_id>/modules/<module_id>` — also the import ID.

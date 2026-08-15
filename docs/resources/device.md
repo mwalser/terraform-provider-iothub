@@ -7,6 +7,7 @@ description: |-
   Creating a device implicitly creates its twin; manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and modules.
   Credentials. With authentication.type = "sas" and no keys given, the hub generates the keys and they are stored in state (sensitive). To keep keys out of state, pass them through the write-only primary_key_wo / secondary_key_wo arguments (bump the matching *_wo_version to rotate) and read connection strings with the iothub_device_credentials ephemeral resource.
   Concurrency. Updates send If-Match with the ETag from the last refresh; if the identity changed outside Terraform in the meantime the apply fails and names the changed fields — run terraform plan again.
+  Refresh cost. A refresh reads the device twin first (100 reads/s on every tier) and only falls back to the identity registry (1.67 reads/s on S1) when the twin's deviceEtag shows the identity changed or the connection state moved — the twin's deviceEtag is the identity ETag, so this is lossless. It needs the twins/read data action (IoT Hub Twin Contributor / Data Contributor; Registry Contributor alone lacks it) or a SAS policy with ServiceConnect; without it the registry is read as before, silently.
 ---
 
 # iothub_device (Resource)
@@ -18,6 +19,8 @@ Creating a device implicitly creates its twin; manage tags and desired propertie
 **Credentials.** With `authentication.type = "sas"` and no keys given, the hub generates the keys and they are stored in state (sensitive). To keep keys out of state, pass them through the write-only `primary_key_wo` / `secondary_key_wo` arguments (bump the matching `*_wo_version` to rotate) and read connection strings with the `iothub_device_credentials` ephemeral resource.
 
 **Concurrency.** Updates send `If-Match` with the ETag from the last refresh; if the identity changed outside Terraform in the meantime the apply fails and names the changed fields — run `terraform plan` again.
+
+**Refresh cost.** A refresh reads the device *twin* first (100 reads/s on every tier) and only falls back to the identity registry (1.67 reads/s on S1) when the twin's `deviceEtag` shows the identity changed or the connection state moved — the twin's `deviceEtag` is the identity ETag, so this is lossless. It needs the `twins/read` data action (*IoT Hub Twin Contributor* / *Data Contributor*; *Registry Contributor* alone lacks it) or a SAS policy with *ServiceConnect*; without it the registry is read as before, silently.
 
 ## Example Usage
 
@@ -92,7 +95,7 @@ resource "iothub_device" "meter" {
 
 - `cloud_to_device_message_count` (Number) Number of cloud-to-device messages queued for the device.
 - `connection_state` (String) `Connected` or `Disconnected` (approximate, updated by the service).
-- `connection_state_updated_time` (String) When the connection state last changed.
+- `connection_state_updated_time` (String) When the connection state last changed (re-read from the registry when `connection_state` changed).
 - `device_scope` (String) Own scope: hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty.
 - `etag` (String) Identity ETag; used for optimistic concurrency on updates.
 - `generation_id` (String) Hub-generated ID distinguishing re-creations of the same `device_id`.
