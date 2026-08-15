@@ -10,6 +10,7 @@ import (
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/identity"
 )
 
 var (
@@ -131,14 +132,14 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 		data.StatusReason = types.StringValue(*dev.StatusReason)
 	}
 	data.EdgeEnabled = types.BoolValue(dev.Capabilities != nil && dev.Capabilities.IotEdge)
-	data.ParentScope = stringOrNull(parentScopeOf(dev))
-	auth := authFromHub(dev.Authentication, false)
+	data.ParentScope = identity.StringOrNull(parentScopeOf(dev))
+	auth := identity.AuthFromHub(dev.Authentication, false)
 	data.AuthenticationType = auth.Type
 	data.PrimaryThumbprint = auth.PrimaryThumbprint
 	data.SecondaryThumbprint = auth.SecondaryThumbprint
 	data.ETag = types.StringValue(dev.ETag)
 	data.GenerationID = types.StringValue(dev.GenerationID)
-	data.DeviceScope = stringOrNull(dev.DeviceScope)
+	data.DeviceScope = identity.StringOrNull(dev.DeviceScope)
 	scopes := make([]attr.Value, 0, len(dev.ParentScopes))
 	for _, s := range dev.ParentScopes {
 		scopes = append(scopes, types.StringValue(s))
@@ -146,10 +147,10 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	list, diags := types.ListValue(types.StringType, scopes)
 	resp.Diagnostics.Append(diags...)
 	data.ParentScopes = list
-	data.ConnectionState = stringOrNull(dev.ConnectionState)
-	data.ConnectionStateUpdatedTime = stringOrNull(dev.ConnectionStateUpdatedTime)
-	data.LastActivityTime = stringOrNull(dev.LastActivityTime)
-	data.StatusUpdatedTime = stringOrNull(dev.StatusUpdatedTime)
+	data.ConnectionState = identity.StringOrNull(dev.ConnectionState)
+	data.ConnectionStateUpdatedTime = identity.StringOrNull(dev.ConnectionStateUpdatedTime)
+	data.LastActivityTime = identity.StringOrNull(dev.LastActivityTime)
+	data.StatusUpdatedTime = identity.StringOrNull(dev.StatusUpdatedTime)
 	data.CloudToDeviceMessageCount = types.Int64Value(dev.CloudToDeviceMessageCount)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

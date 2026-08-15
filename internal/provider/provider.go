@@ -17,6 +17,7 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/device"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/module"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/statistics"
 )
 
@@ -226,12 +227,15 @@ func newClientFactory(s common.Settings, version string) (*client.Factory, error
 func (p *IoTHubProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		device.NewResource,
+		module.NewResource,
 	}
 }
 
 func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		device.NewDataSource,
+		module.NewDataSource,
+		module.NewModulesDataSource,
 		statistics.NewDataSource,
 	}
 }
@@ -239,6 +243,7 @@ func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.Data
 func (p *IoTHubProvider) EphemeralResources(_ context.Context) []func() ephemeral.EphemeralResource {
 	return []func() ephemeral.EphemeralResource{
 		device.NewCredentialsEphemeral,
+		module.NewCredentialsEphemeral,
 	}
 }
 

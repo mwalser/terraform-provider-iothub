@@ -370,7 +370,7 @@ func TestAccDevice_configValidation(t *testing.T) {
 				Config: `resource "iothub_device" "bad" {
   device_id = "has space"
 }`,
-				ExpectError: regexp.MustCompile(`must be 1–128 characters`),
+				ExpectError: regexp.MustCompile(`must be 1–128 ASCII characters`),
 			},
 			{
 				Config: `resource "iothub_device" "bad" {

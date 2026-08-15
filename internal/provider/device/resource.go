@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -25,6 +24,7 @@ import (
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/identity"
 )
 
 var (
@@ -105,10 +105,10 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"device_id": schema.StringAttribute{
-				MarkdownDescription: "Device ID: 1–128 ASCII characters from `A-Z a-z 0-9 - : . + % _ # * ? ! ( ) , = @ ; $ '`. Immutable.",
+				MarkdownDescription: "Device ID: " + identity.IDDescription + ". Immutable.",
 				Required:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
-				Validators:          []validator.String{stringvalidator.RegexMatches(deviceIDPattern, "must be 1–128 characters from A-Z a-z 0-9 - : . + % _ # * ? ! ( ) , = @ ; $ '")},
+				Validators:          []validator.String{identity.IDValidator()},
 			},
 			"status": schema.StringAttribute{
 				MarkdownDescription: "`enabled` (default) or `disabled`. A disabled device cannot connect.",
@@ -136,74 +136,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				Optional:   true,
 				Validators: []validator.String{stringvalidator.RegexMatches(regexpPrefix(parentScopePrefix), "must be an edge device scope starting with "+parentScopePrefix)},
 			},
-			"authentication": schema.SingleNestedAttribute{
-				MarkdownDescription: "How the device authenticates. When omitted, the hub generates SAS keys and the block reflects " +
-					"whatever the hub holds (imported devices keep their credentials).",
-				Optional: true,
-				Computed: true,
-				Attributes: map[string]schema.Attribute{
-					"type": schema.StringAttribute{
-						MarkdownDescription: "`sas` (symmetric keys, default), `selfSigned` (X.509 thumbprints) or `certificateAuthority` (X.509 CA-signed).",
-						Optional:            true,
-						Computed:            true,
-						Default:             stringdefault.StaticString(client.AuthTypeSAS),
-						Validators:          []validator.String{stringvalidator.OneOf(client.AuthTypeSAS, client.AuthTypeSelfSigned, client.AuthTypeCertificateAuthority)},
-					},
-					"primary_key": schema.StringAttribute{
-						MarkdownDescription: "Base64 primary key (16–64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.",
-						Optional:            true,
-						Computed:            true,
-						Sensitive:           true,
-					},
-					"secondary_key": schema.StringAttribute{
-						MarkdownDescription: "Base64 secondary key (16–64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.",
-						Optional:            true,
-						Computed:            true,
-						Sensitive:           true,
-					},
-					"primary_thumbprint": schema.StringAttribute{
-						MarkdownDescription: "Primary X.509 thumbprint (40 or 64 hex characters, no separators) for `selfSigned`.",
-						Optional:            true,
-						Validators:          []validator.String{stringvalidator.RegexMatches(thumbprintPattern, "must be 40 or 64 hex characters without separators")},
-					},
-					"secondary_thumbprint": schema.StringAttribute{
-						MarkdownDescription: "Secondary X.509 thumbprint for `selfSigned`.",
-						Optional:            true,
-						Validators:          []validator.String{stringvalidator.RegexMatches(thumbprintPattern, "must be 40 or 64 hex characters without separators")},
-					},
-				},
-			},
-			"primary_key_wo": schema.StringAttribute{
-				MarkdownDescription: "Write-only primary key (base64, 16–64 bytes): sent to the hub, never stored in state or plan. " +
-					"Requires `primary_key_wo_version`; a changed version re-sends the value.",
-				Optional:  true,
-				WriteOnly: true,
-				Sensitive: true,
-				Validators: []validator.String{
-					stringvalidator.AlsoRequires(path.MatchRoot("primary_key_wo_version")),
-					stringvalidator.ConflictsWith(path.MatchRoot("authentication").AtName("primary_key")),
-				},
-			},
-			"primary_key_wo_version": schema.Int64Attribute{
-				MarkdownDescription: "Version marker for `primary_key_wo`; change it to rotate the key.",
-				Optional:            true,
-				Validators:          []validator.Int64{int64validator.AlsoRequires(path.MatchRoot("primary_key_wo"))},
-			},
-			"secondary_key_wo": schema.StringAttribute{
-				MarkdownDescription: "Write-only secondary key; see `primary_key_wo`.",
-				Optional:            true,
-				WriteOnly:           true,
-				Sensitive:           true,
-				Validators: []validator.String{
-					stringvalidator.AlsoRequires(path.MatchRoot("secondary_key_wo_version")),
-					stringvalidator.ConflictsWith(path.MatchRoot("authentication").AtName("secondary_key")),
-				},
-			},
-			"secondary_key_wo_version": schema.Int64Attribute{
-				MarkdownDescription: "Version marker for `secondary_key_wo`; change it to rotate the key.",
-				Optional:            true,
-				Validators:          []validator.Int64{int64validator.AlsoRequires(path.MatchRoot("secondary_key_wo"))},
-			},
+			"authentication": identity.AuthAttribute("device"),
 			// ---- computed ----
 			"etag":                          computedString("Identity ETag; used for optimistic concurrency on updates."),
 			"generation_id":                 computedStringStable("Hub-generated ID distinguishing re-creations of the same `device_id`."),
@@ -226,6 +159,9 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),
 		},
 	}
+	for name, a := range identity.WriteOnlyKeyAttributes() {
+		resp.Schema.Attributes[name] = a
+	}
 }
 
 func computedString(desc string) schema.StringAttribute {
@@ -243,46 +179,15 @@ func (r *deviceResource) Configure(_ context.Context, req resource.ConfigureRequ
 }
 
 // ValidateConfig enforces the cross-attribute rules of the authentication
-// block: keys only with sas, thumbprints only with selfSigned (which needs at
-// least the primary), nothing for certificateAuthority.
+// block.
 func (r *deviceResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
 	var data resourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	auth, ok, diags := authFromObject(ctx, data.Authentication)
-	resp.Diagnostics.Append(diags...)
-	if !ok || auth.Type.IsUnknown() {
-		return
-	}
-	authType := client.AuthTypeSAS
-	if !auth.Type.IsNull() {
-		authType = auth.Type.ValueString()
-	}
-	hasKeys := known(auth.PrimaryKey) || known(auth.SecondaryKey) || known(data.PrimaryKeyWO) || known(data.SecondaryKeyWO)
-	hasThumbs := known(auth.PrimaryThumbprint) || known(auth.SecondaryThumbprint)
-	p := path.Root("authentication")
-	switch authType {
-	case client.AuthTypeSAS:
-		if hasThumbs {
-			resp.Diagnostics.AddAttributeError(p.AtName("primary_thumbprint"), "Thumbprints need selfSigned authentication", "Set `authentication.type = \"selfSigned\"` or remove the thumbprints.")
-		}
-	case client.AuthTypeSelfSigned:
-		if hasKeys {
-			resp.Diagnostics.AddAttributeError(p.AtName("primary_key"), "Symmetric keys need sas authentication", "selfSigned devices authenticate with X.509 thumbprints; remove the keys.")
-		}
-		if auth.PrimaryThumbprint.IsNull() {
-			resp.Diagnostics.AddAttributeError(p.AtName("primary_thumbprint"), "selfSigned authentication needs a thumbprint", "Set `authentication.primary_thumbprint` (the hub would accept a selfSigned device without one, but it could never connect).")
-		}
-	case client.AuthTypeCertificateAuthority:
-		if hasKeys || hasThumbs {
-			resp.Diagnostics.AddAttributeError(p.AtName("type"), "certificateAuthority takes no keys or thumbprints", "The device authenticates with a CA-signed certificate; remove keys and thumbprints.")
-		}
-	}
+	resp.Diagnostics.Append(identity.ValidateAuth(ctx, data.Authentication, data.writeOnlyKeys())...)
 }
-
-func known(s types.String) bool { return !s.IsNull() && !s.IsUnknown() }
 
 // ModifyPlan resolves the hostname, defers when the hub is not known yet, and
 // keeps the planned authentication object consistent with its type so the
@@ -324,75 +229,17 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 	}
 
 	// authentication: make the planned object consistent with the type.
-	resp.Diagnostics.Append(r.planAuthentication(ctx, &plan, config, state)...)
+	stateAuth := types.ObjectNull(identity.AuthAttrTypes)
+	if state != nil {
+		stateAuth = state.Authentication
+	}
+	auth, diags := identity.PlanAuth(ctx, config.Authentication, stateAuth, config.writeOnlyKeys())
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	plan.Authentication = auth
 	resp.Diagnostics.Append(resp.Plan.Set(ctx, &plan)...)
-}
-
-// planAuthentication decides the planned `authentication` object:
-//   - config omitted: keep what the hub holds (state), unknown on create;
-//   - sas: thumbprints null; keys from config, else from state when the type
-//     was sas before, else unknown (hub-generated or write-only);
-//   - selfSigned / certificateAuthority: keys null.
-//
-// Keys managed through write-only arguments are always planned null.
-func (r *deviceResource) planAuthentication(ctx context.Context, plan *resourceModel, config resourceModel, state *resourceModel) diag.Diagnostics {
-	var diags diag.Diagnostics
-	cfg, cfgSet, d := authFromObject(ctx, config.Authentication)
-	diags.Append(d...)
-	var st authModel
-	stSet := false
-	if state != nil {
-		st, stSet, d = authFromObject(ctx, state.Authentication)
-		diags.Append(d...)
-	}
-	if diags.HasError() {
-		return diags
-	}
-	if !cfgSet {
-		if stSet {
-			plan.Authentication = st.object()
-		} else {
-			plan.Authentication = types.ObjectUnknown(authAttrTypes)
-		}
-		return diags
-	}
-
-	authType := client.AuthTypeSAS
-	if known(cfg.Type) {
-		authType = cfg.Type.ValueString()
-	}
-	out := authModel{
-		Type:                types.StringValue(authType),
-		PrimaryKey:          types.StringNull(),
-		SecondaryKey:        types.StringNull(),
-		PrimaryThumbprint:   types.StringNull(),
-		SecondaryThumbprint: types.StringNull(),
-	}
-	switch authType {
-	case client.AuthTypeSAS:
-		pick := func(configured types.String, woVersion types.Int64, stateVal types.String) types.String {
-			switch {
-			case known(configured):
-				return configured
-			case !woVersion.IsNull(): // write-only in use: never in state
-				return types.StringNull()
-			case stSet && st.Type.ValueString() == client.AuthTypeSAS && known(stateVal):
-				return stateVal
-			default:
-				return types.StringUnknown()
-			}
-		}
-		out.PrimaryKey = pick(cfg.PrimaryKey, config.PrimaryKeyWOVersion, st.PrimaryKey)
-		out.SecondaryKey = pick(cfg.SecondaryKey, config.SecondaryKeyWOVersion, st.SecondaryKey)
-	case client.AuthTypeSelfSigned:
-		out.PrimaryThumbprint = cfg.PrimaryThumbprint
-		out.SecondaryThumbprint = cfg.SecondaryThumbprint
-	}
-	plan.Authentication = out.object()
-	return diags
 }
 
 func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -518,7 +365,7 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 			return
 		}
 		if fresh.ETag != state.ETag.ValueString() {
-			priorAuth, _, d := authFromObject(ctx, state.Authentication)
+			priorAuth, _, d := identity.AuthFromObject(ctx, state.Authentication)
 			resp.Diagnostics.Append(d...)
 			if changed := diffWritten(writtenFromState(state, priorAuth), writtenFromHub(fresh)); len(changed) > 0 {
 				resp.Diagnostics.AddError("Device changed outside Terraform",
@@ -610,10 +457,15 @@ func (r *deviceResource) ImportState(ctx context.Context, req resource.ImportSta
 
 // ---- helpers ----------------------------------------------------------------
 
+// writeOnlyKeys collects the write-only key arguments of the model.
+func (m resourceModel) writeOnlyKeys() identity.WriteOnlyKeys {
+	return identity.WriteOnlyKeys{Primary: m.PrimaryKeyWO, PrimaryVersion: m.PrimaryKeyWOVersion, Secondary: m.SecondaryKeyWO, SecondaryVersion: m.SecondaryKeyWOVersion}
+}
+
 // keysInState reports whether hub-generated/plain keys are stored in state
 // (true) or write-only arguments are in use for the respective slot (false).
 func (m resourceModel) keysInState() (primary, secondary bool) {
-	return m.PrimaryKeyWOVersion.IsNull(), m.SecondaryKeyWOVersion.IsNull()
+	return m.writeOnlyKeys().KeysInState()
 }
 
 func (r *deviceResource) client(ctx context.Context, hostname types.String) (*client.Client, string, diag.Diagnostics) {
@@ -634,7 +486,6 @@ func (r *deviceResource) client(ctx context.Context, hostname types.String) (*cl
 // spec builds the full identity to write from plan + config (+ the current
 // hub state on update, for keys not managed by Terraform).
 func (r *deviceResource) spec(ctx context.Context, plan, config resourceModel, current *client.Device) (client.DeviceSpec, diag.Diagnostics) {
-	var diags diag.Diagnostics
 	spec := client.DeviceSpec{
 		DeviceID:     plan.DeviceID.ValueString(),
 		Status:       plan.Status.ValueString(),
@@ -642,76 +493,23 @@ func (r *deviceResource) spec(ctx context.Context, plan, config resourceModel, c
 		IotEdge:      plan.EdgeEnabled.ValueBool(),
 		ParentScope:  plan.ParentScope.ValueString(),
 	}
-	auth, ok, d := authFromObject(ctx, plan.Authentication)
-	diags.Append(d...)
-	authType := client.AuthTypeSAS
-	if ok && known(auth.Type) {
-		authType = auth.Type.ValueString()
-	} else if !ok && current != nil && current.Authentication != nil {
-		// authentication omitted from config on an existing device: keep it.
-		spec.Authentication = *current.Authentication
-		return spec, diags
+	var currentAuth *client.AuthenticationMechanism
+	if current != nil {
+		currentAuth = current.Authentication
 	}
-	spec.Authentication = client.AuthenticationMechanism{Type: authType}
-	switch authType {
-	case client.AuthTypeSAS:
-		var cur client.SymmetricKey
-		if current != nil && current.Authentication != nil && current.Authentication.SymmetricKey != nil && current.Authentication.Type == client.AuthTypeSAS {
-			cur = *current.Authentication.SymmetricKey
-		}
-		primary := chooseKey(auth.PrimaryKey, config.PrimaryKeyWO, cur.PrimaryKey)
-		secondary := chooseKey(auth.SecondaryKey, config.SecondaryKeyWO, cur.SecondaryKey)
-		// The service wants both keys or neither. Fill a missing counterpart
-		// with a fresh random key rather than failing (a create with only
-		// one key given, or a slot the hub never had).
-		if (primary == "") != (secondary == "") {
-			gen, err := common.NewSymmetricKey()
-			if err != nil {
-				diags.AddError("Cannot generate symmetric key", err.Error())
-				return spec, diags
-			}
-			if primary == "" {
-				primary = gen
-			} else {
-				secondary = gen
-			}
-		}
-		if primary != "" {
-			spec.Authentication.SymmetricKey = &client.SymmetricKey{PrimaryKey: primary, SecondaryKey: secondary}
-		}
-	case client.AuthTypeSelfSigned:
-		spec.Authentication.X509Thumbprint = &client.X509Thumbprint{
-			PrimaryThumbprint:   auth.PrimaryThumbprint.ValueString(),
-			SecondaryThumbprint: auth.SecondaryThumbprint.ValueString(),
-		}
-	}
+	auth, diags := identity.BuildAuth(ctx, plan.Authentication, config.writeOnlyKeys(), currentAuth)
+	spec.Authentication = auth
 	return spec, diags
 }
 
-// chooseKey picks the key to send: explicit config, else write-only config,
-// else what the hub currently holds ("" lets the hub generate on create).
-func chooseKey(configured, writeOnly types.String, current string) string {
-	if known(configured) {
-		return configured.ValueString()
-	}
-	if known(writeOnly) {
-		return writeOnly.ValueString()
-	}
-	return current
-}
-
 // writtenFromState reflects the prior state for conflict inspection.
-func writtenFromState(state resourceModel, auth authModel) writtenFields {
+func writtenFromState(state resourceModel, auth identity.Auth) writtenFields {
 	return writtenFields{
-		Status:              state.Status.ValueString(),
-		StatusReason:        state.StatusReason.ValueString(),
-		IotEdge:             state.EdgeEnabled.ValueBool(),
-		ParentScope:         state.ParentScope.ValueString(),
-		AuthType:            auth.Type.ValueString(),
-		PrimaryKey:          auth.PrimaryKey.ValueString(),
-		SecondaryKey:        auth.SecondaryKey.ValueString(),
-		PrimaryThumbprint:   auth.PrimaryThumbprint.ValueString(),
-		SecondaryThumbprint: auth.SecondaryThumbprint.ValueString(),
+		Status:       state.Status.ValueString(),
+		StatusReason: state.StatusReason.ValueString(),
+		IotEdge:      state.EdgeEnabled.ValueBool(),
+		ParentScope:  state.ParentScope.ValueString(),
+		Auth:         identity.WrittenAuthFromState(auth),
 	}
 }
 
@@ -726,28 +524,28 @@ func (r *deviceResource) setState(_ context.Context, m *resourceModel, hostname 
 		m.StatusReason = types.StringValue(*d.StatusReason)
 	}
 	m.EdgeEnabled = types.BoolValue(d.Capabilities != nil && d.Capabilities.IotEdge)
-	m.ParentScope = stringOrNull(parentScopeOf(d))
-	auth := authFromHub(d.Authentication, true)
+	m.ParentScope = identity.StringOrNull(parentScopeOf(d))
+	auth := identity.AuthFromHub(d.Authentication, true)
 	if !primaryInState {
 		auth.PrimaryKey = types.StringNull()
 	}
 	if !secondaryInState {
 		auth.SecondaryKey = types.StringNull()
 	}
-	m.Authentication = auth.object()
+	m.Authentication = auth.Object()
 	m.ETag = types.StringValue(d.ETag)
 	m.GenerationID = types.StringValue(d.GenerationID)
-	m.DeviceScope = stringOrNull(d.DeviceScope)
+	m.DeviceScope = identity.StringOrNull(d.DeviceScope)
 	scopes := make([]attr.Value, 0, len(d.ParentScopes))
 	for _, s := range d.ParentScopes {
 		scopes = append(scopes, types.StringValue(s))
 	}
 	list, diags := types.ListValue(types.StringType, scopes)
 	m.ParentScopes = list
-	m.ConnectionState = stringOrNull(d.ConnectionState)
-	m.ConnectionStateUpdatedTime = stringOrNull(d.ConnectionStateUpdatedTime)
-	m.LastActivityTime = stringOrNull(d.LastActivityTime)
-	m.StatusUpdatedTime = stringOrNull(d.StatusUpdatedTime)
+	m.ConnectionState = identity.StringOrNull(d.ConnectionState)
+	m.ConnectionStateUpdatedTime = identity.StringOrNull(d.ConnectionStateUpdatedTime)
+	m.LastActivityTime = identity.StringOrNull(d.LastActivityTime)
+	m.StatusUpdatedTime = identity.StringOrNull(d.StatusUpdatedTime)
 	m.CloudToDeviceMessageCount = types.Int64Value(d.CloudToDeviceMessageCount)
 	return diags
 }

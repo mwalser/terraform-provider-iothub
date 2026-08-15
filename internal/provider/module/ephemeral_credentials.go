@@ -1,4 +1,4 @@
-package device
+package module
 
 import (
 	"context"
@@ -19,7 +19,7 @@ var (
 	_ ephemeral.EphemeralResourceWithConfigure = &credentialsEphemeral{}
 )
 
-// NewCredentialsEphemeral returns the iothub_device_credentials ephemeral resource.
+// NewCredentialsEphemeral returns the iothub_module_credentials ephemeral resource.
 func NewCredentialsEphemeral() ephemeral.EphemeralResource { return &credentialsEphemeral{} }
 
 type credentialsEphemeral struct {
@@ -29,6 +29,7 @@ type credentialsEphemeral struct {
 type credentialsModel struct {
 	Hostname                  types.String `tfsdk:"hostname"`
 	DeviceID                  types.String `tfsdk:"device_id"`
+	ModuleID                  types.String `tfsdk:"module_id"`
 	AuthenticationType        types.String `tfsdk:"authentication_type"`
 	PrimaryKey                types.String `tfsdk:"primary_key"`
 	SecondaryKey              types.String `tfsdk:"secondary_key"`
@@ -37,29 +38,30 @@ type credentialsModel struct {
 }
 
 func (e *credentialsEphemeral) Metadata(_ context.Context, req ephemeral.MetadataRequest, resp *ephemeral.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_device_credentials"
+	resp.TypeName = req.ProviderTypeName + "_module_credentials"
 }
 
 func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The symmetric keys and connection strings of a device, read from the identity registry and " +
+		MarkdownDescription: "The symmetric keys and connection strings of a module, read from the identity registry and " +
 			"never written to state or plan. Feed them into write-only arguments (e.g. `azurerm_key_vault_secret.value_wo`). " +
-			"Devices with X.509 authentication have no keys; the key attributes are then null.\n\n" +
-			"Terraform opens ephemeral resources during `plan` as well as `apply`. When the device does not exist yet " +
+			"Modules with X.509 authentication have no keys; the key attributes are then null.\n\n" +
+			"Terraform opens ephemeral resources during `plan` as well as `apply`. When the module does not exist yet " +
 			"because it is created in the same run, the plan shows the values as known after apply (with a " +
-			"\"Device not found (yet)\" warning) and they are read at apply time.",
+			"\"Module not found (yet)\" warning) and they are read at apply time.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true},
 			"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
+			"module_id":           schema.StringAttribute{MarkdownDescription: "Module ID.", Required: true},
 			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, `certificateAuthority` or `none`.", Computed: true},
 			"primary_key":         schema.StringAttribute{MarkdownDescription: "Base64 primary key (sas only).", Computed: true, Sensitive: true},
 			"secondary_key":       schema.StringAttribute{MarkdownDescription: "Base64 secondary key (sas only).", Computed: true, Sensitive: true},
 			"primary_connection_string": schema.StringAttribute{
-				MarkdownDescription: "`HostName=…;DeviceId=…;SharedAccessKey=<primary key>` (sas only).",
+				MarkdownDescription: "`HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<primary key>` (sas only).",
 				Computed:            true, Sensitive: true,
 			},
 			"secondary_connection_string": schema.StringAttribute{
-				MarkdownDescription: "`HostName=…;DeviceId=…;SharedAccessKey=<secondary key>` (sas only).",
+				MarkdownDescription: "`HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<secondary key>` (sas only).",
 				Computed:            true, Sensitive: true,
 			},
 		},
@@ -94,26 +96,20 @@ func (e *credentialsEphemeral) Open(ctx context.Context, req ephemeral.OpenReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	dev, err := c.GetDevice(ctx, data.DeviceID.ValueString())
+	deviceID, moduleID := data.DeviceID.ValueString(), data.ModuleID.ValueString()
+	mod, err := c.GetModule(ctx, deviceID, moduleID)
 	if err != nil {
 		if client.IsNotFound(err) {
-			// Terraform opens ephemeral resources during plan as well. A
-			// device that does not exist yet is usually one being created in
-			// the same run: defer until apply when Terraform allows it.
+			// Same reasoning as iothub_device_credentials: Terraform opens
+			// ephemeral resources at plan time too, so a missing module is
+			// usually one created in this run.
 			if req.ClientCapabilities.DeferralAllowed {
-				tflog.Debug(ctx, "device not found while opening credentials; deferring", map[string]any{"device_id": data.DeviceID.ValueString()})
 				resp.Deferred = &ephemeral.Deferred{Reason: ephemeral.DeferredReasonAbsentPrereq}
 				return
 			}
-			// Terraform opens ephemeral resources during plan too, and cannot
-			// tell the provider which phase it is in. A device that does not
-			// exist yet is normally one created in the same run, so the result
-			// is reported as unknown ("known after apply") with a warning; if
-			// the device is really missing the warning persists and any
-			// write-only consumer fails at apply.
-			resp.Diagnostics.AddWarning("Device not found (yet)",
-				fmt.Sprintf("No device with ID %q exists in %s at the moment. If it is created in this run, its credentials become "+
-					"available at apply time; otherwise check the device ID.", data.DeviceID.ValueString(), c.Hostname()))
+			resp.Diagnostics.AddWarning("Module not found (yet)",
+				fmt.Sprintf("No module %q on device %q exists in %s at the moment. If it is created in this run, its credentials become "+
+					"available at apply time; otherwise check the IDs.", moduleID, deviceID, c.Hostname()))
 			data.Hostname = types.StringValue(c.Hostname())
 			data.AuthenticationType = types.StringUnknown()
 			data.PrimaryKey, data.SecondaryKey = types.StringUnknown(), types.StringUnknown()
@@ -121,25 +117,25 @@ func (e *credentialsEphemeral) Open(ctx context.Context, req ephemeral.OpenReque
 			resp.Diagnostics.Append(resp.Result.Set(ctx, &data)...)
 			return
 		}
-		resp.Diagnostics.AddError("Cannot read IoT Hub device credentials", common.DescribeError(err))
+		resp.Diagnostics.AddError("Cannot read IoT Hub module credentials", common.DescribeError(err))
 		return
 	}
-	tflog.Debug(ctx, "opened device credentials", map[string]any{"device_id": dev.DeviceID, "deferral_allowed": req.ClientCapabilities.DeferralAllowed})
+	tflog.Debug(ctx, "opened module credentials", map[string]any{"device_id": deviceID, "module_id": moduleID})
 
 	data.Hostname = types.StringValue(c.Hostname())
 	data.AuthenticationType = types.StringNull()
 	data.PrimaryKey, data.SecondaryKey = types.StringNull(), types.StringNull()
 	data.PrimaryConnectionString, data.SecondaryConnectionString = types.StringNull(), types.StringNull()
-	if dev.Authentication != nil {
-		data.AuthenticationType = identity.StringOrNull(dev.Authentication.Type)
-		if k := dev.Authentication.SymmetricKey; k != nil && dev.Authentication.Type == client.AuthTypeSAS {
+	if mod.Authentication != nil {
+		data.AuthenticationType = identity.StringOrNull(mod.Authentication.Type)
+		if k := mod.Authentication.SymmetricKey; k != nil && mod.Authentication.Type == client.AuthTypeSAS {
 			if k.PrimaryKey != "" {
 				data.PrimaryKey = types.StringValue(k.PrimaryKey)
-				data.PrimaryConnectionString = types.StringValue(client.DeviceConnectionString(c.Hostname(), dev.DeviceID, k.PrimaryKey))
+				data.PrimaryConnectionString = types.StringValue(client.ModuleConnectionString(c.Hostname(), mod.DeviceID, mod.ModuleID, k.PrimaryKey))
 			}
 			if k.SecondaryKey != "" {
 				data.SecondaryKey = types.StringValue(k.SecondaryKey)
-				data.SecondaryConnectionString = types.StringValue(client.DeviceConnectionString(c.Hostname(), dev.DeviceID, k.SecondaryKey))
+				data.SecondaryConnectionString = types.StringValue(client.ModuleConnectionString(c.Hostname(), mod.DeviceID, mod.ModuleID, k.SecondaryKey))
 			}
 		}
 	}
