@@ -13,5 +13,7 @@ FEATURES:
 * **New Data Source:** `iothub_modules`
 * **New Data Source:** `iothub_device_twin`, `iothub_module_twin` — full twins incl. reported properties
 * **New Data Source:** `iothub_statistics`
+* **New Data Source:** `iothub_query` — IoT Hub query language statements, all pages
 * **New Ephemeral Resource:** `iothub_device_credentials`
 * **New Ephemeral Resource:** `iothub_module_credentials`
+* **New Ephemeral Resource:** `iothub_device_sas_token` — device/module SAS tokens minted locally

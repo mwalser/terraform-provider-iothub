@@ -59,3 +59,15 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 		}
 	}
 }
+
+func TestSASTokenSchema_ValidateImplementation(t *testing.T) {
+	ctx := context.Background()
+	var es ephemeral.SchemaResponse
+	NewSASTokenEphemeral().Schema(ctx, ephemeral.SchemaRequest{}, &es)
+	if diags := es.Schema.ValidateImplementation(ctx); diags.HasError() {
+		t.Fatalf("schema: %v", diags)
+	}
+	if !es.Schema.Attributes["token"].IsSensitive() {
+		t.Error("token must be sensitive")
+	}
+}

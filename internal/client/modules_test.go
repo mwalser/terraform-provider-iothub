@@ -2,6 +2,9 @@ package client
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -63,5 +66,43 @@ func TestModuleConnectionString(t *testing.T) {
 	got := ModuleConnectionString("h.azure-devices.net", "d1", "m1", "k")
 	if got != "HostName=h.azure-devices.net;DeviceId=d1;ModuleId=m1;SharedAccessKey=k" {
 		t.Error(got)
+	}
+}
+
+func TestModules_SAS401OnMissingDeviceBecomesNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/modules/") {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"Message":"{\"errorCode\":401002,\"message\":\"Unauthorized access\",\"trackingId\":\"t1\"}"}`))
+			return
+		}
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"Message":"ErrorCode:DeviceNotFound;x","ExceptionMessage":"Tracking ID:t2"}`))
+	}))
+	defer srv.Close()
+	c, _ := newTestClient(t, srv, nil)
+	_, err := c.GetModule(context.Background(), "gone", "m1")
+	if !IsNotFound(err) || IsUnauthorized(err) {
+		t.Fatalf("expected not-found, got %v", err)
+	}
+	if err := c.DeleteModule(context.Background(), "gone", "m1", ""); !IsNotFound(err) {
+		t.Fatalf("delete: expected not-found, got %v", err)
+	}
+
+	// a real 401 (device readable) stays a 401
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/modules/") {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"Message":"ErrorCode:IotHubUnauthorizedAccess;Unauthorized"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"deviceId":"d1"}`))
+	}))
+	defer srv2.Close()
+	c2, _ := newTestClient(t, srv2, nil)
+	if _, err := c2.GetModule(context.Background(), "d1", "m1"); !IsUnauthorized(err) {
+		t.Fatalf("expected 401 to pass through, got %v", err)
 	}
 }

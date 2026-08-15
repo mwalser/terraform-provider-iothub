@@ -18,6 +18,7 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/device"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/module"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/query"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/statistics"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/twin"
 )
@@ -241,6 +242,7 @@ func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.Data
 		module.NewModulesDataSource,
 		twin.NewDeviceDataSource,
 		twin.NewModuleDataSource,
+		query.NewDataSource,
 		statistics.NewDataSource,
 	}
 }
@@ -249,6 +251,7 @@ func (p *IoTHubProvider) EphemeralResources(_ context.Context) []func() ephemera
 	return []func() ephemeral.EphemeralResource{
 		device.NewCredentialsEphemeral,
 		module.NewCredentialsEphemeral,
+		device.NewSASTokenEphemeral,
 	}
 }
 

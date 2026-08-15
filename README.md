@@ -9,10 +9,11 @@ resources and stay with the [`azurerm`](https://registry.terraform.io/providers/
 provider; this provider starts exactly where `azurerm` stops.
 
 > **Status: alpha, not yet published to the Terraform Registry.**
-> Phase 0 is complete: authentication, the service client, `iothub_device`
-> (resource, data source, import), `iothub_device_credentials` and
-> `iothub_statistics`. Modules, twins, configurations, edge deployments and
-> actions follow ([roadmap](CONCEPT.md#14-roadmap)).
+> Phases 0 and 1 are complete: authentication, the service client, the
+> identity registry (`iothub_device`, `iothub_module`, credentials and SAS
+> tokens as ephemeral resources), device and module twins with leaf-path
+> ownership, `iothub_query` and `iothub_statistics`. Configurations, edge
+> deployments and actions follow ([roadmap](CONCEPT.md#14-roadmap)).
 
 The design — every resource, action and behaviour, the decisions behind
 them, and the service facts verified against a live hub — is in
@@ -51,6 +52,16 @@ resource "iothub_device" "gateway" {
 resource "iothub_device" "sensor" {
   device_id    = "sensor-0001"
   parent_scope = iothub_device.gateway.device_scope
+}
+
+# Own exactly these leaves of the twin; anything else in it is left alone.
+resource "iothub_device_twin" "sensor" {
+  device_id = iothub_device.sensor.device_id
+  tags      = jsonencode({ site = "munich", fleet = { ring = 2 } })
+  desired_properties = jsonencode({
+    telemetryIntervalSec = 60
+    firmware             = { channel = "stable" }
+  })
 }
 
 # Keys never touch state: read them at apply time into a write-only argument.

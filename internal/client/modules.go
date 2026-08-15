@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 )
 
@@ -53,7 +54,7 @@ func modulePath(deviceID, moduleID string) string {
 func (c *Client) GetModule(ctx context.Context, deviceID, moduleID string) (*Module, error) {
 	var out Module
 	if _, err := c.do(ctx, request{method: http.MethodGet, path: modulePath(deviceID, moduleID)}, &out); err != nil {
-		return nil, err
+		return nil, c.moduleError(ctx, deviceID, err)
 	}
 	return &out, nil
 }
@@ -63,7 +64,7 @@ func (c *Client) GetModule(ctx context.Context, deviceID, moduleID string) (*Mod
 func (c *Client) ListModules(ctx context.Context, deviceID string) ([]Module, error) {
 	var out []Module
 	if _, err := c.do(ctx, request{method: http.MethodGet, path: devicePath(deviceID) + "/modules"}, &out); err != nil {
-		return nil, err
+		return nil, c.moduleError(ctx, deviceID, err)
 	}
 	return out, nil
 }
@@ -74,7 +75,7 @@ func (c *Client) ListModules(ctx context.Context, deviceID string) ([]Module, er
 func (c *Client) CreateModule(ctx context.Context, spec ModuleSpec) (*Module, error) {
 	var out Module
 	if _, err := c.do(ctx, request{method: http.MethodPut, path: modulePath(spec.DeviceID, spec.ModuleID), body: spec.body()}, &out); err != nil {
-		return nil, err
+		return nil, c.moduleError(ctx, spec.DeviceID, err)
 	}
 	return &out, nil
 }
@@ -85,7 +86,7 @@ func (c *Client) UpdateModule(ctx context.Context, spec ModuleSpec, etag string)
 	var out Module
 	r := request{method: http.MethodPut, path: modulePath(spec.DeviceID, spec.ModuleID), body: spec.body(), headers: ifMatch(etag)}
 	if _, err := c.do(ctx, r, &out); err != nil {
-		return nil, err
+		return nil, c.moduleError(ctx, spec.DeviceID, err)
 	}
 	return &out, nil
 }
@@ -97,6 +98,31 @@ func (c *Client) DeleteModule(ctx context.Context, deviceID, moduleID, etag stri
 		etag = "*"
 	}
 	_, err := c.do(ctx, request{method: http.MethodDelete, path: modulePath(deviceID, moduleID), headers: ifMatch(etag)}, nil)
+	return c.moduleError(ctx, deviceID, err)
+}
+
+// moduleError normalises a service quirk: under shared-access-signature
+// authentication, module identity operations on a device that does not
+// exist answer 401 IotHubUnauthorizedAccess instead of 404 (Entra ID gets
+// 404; verified). A real authorization failure also fails the device read,
+// so the device is probed once and a missing device becomes IsNotFound.
+func (c *Client) moduleError(ctx context.Context, deviceID string, err error) error {
+	if err == nil || !IsUnauthorized(err) {
+		return err
+	}
+	if _, derr := c.GetDevice(ctx, deviceID); IsNotFound(derr) {
+		e, _ := AsError(err)
+		return &Error{
+			StatusCode: http.StatusNotFound,
+			Code:       "DeviceNotFound",
+			Message:    fmt.Sprintf("device %q does not exist (the service answers module operations on a missing device with 401 under SAS authentication)", deviceID),
+			TrackingID: e.TrackingID,
+			RequestID:  e.RequestID,
+			Method:     e.Method,
+			URL:        e.URL,
+			Body:       e.Body,
+		}
+	}
 	return err
 }
 
