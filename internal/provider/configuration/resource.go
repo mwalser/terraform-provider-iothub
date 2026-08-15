@@ -59,7 +59,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 	attrs := map[string]schema.Attribute{
 		"id": schema.StringAttribute{
-			MarkdownDescription: "`<hostname>/configurations/<id>` — also the import ID.",
+			MarkdownDescription: "`<hostname>/configurations/<id>`. Also the import ID.",
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 		},
@@ -74,20 +74,20 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 		},
 		r.kind.idAttr(): schema.StringAttribute{
-			MarkdownDescription: strings.ToUpper(r.kind.noun()[:1]) + r.kind.noun()[1:] + " ID: " + idDescription + ". Immutable.",
+			MarkdownDescription: strings.ToUpper(r.kind.noun()[:1]) + r.kind.noun()[1:] + " ID: " + idDescription + ". Changing it replaces the " + r.kind.noun() + ".",
 			Required:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			Validators:          []validator.String{stringvalidator.RegexMatches(idPattern, "must be "+idDescription)},
 		},
 		"target_condition": schema.StringAttribute{
-			MarkdownDescription: "Which devices (or modules) the " + r.kind.noun() + " targets: a query condition over `deviceId`, `tags` and " +
-				"`properties.reported` (e.g. `tags.site = 'munich'`), `*` for all devices, or `FROM devices.modules WHERE …` for module " +
-				"targets.",
+			MarkdownDescription: "Which devices or modules the " + r.kind.noun() + " targets. A query condition over `deviceId`, `tags` and " +
+				"`properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices, or `FROM devices.modules WHERE …` " +
+				"to target modules.",
 			Required:   true,
 			Validators: []validator.String{stringvalidator.LengthAtLeast(1)},
 		},
 		"priority": schema.Int64Attribute{
-			MarkdownDescription: "Priority (≥ 0, default 0). When several " + r.kind.noun() + "s target the same device, the highest priority wins.",
+			MarkdownDescription: "Priority, 0 or higher (default 0). When several " + r.kind.noun() + "s target the same device, the highest priority wins.",
 			Optional:            true,
 			Computed:            true,
 			Default:             int64default.StaticInt64(0),
@@ -99,14 +99,14 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			Optional:            true,
 		},
 		"metrics": schema.MapAttribute{
-			MarkdownDescription: "Custom metric queries, name → IoT Hub query (e.g. `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`). " +
-				"Results are in `metric_results`.",
+			MarkdownDescription: "Custom metrics: a map from metric name to an IoT Hub query, for example " +
+				"`SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.",
 			ElementType: types.StringType,
 			Optional:    true,
 			Validators:  []validator.Map{mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1))},
 		},
 		"schema_version": schema.StringAttribute{
-			MarkdownDescription: "Schema version of the configuration document (`1.0` is what the Azure CLI writes). Left as the hub reports it when omitted.",
+			MarkdownDescription: "Schema version of the configuration document. The Azure CLI writes `1.0`. Left as the hub reports it when omitted.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
@@ -115,8 +115,8 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		"created_time_utc":      computed("Creation time."),
 		"last_updated_time_utc": computed("Last update time."),
 		"system_metrics": schema.MapAttribute{
-			MarkdownDescription: "Latest hub-computed system metrics: `targetedCount`, `appliedCount` (and for deployments `reportedSuccessfulCount`, " +
-				"`reportedFailedCount`). Empty until the hub has evaluated the " + r.kind.noun() + ".",
+			MarkdownDescription: "Latest system metrics computed by the hub: `targetedCount` and `appliedCount`, plus `reportedSuccessfulCount` " +
+				"and `reportedFailedCount` for deployments. Empty until the hub has evaluated the " + r.kind.noun() + ".",
 			ElementType: types.Int64Type,
 			Computed:    true,
 		},
@@ -130,39 +130,40 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	if r.kind.isEdge() {
 		attrs["modules_content"] = schema.StringAttribute{
 			CustomType: ModulesContentType,
-			MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON (`jsonencode(jsondecode(file(\"deployment.json\")).modulesContent)`): " +
-				"`$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules; a layered deployment carries " +
-				"`properties.desired.modules.<name>` entries under `$edgeAgent`. **Changing it replaces the deployment**, which " +
-				"re-evaluates every targeted device.",
+			MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON, for example " +
+				"`jsonencode(jsondecode(file(\"deployment.json\")).modulesContent)`. It holds `$edgeAgent` and `$edgeHub` with their " +
+				"`properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries " +
+				"under `$edgeAgent`. **Changing it replaces the deployment**, and the hub re-evaluates every targeted device.",
 			Required:      true,
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 		}
-		description = "An IoT Edge deployment, including layered deployments: the deployment manifest the hub applies to every edge " +
-			"device matching `target_condition`, by `priority`.\n\n" +
-			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place; **`modules_content` cannot — changing " +
-			"it replaces the deployment.**"
+		description = "An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every " +
+			"edge device that matches `target_condition`, in order of `priority`.\n\n" +
+			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing `modules_content` " +
+			"replaces the deployment.**"
 	} else {
 		attrs["device_content"] = schema.StringAttribute{
 			CustomType: ContentType,
-			MarkdownDescription: "Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys " +
-				"(`jsonencode({ \"properties.desired.firmware\" = { channel = \"stable\" } })`). Exactly one of `device_content` and " +
-				"`module_content`. **Changing it replaces the configuration**, which re-evaluates every targeted device.",
+			MarkdownDescription: "Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys, for " +
+				"example `jsonencode({ \"properties.desired.firmware\" = { channel = \"stable\" } })`. Set exactly one of " +
+				"`device_content` and `module_content`. **Changing it replaces the configuration**, and the hub re-evaluates every " +
+				"targeted device.",
 			Optional:      true,
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 			Validators:    []validator.String{stringvalidator.ExactlyOneOf(path.MatchRoot("device_content"), path.MatchRoot("module_content"))},
 		}
 		attrs["module_content"] = schema.StringAttribute{
 			CustomType: ContentType,
-			MarkdownDescription: "Module twin desired properties to apply (`properties.desired.<path>` keys); use with a module target " +
-				"condition (`FROM devices.modules WHERE moduleId = '…'`). Exactly one of `device_content` and `module_content`. " +
-				"**Changing it replaces the configuration.**",
+			MarkdownDescription: "Module twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys. Use it " +
+				"with a module target condition such as `FROM devices.modules WHERE moduleId = '…'`. Set exactly one of `device_content` " +
+				"and `module_content`. **Changing it replaces the configuration.**",
 			Optional:      true,
 			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
 		}
-		description = "An automatic device management configuration: desired properties the hub applies to every device or " +
-			"module matching `target_condition`, by `priority`.\n\n" +
-			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place; **the content cannot — changing it " +
-			"replaces the configuration.**"
+		description = "An automatic device management configuration. The hub applies its desired properties to every device or " +
+			"module that matches `target_condition`, in order of `priority`.\n\n" +
+			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing the content replaces the " +
+			"configuration.**"
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: description,

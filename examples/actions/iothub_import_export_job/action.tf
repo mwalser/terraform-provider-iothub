@@ -1,6 +1,6 @@
 # Nightly registry export into a blob container, keys excluded.
-# The hub authenticates to storage with its managed identity
-# (Storage Blob Data Contributor on the container); no SAS in the configuration.
+# The hub authenticates to storage with its managed identity, which has
+# Storage Blob Data Contributor on the container. No SAS in the configuration.
 action "iothub_import_export_job" "export" {
   config {
     type                        = "export"

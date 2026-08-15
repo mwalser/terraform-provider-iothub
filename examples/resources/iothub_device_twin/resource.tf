@@ -4,8 +4,8 @@ resource "iothub_device" "sensor" {
 
 # Terraform owns exactly these leaf paths: tags.site, tags.fleet.region,
 # tags.fleet.ring, desired.telemetryIntervalSec and desired.firmware.channel.
-# Anything else in the twin — other keys, and other systems' keys inside
-# `fleet` or `firmware` — is neither read nor written.
+# Anything else in the twin is neither read nor written. That includes other
+# top-level keys and other systems' keys inside `fleet` or `firmware`.
 resource "iothub_device_twin" "sensor" {
   device_id = iothub_device.sensor.device_id
 

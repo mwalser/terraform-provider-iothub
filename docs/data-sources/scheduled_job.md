@@ -3,12 +3,12 @@
 page_title: "iothub_scheduled_job Data Source - iothub"
 subcategory: ""
 description: |-
-  A scheduled twin-update or device-method job, e.g. one started by the iothub_scheduled_job action. The hub keeps job history for a limited time; an unknown job is an error.
+  A scheduled twin-update or device-method job, for example one started by the iothub_scheduled_job action. The hub keeps job history for a limited time. Reading an unknown job is an error.
 ---
 
 # iothub_scheduled_job (Data Source)
 
-A scheduled twin-update or device-method job, e.g. one started by the `iothub_scheduled_job` action. The hub keeps job history for a limited time; an unknown job is an error.
+A scheduled twin-update or device-method job, for example one started by the `iothub_scheduled_job` action. The hub keeps job history for a limited time. Reading an unknown job is an error.
 
 ## Example Usage
 
@@ -35,22 +35,22 @@ output "fw_channel_rollout" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `created_time` (String) Creation time.
-- `device_job_statistics` (Attributes) Per-device counters (null until the hub reports them). (see [below for nested schema](#nestedatt--device_job_statistics))
-- `end_time` (String) End time (a far-future placeholder while running).
+- `device_job_statistics` (Attributes) Per-device counters. Null until the hub reports them. (see [below for nested schema](#nestedatt--device_job_statistics))
+- `end_time` (String) End time. A far-future placeholder while the job is running.
 - `failure_reason` (String) Failure reason, if any.
 - `id` (String) `<hostname>/jobs/v2/<job_id>`.
 - `max_execution_time_seconds` (Number) Maximum execution time.
-- `method` (String) The method of a `scheduleDeviceMethod` job as JSON, null otherwise.
+- `method` (String) The method of a `scheduleDeviceMethod` job as JSON. Null for other job types.
 - `query_condition` (String) Target condition.
 - `start_time` (String) Start time.
 - `status` (String) `queued`, `scheduled`, `running`, `completed`, `failed` or `cancelled`.
 - `status_message` (String) Status message, if any.
-- `twin_patch` (String) The twin patch of a `scheduleUpdateTwin` job as JSON (`{"tags":…,"properties":{"desired":…}}`), null otherwise.
+- `twin_patch` (String) The twin patch of a `scheduleUpdateTwin` job as JSON, with `tags` and `properties.desired`. Null for other job types.
 - `type` (String) `scheduleUpdateTwin` or `scheduleDeviceMethod`.
 
 <a id="nestedatt--device_job_statistics"></a>

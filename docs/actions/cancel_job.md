@@ -3,17 +3,17 @@
 page_title: "iothub_cancel_job Action - iothub"
 subcategory: ""
 description: |-
-  Cancels a running or scheduled job — a scheduled twin-update/method job or an import/export job — and waits until the hub reports it cancelled. A job that already finished is reported as such without error; an unknown job fails.
+  Cancels a running or scheduled job and waits until the hub reports it cancelled. Works for scheduled twin-update and method jobs and for import and export jobs. A job that already finished is reported as such without an error. An unknown job fails.
 ---
 
 # iothub_cancel_job (Action)
 
-Cancels a running or scheduled job — a scheduled twin-update/method job or an import/export job — and waits until the hub reports it cancelled. A job that already finished is reported as such without error; an unknown job fails.
+Cancels a running or scheduled job and waits until the hub reports it cancelled. Works for scheduled twin-update and method jobs and for import and export jobs. A job that already finished is reported as such without an error. An unknown job fails.
 
 ## Example Usage
 
 ```terraform
-# Cancel a scheduled job that has not run yet (e.g. a mis-scheduled reboot),
+# Cancel a scheduled job that has not run yet, for example a mis-scheduled reboot,
 # or a running import/export job.
 action "iothub_cancel_job" "reboot_gateways" {
   config {
@@ -38,9 +38,9 @@ action "iothub_cancel_job" "export" {
 ### Required
 
 - `job_id` (String) Job ID.
-- `kind` (String) `scheduled` (twin update / device method jobs) or `import_export`.
+- `kind` (String) `scheduled` for twin-update and device-method jobs, or `import_export`.
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
-- `timeout` (String) Overall deadline for the invocation as a Go duration (default `5m`): covers waiting for a free job slot, the job's scheduled start and its execution when `wait` is true.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `timeout` (String) Overall deadline for the invocation as a Go duration (default `5m`). It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true.

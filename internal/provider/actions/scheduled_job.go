@@ -65,46 +65,47 @@ func (a *scheduledJobAction) Metadata(_ context.Context, req action.MetadataRequ
 
 func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Runs a scheduled job: a twin update (`scheduleUpdateTwin`, merging tags / desired properties) or a " +
-			"direct method (`scheduleDeviceMethod`) on every device matching `query_condition`, optionally at a future `start_time`. " +
-			"With `wait = true` (default) the action waits for the job to finish and fails if the job failed or was cancelled — and, " +
-			"with `fail_on_device_failures` (default), if any targeted device failed. Read a job's outcome later with the " +
+		MarkdownDescription: "Runs a scheduled job on every device that matches `query_condition`, now or at a future `start_time`. " +
+			"A `scheduleUpdateTwin` job merges tags and desired properties into the twins. A `scheduleDeviceMethod` job invokes a " +
+			"direct method on the devices.\n\n" +
+			"With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With " +
+			"`fail_on_device_failures` (default) it also fails if any targeted device failed. Read a job's outcome later with the " +
 			"`iothub_scheduled_job` data source.\n\n" +
-			"A hub runs only a limited number of jobs at a time; while the slots are taken the action waits for a free one within " +
+			"A hub runs only a limited number of jobs at a time. While all slots are taken, the action waits for a free one within " +
 			"`timeout`. A duplicate `job_id` is an error.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": hostnameAttribute(),
 			"job_id": schema.StringAttribute{
-				MarkdownDescription: "Job ID (unique per hub); generated (`tf-<random>`) when omitted.",
+				MarkdownDescription: "Job ID, unique per hub. Generated as `tf-<random>` when omitted.",
 				Optional:            true,
 				Validators:          []validator.String{stringvalidator.LengthBetween(1, 128)},
 			},
 			"type": schema.StringAttribute{
-				MarkdownDescription: "`scheduleUpdateTwin` (with `twin_patch`) or `scheduleDeviceMethod` (with `method`).",
+				MarkdownDescription: "`scheduleUpdateTwin`, which needs `twin_patch`, or `scheduleDeviceMethod`, which needs `method`.",
 				Required:            true,
 				Validators:          []validator.String{stringvalidator.OneOf(client.JobTypeScheduleUpdateTwin, client.JobTypeScheduleDeviceMethod)},
 			},
 			"query_condition": schema.StringAttribute{
-				MarkdownDescription: "Which devices the job targets: a `WHERE` clause over `devices` (e.g. `tags.site = 'munich'`, `deviceId IN ['a','b']`) or `*` for all.",
+				MarkdownDescription: "Which devices the job targets: a `WHERE` clause over `devices`, for example `tags.site = 'munich'` or `deviceId IN ['a','b']`. Use `*` for all devices.",
 				Required:            true,
 				Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
 			},
 			"start_time": schema.StringAttribute{
-				MarkdownDescription: "RFC 3339 start time, at most 7 days ahead; the job runs immediately when omitted. " +
+				MarkdownDescription: "Start time in RFC 3339 format, at most 7 days ahead. The job runs immediately when omitted. " +
 					"A scheduled job occupies one of the hub's job slots until it runs.",
 				Optional: true,
 			},
 			"max_execution_time_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub may run the job (upper bound for devices to be reached); hub default when omitted.",
+				MarkdownDescription: "How long the hub may run the job, in seconds. Devices not reached in time count as failed. Hub default when omitted.",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.AtLeast(1)},
 			},
 			"twin_patch": schema.SingleNestedAttribute{
-				MarkdownDescription: "For `scheduleUpdateTwin`: the tags and desired properties merged into every targeted twin (same JSON documents as `iothub_device_twin`).",
+				MarkdownDescription: "For `scheduleUpdateTwin`: the tags and desired properties merged into every targeted twin. Same JSON documents as `iothub_device_twin`.",
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
-					"tags":               schema.StringAttribute{CustomType: twin.DocumentType, MarkdownDescription: "Tags to merge (JSON object).", Optional: true},
-					"desired_properties": schema.StringAttribute{CustomType: twin.DocumentType, MarkdownDescription: "Desired properties to merge (JSON object).", Optional: true},
+					"tags":               schema.StringAttribute{CustomType: twin.DocumentType, MarkdownDescription: "Tags to merge, as a JSON object.", Optional: true},
+					"desired_properties": schema.StringAttribute{CustomType: twin.DocumentType, MarkdownDescription: "Desired properties to merge, as a JSON object.", Optional: true},
 				},
 			},
 			"method": schema.SingleNestedAttribute{
@@ -112,9 +113,9 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
 					"name":                     schema.StringAttribute{MarkdownDescription: "Method name.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
-					"payload":                  schema.StringAttribute{MarkdownDescription: "JSON payload (any JSON value); `null` when omitted.", Optional: true},
-					"response_timeout_seconds": schema.Int64Attribute{MarkdownDescription: "Per-device response timeout, 5–300 (default 30).", Optional: true, Validators: []validator.Int64{int64validator.Between(5, 300)}},
-					"connect_timeout_seconds":  schema.Int64Attribute{MarkdownDescription: "Per-device connect timeout, 0–300 (default 0).", Optional: true, Validators: []validator.Int64{int64validator.Between(0, 300)}},
+					"payload":                  schema.StringAttribute{MarkdownDescription: "JSON payload, any JSON value. Sent as `null` when omitted.", Optional: true},
+					"response_timeout_seconds": schema.Int64Attribute{MarkdownDescription: "Per-device response timeout in seconds, 5 to 300 (default 30).", Optional: true, Validators: []validator.Int64{int64validator.Between(5, 300)}},
+					"connect_timeout_seconds":  schema.Int64Attribute{MarkdownDescription: "Per-device connect timeout in seconds, 0 to 300 (default 0).", Optional: true, Validators: []validator.Int64{int64validator.Between(0, 300)}},
 				},
 			},
 			"wait": waitAttribute(),

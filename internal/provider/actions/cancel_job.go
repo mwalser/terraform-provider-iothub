@@ -46,13 +46,14 @@ func (a *cancelJobAction) Metadata(_ context.Context, req action.MetadataRequest
 
 func (a *cancelJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Cancels a running or scheduled job — a scheduled twin-update/method job or an import/export job — and " +
-			"waits until the hub reports it cancelled. A job that already finished is reported as such without error; an unknown job fails.",
+		MarkdownDescription: "Cancels a running or scheduled job and waits until the hub reports it cancelled. Works for scheduled " +
+			"twin-update and method jobs and for import and export jobs. A job that already finished is reported as such without an " +
+			"error. An unknown job fails.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": hostnameAttribute(),
 			"job_id":   schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
 			"kind": schema.StringAttribute{
-				MarkdownDescription: "`scheduled` (twin update / device method jobs) or `import_export`.",
+				MarkdownDescription: "`scheduled` for twin-update and device-method jobs, or `import_export`.",
 				Required:            true,
 				Validators:          []validator.String{stringvalidator.OneOf(kindScheduled, kindImportExport)},
 			},

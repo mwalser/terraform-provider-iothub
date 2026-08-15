@@ -3,12 +3,12 @@
 page_title: "iothub_import_export_job Data Source - iothub"
 subcategory: ""
 description: |-
-  A bulk import/export job, e.g. one started by the iothub_import_export_job action. The job record does not include the container URIs.
+  A bulk import or export job, for example one started by the iothub_import_export_job action. The job record does not include the container URIs.
 ---
 
 # iothub_import_export_job (Data Source)
 
-A bulk import/export job, e.g. one started by the `iothub_import_export_job` action. The job record does not include the container URIs.
+A bulk import or export job, for example one started by the `iothub_import_export_job` action. The job record does not include the container URIs.
 
 ## Example Usage
 
@@ -31,13 +31,13 @@ output "export_status" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `end_time` (String) End time.
 - `exclude_keys_in_export` (Boolean) Whether keys were excluded from the export.
-- `failure_reason` (String) Failure reason, if any. Per-line import errors are not reported here; the hub writes them to `importErrors.log` in the output container.
+- `failure_reason` (String) Failure reason, if any. Per-line import errors are not reported here. The hub writes them to `importErrors.log` in the output container.
 - `id` (String) `<hostname>/jobs/<job_id>`.
 - `include_configurations` (Boolean) Whether configurations were included.
 - `progress` (Number) Progress in percent.

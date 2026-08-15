@@ -46,15 +46,15 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) " +
 			"statement against the hub and returns all results.\n\n" +
-			"Results are JSON strings — `SELECT * FROM devices` yields whole twins, projections yield the selected " +
-			"columns, `FROM devices.jobs` yields job records — so use `jsondecode()` on them. The query index is " +
-			"eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed " +
-			"for a while afterwards. Prefer the `iothub_device` / `iothub_device_twin` data sources for point lookups.",
+			"Results are JSON strings, so use `jsondecode()` on them. `SELECT * FROM devices` yields whole twins, a projection " +
+			"yields the selected columns, and `FROM devices.jobs` yields job records. The query index is eventually consistent: " +
+			"a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. " +
+			"For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.",
 		Attributes: map[string]schema.Attribute{
 			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/query/<short hash of the query>`.", Computed: true},
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"query": schema.StringAttribute{
-				MarkdownDescription: "The statement, e.g. `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.",
+				MarkdownDescription: "The statement, for example `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.",
 				Required:            true,
 				Validators:          []validator.String{stringvalidator.LengthAtLeast(1)},
 			},
@@ -64,7 +64,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 				Computed:            true,
 			},
 			"result_count": schema.Int64Attribute{MarkdownDescription: "Number of results.", Computed: true},
-			"item_type":    schema.StringAttribute{MarkdownDescription: "`Raw` (projection), `Twin` (`SELECT *`) or `DeviceJob`, as reported by the hub.", Computed: true},
+			"item_type":    schema.StringAttribute{MarkdownDescription: "The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT *`, or `DeviceJob`.", Computed: true},
 		},
 	}
 }

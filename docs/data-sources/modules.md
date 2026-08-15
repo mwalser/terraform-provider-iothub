@@ -3,12 +3,12 @@
 page_title: "iothub_modules Data Source - iothub"
 subcategory: ""
 description: |-
-  All module identities of a device, including the hub-managed $edgeAgent/$edgeHub on IoT Edge devices. Symmetric keys are not exposed; use iothub_module_credentials for those.
+  All module identities of a device, including the hub-managed $edgeAgent and $edgeHub on IoT Edge devices. Symmetric keys are not exposed. Use iothub_module_credentials for those.
 ---
 
 # iothub_modules (Data Source)
 
-All module identities of a device, including the hub-managed `$edgeAgent`/`$edgeHub` on IoT Edge devices. Symmetric keys are not exposed; use `iothub_module_credentials` for those.
+All module identities of a device, including the hub-managed `$edgeAgent` and `$edgeHub` on IoT Edge devices. Symmetric keys are not exposed. Use `iothub_module_credentials` for those.
 
 ## Example Usage
 
@@ -32,7 +32,7 @@ output "custom_modules" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
@@ -46,12 +46,12 @@ Read-Only:
 
 - `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority` or `none`.
 - `cloud_to_device_message_count` (Number) Queued cloud-to-device messages.
-- `connection_state` (String) `Connected` or `Disconnected` (approximate).
+- `connection_state` (String) `Connected` or `Disconnected`. Approximate.
 - `connection_state_updated_time` (String) When the connection state last changed.
 - `etag` (String) ETag of the module identity.
 - `generation_id` (String) Hub-generated generation ID.
 - `last_activity_time` (String) Last activity time.
-- `managed_by` (String) Owner of the module (`managedBy`), e.g. `iotEdge` for system modules.
+- `managed_by` (String) Owner of the module, for example `iotEdge` for system modules.
 - `module_id` (String) Module ID.
-- `primary_thumbprint` (String) Primary X.509 thumbprint (selfSigned).
-- `secondary_thumbprint` (String) Secondary X.509 thumbprint (selfSigned).
+- `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.
+- `secondary_thumbprint` (String) Secondary X.509 thumbprint, for `selfSigned` authentication.

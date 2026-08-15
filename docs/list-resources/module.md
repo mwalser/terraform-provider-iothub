@@ -3,12 +3,12 @@
 page_title: "iothub_module List Resource - iothub"
 subcategory: ""
 description: |-
-  Lists module identities for terraform query, e.g. to generate import blocks for an existing fleet. The hub's system modules ($edgeAgent, $edgeHub) are skipped because iothub_module cannot manage them.
+  Lists module identities for terraform query, for example to generate import blocks for an existing fleet. The hub's system modules ($edgeAgent, $edgeHub) are skipped because iothub_module cannot manage them.
 ---
 
 # iothub_module (List Resource)
 
-Lists module identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet. The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them.
+Lists module identities for `terraform query`, for example to generate `import` blocks for an existing fleet. The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them.
 
 ## Example Usage
 
@@ -38,5 +38,5 @@ list "iothub_module" "telemetry" {
 ### Optional
 
 - `device_id` (String) Only modules of this device.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
-- `query_condition` (String) Additional `WHERE` clause over `devices.modules` (e.g. `moduleId = 'telemetry'`, `tags.x = 1`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `query_condition` (String) Additional `WHERE` clause over `devices.modules`, for example `moduleId = 'telemetry'` or `tags.x = 1`.

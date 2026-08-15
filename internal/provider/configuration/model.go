@@ -27,7 +27,7 @@ import (
 // digits and - + % _ * ! ' up to 128 characters; anything else is rejected).
 var idPattern = regexp.MustCompile(`^[a-z0-9\-+%_*!']{1,128}$`)
 
-const idDescription = "1–128 characters from `a-z 0-9 - + % _ * ! '` (lowercase only)"
+const idDescription = "1 to 128 characters from `a-z 0-9 - + % _ * ! '`, lowercase only"
 
 // kind distinguishes the two resources.
 type kind int

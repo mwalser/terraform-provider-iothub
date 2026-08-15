@@ -89,14 +89,14 @@ func (d *configDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 		"etag":                  c("ETag of the " + d.kind.noun() + "."),
 		"created_time_utc":      c("Creation time."),
 		"last_updated_time_utc": c("Last update time."),
-		"system_metrics":        schema.MapAttribute{MarkdownDescription: "Latest system metric results (`targetedCount`, `appliedCount`, …).", ElementType: types.Int64Type, Computed: true},
+		"system_metrics":        schema.MapAttribute{MarkdownDescription: "Latest system metrics computed by the hub, such as `targetedCount` and `appliedCount`.", ElementType: types.Int64Type, Computed: true},
 		"metric_results":        schema.MapAttribute{MarkdownDescription: "Latest custom metric results by name.", ElementType: types.Int64Type, Computed: true},
 	}
 	if d.kind.isEdge() {
 		attrs["modules_content"] = c("The deployment's `modulesContent` as a JSON string.")
 	} else {
-		attrs["device_content"] = c("Device twin content as a JSON string (null for module configurations).")
-		attrs["module_content"] = c("Module twin content as a JSON string (null for device configurations).")
+		attrs["device_content"] = c("Device twin content as a JSON string. Null for module configurations.")
+		attrs["module_content"] = c("Module twin content as a JSON string. Null for device configurations.")
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "An existing " + d.kind.noun() + " with its content, target, labels, metric queries and the hub's latest metric results.",

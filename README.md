@@ -1,44 +1,45 @@
 # terraform-provider-iothub
 
-A Terraform provider for the **Azure IoT Hub data plane** — the identity
+A Terraform provider for the **Azure IoT Hub data plane**: the identity
 registry, device and module twins, automatic device management
 configurations, IoT Edge deployments, jobs, direct methods and Plug and Play.
 The hub itself, its routing, endpoints, certificates and shared access
-policies are Azure Resource Manager resources and stay with the
+policies are Azure Resource Manager resources. They stay with the
 [`azurerm`](https://registry.terraform.io/providers/hashicorp/azurerm)
-provider; this provider starts exactly where `azurerm` stops.
+provider. This provider starts where `azurerm` stops.
 
 > **Status: alpha, not yet published to the Terraform Registry.** Feature
-> complete for the scope below; not yet released.
+> complete for the scope below, but not yet released.
 
 What it manages:
 
-- **Identities** — `iothub_device`, `iothub_module` (resources, data sources,
-  `terraform query` list resources), credentials and device SAS tokens as
-  ephemeral resources.
-- **Twins** — `iothub_device_twin`, `iothub_module_twin` with leaf-path
-  ownership (Terraform manages exactly the keys you declare); reported
+- **Identities** — `iothub_device` and `iothub_module` as resources, data
+  sources and `terraform query` list resources. Credentials and device SAS
+  tokens as ephemeral resources.
+- **Twins** — `iothub_device_twin` and `iothub_module_twin`. Terraform manages
+  exactly the keys you declare and leaves the rest of the twin alone. Reported
   properties and the Plug and Play digital twin as data sources.
-- **Configurations** — `iothub_configuration` (automatic device management)
-  and `iothub_edge_deployment` (incl. layered deployments).
-- **Actions** — direct methods, Plug and Play commands, scheduled twin/method
-  jobs, bulk import/export, applying a manifest to one edge device, purging a
-  device's cloud-to-device queue, cancelling jobs.
-- **Data sources** — `iothub_query` (IoT Hub query language), `iothub_statistics`,
-  job status.
+- **Configurations** — `iothub_configuration` for automatic device management
+  and `iothub_edge_deployment` for IoT Edge, including layered deployments.
+- **Actions** — direct methods, Plug and Play commands, scheduled twin and
+  method jobs, bulk import and export, applying a manifest to one edge device,
+  purging a device's cloud-to-device queue, cancelling jobs.
+- **Data sources** — `iothub_query` for the IoT Hub query language,
+  `iothub_statistics`, job status.
 
 Reference documentation is generated into [`docs/`](docs/). The design and
-the service behaviour it is built on are in [`CONCEPT.md`](CONCEPT.md)
-(maintainers). Contributions: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+the service behaviour it is built on are in [`CONCEPT.md`](CONCEPT.md), which
+is written for maintainers. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
+contributions.
 
 ## Requirements
 
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) ≥ 1.14
 - [Go](https://golang.org/doc/install) ≥ 1.25 (to build)
-- An IoT Hub in the Azure public cloud and an identity with an IoT Hub
-  data-plane role at hub scope (e.g. *IoT Hub Data Contributor*; `Owner` and
-  `Contributor` carry no data-plane permissions) — or a shared access policy
-  connection string.
+- An IoT Hub in the Azure public cloud, plus either an identity with an IoT
+  Hub data-plane role at hub scope, for example *IoT Hub Data Contributor*, or
+  a shared access policy connection string. `Owner` and `Contributor` carry no
+  data-plane permissions.
 
 ## Usage
 
@@ -127,8 +128,8 @@ provider_installation {
 }
 ```
 
-With dev overrides in effect Terraform skips `terraform init` for this
-provider; `plan`/`apply` work directly.
+With dev overrides in effect, Terraform skips `terraform init` for this
+provider. `plan` and `apply` work directly.
 
 ## Developing
 
@@ -139,7 +140,7 @@ make test       # unit tests (no Azure access needed)
 make generate   # regenerate docs/ from the schema, examples/ and templates/
 ```
 
-`docs/` is generated — edit `templates/`, `examples/` and the schema
+`docs/` is generated. Edit `templates/`, `examples/` and the schema
 descriptions instead. CI fails when `docs/` is stale.
 
 Layout: `internal/client` (framework-free REST client: auth, retry, errors,
@@ -149,7 +150,7 @@ one package per construct family, acceptance tests as `*_acc_test.go`),
 
 ### Acceptance tests
 
-Acceptance tests run against a real hub — the F1 free tier is sufficient.
+Acceptance tests run against a real hub. The F1 free tier is sufficient.
 They create and delete devices, twins, configurations and jobs on that hub,
 so use a hub dedicated to testing.
 
@@ -162,9 +163,9 @@ go test ./internal/provider/ -run TestAccDevice -v   # one family
 ```
 
 The import/export job test additionally needs a blob container the hub can
-use, as a container SAS URI with `racwdl` permissions in
-`IOTHUB_TEST_BLOB_CONTAINER_SAS_URI`; it is skipped otherwise. Everything
-else runs against the hub alone (F1 is enough).
+use. Pass it as a container SAS URI with `racwdl` permissions in
+`IOTHUB_TEST_BLOB_CONTAINER_SAS_URI`. The test is skipped otherwise.
+Everything else runs against the hub alone.
 
 ### Acceptance tests in CI
 
@@ -175,7 +176,7 @@ is set. Credentials come from repository **secrets**, either
 - `IOTHUB_CONNECTION_STRING` — a shared access policy of the test hub, or
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — an Entra ID
   application with a [federated credential for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust?pivots=identity-wif-apps-methods-azp#github-actions)
-  and *IoT Hub Data Contributor* on the hub; the workflow logs in with
+  and *IoT Hub Data Contributor* on the hub. The workflow logs in with
   `azure/login` and the provider uses that CLI session.
 
 Optionally, `IOTHUB_TEST_BLOB_CONTAINER_SAS_URI` enables the import/export
@@ -183,10 +184,10 @@ job test.
 
 ## Releasing
 
-Releases are cut by pushing a tag `vX.Y.Z`; the `Release` workflow builds
+Releases are cut by pushing a tag `vX.Y.Z`. The `Release` workflow builds
 all platforms with GoReleaser, signs the checksums and publishes a GitHub
-release. It needs the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` (the key
-whose public part is registered with the Terraform Registry). Bump
+release. It needs the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` for the key
+whose public part is registered with the Terraform Registry. Bump
 `CHANGELOG.md` before tagging.
 
 ## License

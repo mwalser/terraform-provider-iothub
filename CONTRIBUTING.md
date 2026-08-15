@@ -55,3 +55,12 @@ Style: a one- or two-sentence summary, then the attributes. Plain language
 over service jargon ("if the device is offline", not "404 `DeviceNotOnline`").
 `CHANGELOG.md` follows the same rule: what changed for the user, not why or
 how it was found.
+
+**Write plain sentences.** One idea per sentence, in the order the reader
+needs it: what it is, what it does, what to watch out for. Use active voice
+and everyday words. If a sentence needs a dash, a semicolon or nested
+parentheses to hold together, split it into two. Keep parentheses for short
+asides like `(default true)`. Use backticks for names and bold only for a
+warning the reader must not miss. Read the paragraph aloud; if you run out of
+breath, it is too long. The `name — description` form in lists and tables is
+list punctuation, not a sentence, and stays.

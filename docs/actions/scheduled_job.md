@@ -3,15 +3,18 @@
 page_title: "iothub_scheduled_job Action - iothub"
 subcategory: ""
 description: |-
-  Runs a scheduled job: a twin update (scheduleUpdateTwin, merging tags / desired properties) or a direct method (scheduleDeviceMethod) on every device matching query_condition, optionally at a future start_time. With wait = true (default) the action waits for the job to finish and fails if the job failed or was cancelled — and, with fail_on_device_failures (default), if any targeted device failed. Read a job's outcome later with the iothub_scheduled_job data source.
-  A hub runs only a limited number of jobs at a time; while the slots are taken the action waits for a free one within timeout. A duplicate job_id is an error.
+  Runs a scheduled job on every device that matches query_condition, now or at a future start_time. A scheduleUpdateTwin job merges tags and desired properties into the twins. A scheduleDeviceMethod job invokes a direct method on the devices.
+  With wait = true (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With fail_on_device_failures (default) it also fails if any targeted device failed. Read a job's outcome later with the iothub_scheduled_job data source.
+  A hub runs only a limited number of jobs at a time. While all slots are taken, the action waits for a free one within timeout. A duplicate job_id is an error.
 ---
 
 # iothub_scheduled_job (Action)
 
-Runs a scheduled job: a twin update (`scheduleUpdateTwin`, merging tags / desired properties) or a direct method (`scheduleDeviceMethod`) on every device matching `query_condition`, optionally at a future `start_time`. With `wait = true` (default) the action waits for the job to finish and fails if the job failed or was cancelled — and, with `fail_on_device_failures` (default), if any targeted device failed. Read a job's outcome later with the `iothub_scheduled_job` data source.
+Runs a scheduled job on every device that matches `query_condition`, now or at a future `start_time`. A `scheduleUpdateTwin` job merges tags and desired properties into the twins. A `scheduleDeviceMethod` job invokes a direct method on the devices.
 
-A hub runs only a limited number of jobs at a time; while the slots are taken the action waits for a free one within `timeout`. A duplicate `job_id` is an error.
+With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With `fail_on_device_failures` (default) it also fails if any targeted device failed. Read a job's outcome later with the `iothub_scheduled_job` data source.
+
+A hub runs only a limited number of jobs at a time. While all slots are taken, the action waits for a free one within `timeout`. A duplicate `job_id` is an error.
 
 ## Example Usage
 
@@ -30,7 +33,7 @@ action "iothub_scheduled_job" "fw_channel" {
   }
 }
 
-# Reboot every gateway of a site tonight; do not wait for the run.
+# Reboot every gateway of a site tonight. Do not wait for the run.
 action "iothub_scheduled_job" "reboot_gateways" {
   config {
     type            = "scheduleDeviceMethod"
@@ -66,20 +69,20 @@ variable "release" {
 
 ### Required
 
-- `query_condition` (String) Which devices the job targets: a `WHERE` clause over `devices` (e.g. `tags.site = 'munich'`, `deviceId IN ['a','b']`) or `*` for all.
-- `type` (String) `scheduleUpdateTwin` (with `twin_patch`) or `scheduleDeviceMethod` (with `method`).
+- `query_condition` (String) Which devices the job targets: a `WHERE` clause over `devices`, for example `tags.site = 'munich'` or `deviceId IN ['a','b']`. Use `*` for all devices.
+- `type` (String) `scheduleUpdateTwin`, which needs `twin_patch`, or `scheduleDeviceMethod`, which needs `method`.
 
 ### Optional
 
 - `fail_on_device_failures` (Boolean) With `wait`, fail the apply when the job completed but some devices failed (default `true`).
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
-- `job_id` (String) Job ID (unique per hub); generated (`tf-<random>`) when omitted.
-- `max_execution_time_seconds` (Number) How long the hub may run the job (upper bound for devices to be reached); hub default when omitted.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `job_id` (String) Job ID, unique per hub. Generated as `tf-<random>` when omitted.
+- `max_execution_time_seconds` (Number) How long the hub may run the job, in seconds. Devices not reached in time count as failed. Hub default when omitted.
 - `method` (Attributes) For `scheduleDeviceMethod`: the direct method to invoke on every targeted device. (see [below for nested schema](#nestedatt--method))
-- `start_time` (String) RFC 3339 start time, at most 7 days ahead; the job runs immediately when omitted. A scheduled job occupies one of the hub's job slots until it runs.
-- `timeout` (String) Overall deadline for the invocation as a Go duration (default `1h`): covers waiting for a free job slot, the job's scheduled start and its execution when `wait` is true.
-- `twin_patch` (Attributes) For `scheduleUpdateTwin`: the tags and desired properties merged into every targeted twin (same JSON documents as `iothub_device_twin`). (see [below for nested schema](#nestedatt--twin_patch))
-- `wait` (Boolean) Wait for the job to reach a terminal state (default `true`); `false` returns as soon as the job is created.
+- `start_time` (String) Start time in RFC 3339 format, at most 7 days ahead. The job runs immediately when omitted. A scheduled job occupies one of the hub's job slots until it runs.
+- `timeout` (String) Overall deadline for the invocation as a Go duration (default `1h`). It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true.
+- `twin_patch` (Attributes) For `scheduleUpdateTwin`: the tags and desired properties merged into every targeted twin. Same JSON documents as `iothub_device_twin`. (see [below for nested schema](#nestedatt--twin_patch))
+- `wait` (Boolean) Wait for the job to finish (default `true`). With `false` the action returns as soon as the job is created.
 
 <a id="nestedatt--method"></a>
 ### Nested Schema for `method`
@@ -90,9 +93,9 @@ Required:
 
 Optional:
 
-- `connect_timeout_seconds` (Number) Per-device connect timeout, 0–300 (default 0).
-- `payload` (String) JSON payload (any JSON value); `null` when omitted.
-- `response_timeout_seconds` (Number) Per-device response timeout, 5–300 (default 30).
+- `connect_timeout_seconds` (Number) Per-device connect timeout in seconds, 0 to 300 (default 0).
+- `payload` (String) JSON payload, any JSON value. Sent as `null` when omitted.
+- `response_timeout_seconds` (Number) Per-device response timeout in seconds, 5 to 300 (default 30).
 
 
 <a id="nestedatt--twin_patch"></a>
@@ -100,5 +103,5 @@ Optional:
 
 Optional:
 
-- `desired_properties` (String) Desired properties to merge (JSON object).
-- `tags` (String) Tags to merge (JSON object).
+- `desired_properties` (String) Desired properties to merge, as a JSON object.
+- `tags` (String) Tags to merge, as a JSON object.

@@ -3,12 +3,12 @@
 page_title: "iothub_module_twin Data Source - iothub"
 subcategory: ""
 description: |-
-  The complete module twin: tags, desired and reported properties as JSON strings, plus versions and the identity mirror. Use jsondecode() on the JSON attributes.
+  The complete module twin: tags, desired properties and reported properties as JSON strings, plus versions and the identity fields the twin carries. Use jsondecode() on the JSON attributes.
 ---
 
 # iothub_module_twin (Data Source)
 
-The complete module twin: tags, desired and reported properties as JSON strings, plus versions and the identity mirror. Use `jsondecode()` on the JSON attributes.
+The complete module twin: tags, desired properties and reported properties as JSON strings, plus versions and the identity fields the twin carries. Use `jsondecode()` on the JSON attributes.
 
 ## Example Usage
 
@@ -33,20 +33,20 @@ output "edge_agent_runtime_status" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
-- `connection_state` (String) `Connected` or `Disconnected` (approximate).
-- `desired_properties` (String) All desired properties as a JSON string (`$metadata` and `$version` stripped).
+- `connection_state` (String) `Connected` or `Disconnected`. Approximate.
+- `desired_properties` (String) All desired properties as a JSON string, without `$metadata` and `$version`.
 - `desired_version` (Number) `$version` of the desired properties.
 - `device_etag` (String) ETag of the underlying identity.
 - `etag` (String) ETag of the twin.
 - `id` (String) `<hostname>/twins/<device_id>/modules/<module_id>`.
 - `last_activity_time` (String) Last activity time.
 - `model_id` (String) IoT Plug and Play model ID announced by the module, if any.
-- `reported_properties` (String) All reported properties as a JSON string (`$metadata` and `$version` stripped).
+- `reported_properties` (String) All reported properties as a JSON string, without `$metadata` and `$version`.
 - `reported_version` (Number) `$version` of the reported properties.
-- `status` (String) `enabled` or `disabled` (mirrored from the identity).
+- `status` (String) `enabled` or `disabled`, as set on the identity.
 - `tags` (String) All tags of the twin as a JSON string.
 - `version` (Number) Version of the twin.

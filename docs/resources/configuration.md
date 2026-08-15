@@ -3,15 +3,15 @@
 page_title: "iothub_configuration Resource - iothub"
 subcategory: ""
 description: |-
-  An automatic device management configuration: desired properties the hub applies to every device or module matching target_condition, by priority.
-  target_condition, priority, labels and metrics can be changed in place; the content cannot — changing it replaces the configuration.
+  An automatic device management configuration. The hub applies its desired properties to every device or module that matches target_condition, in order of priority.
+  target_condition, priority, labels and metrics can be changed in place. Changing the content replaces the configuration.
 ---
 
 # iothub_configuration (Resource)
 
-An automatic device management configuration: desired properties the hub applies to every device or module matching `target_condition`, by `priority`.
+An automatic device management configuration. The hub applies its desired properties to every device or module that matches `target_condition`, in order of `priority`.
 
-`target_condition`, `priority`, `labels` and `metrics` can be changed in place; **the content cannot — changing it replaces the configuration.**
+`target_condition`, `priority`, `labels` and `metrics` can be changed in place. **Changing the content replaces the configuration.**
 
 ## Example Usage
 
@@ -28,7 +28,7 @@ resource "iothub_configuration" "fw_channel" {
     "properties.desired.firmware" = { channel = "stable" }
   })
 
-  # Custom metrics; results appear in `metric_results`.
+  # Custom metrics. Results appear in `metric_results`.
   metrics = {
     applied = "SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'"
   }
@@ -50,28 +50,28 @@ resource "iothub_configuration" "telemetry_interval" {
 
 ### Required
 
-- `configuration_id` (String) Configuration ID: 1–128 characters from `a-z 0-9 - + % _ * ! '` (lowercase only). Immutable.
-- `target_condition` (String) Which devices (or modules) the configuration targets: a query condition over `deviceId`, `tags` and `properties.reported` (e.g. `tags.site = 'munich'`), `*` for all devices, or `FROM devices.modules WHERE …` for module targets.
+- `configuration_id` (String) Configuration ID: 1 to 128 characters from `a-z 0-9 - + % _ * ! '`, lowercase only. Changing it replaces the configuration.
+- `target_condition` (String) Which devices or modules the configuration targets. A query condition over `deviceId`, `tags` and `properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices, or `FROM devices.modules WHERE …` to target modules.
 
 ### Optional
 
-- `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys (`jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`). Exactly one of `device_content` and `module_content`. **Changing it replaces the configuration**, which re-evaluates every targeted device.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
+- `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys, for example `jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration**, and the hub re-evaluates every targeted device.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
 - `labels` (Map of String) Free-form labels (string map).
-- `metrics` (Map of String) Custom metric queries, name → IoT Hub query (e.g. `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`). Results are in `metric_results`.
-- `module_content` (String) Module twin desired properties to apply (`properties.desired.<path>` keys); use with a module target condition (`FROM devices.modules WHERE moduleId = '…'`). Exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
-- `priority` (Number) Priority (≥ 0, default 0). When several configurations target the same device, the highest priority wins.
-- `schema_version` (String) Schema version of the configuration document (`1.0` is what the Azure CLI writes). Left as the hub reports it when omitted.
+- `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.
+- `module_content` (String) Module twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys. Use it with a module target condition such as `FROM devices.modules WHERE moduleId = '…'`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
+- `priority` (Number) Priority, 0 or higher (default 0). When several configurations target the same device, the highest priority wins.
+- `schema_version` (String) Schema version of the configuration document. The Azure CLI writes `1.0`. Left as the hub reports it when omitted.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
 - `created_time_utc` (String) Creation time.
 - `etag` (String) ETag of the configuration.
-- `id` (String) `<hostname>/configurations/<id>` — also the import ID.
+- `id` (String) `<hostname>/configurations/<id>`. Also the import ID.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
-- `system_metrics` (Map of Number) Latest hub-computed system metrics: `targetedCount`, `appliedCount` (and for deployments `reportedSuccessfulCount`, `reportedFailedCount`). Empty until the hub has evaluated the configuration.
+- `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`, plus `reportedSuccessfulCount` and `reportedFailedCount` for deployments. Empty until the hub has evaluated the configuration.
 
 <a id="nestedblock--timeouts"></a>
 ### Nested Schema for `timeouts`

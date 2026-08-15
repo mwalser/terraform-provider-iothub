@@ -3,15 +3,15 @@
 page_title: "iothub_device_sas_token Ephemeral Resource - iothub"
 subcategory: ""
 description: |-
-  A device (or module) shared access signature (SharedAccessSignature sr=…&sig=…&se=…), signed with the identity's symmetric key. Never written to state or plan; hand it to a write-only argument or a provisioning step that needs a short-lived device credential without exposing the key itself.
-  Like iothub_device_credentials, an identity that does not exist yet (created in the same run) yields unknown values at plan time and the real token at apply.
+  A shared access signature for a device or module (SharedAccessSignature sr=…&sig=…&se=…), signed with the identity's symmetric key. It is never written to state or plan. Hand it to a write-only argument or to a provisioning step that needs a short-lived device credential without exposing the key itself.
+  As with iothub_device_credentials, an identity that is created in the same run yields unknown values at plan time and the real token at apply.
 ---
 
 # iothub_device_sas_token (Ephemeral Resource)
 
-A device (or module) shared access signature (`SharedAccessSignature sr=…&sig=…&se=…`), signed with the identity's symmetric key. Never written to state or plan; hand it to a write-only argument or a provisioning step that needs a short-lived device credential without exposing the key itself.
+A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), signed with the identity's symmetric key. It is never written to state or plan. Hand it to a write-only argument or to a provisioning step that needs a short-lived device credential without exposing the key itself.
 
-Like `iothub_device_credentials`, an identity that does not exist yet (created in the same run) yields unknown values at plan time and the real token at apply.
+As with `iothub_device_credentials`, an identity that is created in the same run yields unknown values at plan time and the real token at apply.
 
 ## Example Usage
 
@@ -27,7 +27,7 @@ ephemeral "iothub_device_sas_token" "sensor" {
   ttl       = "24h"
 }
 
-# Hand it to a write-only argument, e.g. a Key Vault secret the device
+# Hand it to a write-only argument, for example a Key Vault secret the device
 # provisioning pipeline reads.
 resource "azurerm_key_vault_secret" "sensor_token" {
   name             = "sensor-0001-sas"
@@ -53,13 +53,13 @@ ephemeral "iothub_device_sas_token" "telemetry" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `key` (String) Which key signs the token: `primary` (default) or `secondary`.
 - `module_id` (String) Module ID, for a module token.
-- `ttl` (String) Token lifetime as a Go duration (`30m`, `24h`, `168h`); default `1h`. Counted from the moment the token is minted.
+- `ttl` (String) Token lifetime as a Go duration such as `30m`, `24h` or `168h` (default `1h`). Counted from the moment the token is minted.
 
 ### Read-Only
 
-- `expires_at` (String) Expiry as RFC 3339 (UTC).
+- `expires_at` (String) Expiry time in RFC 3339 format (UTC).
 - `resource_uri` (String) The `sr` the token was signed for.
 - `token` (String, Sensitive) The `SharedAccessSignature …` token.

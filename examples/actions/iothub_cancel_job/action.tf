@@ -1,4 +1,4 @@
-# Cancel a scheduled job that has not run yet (e.g. a mis-scheduled reboot),
+# Cancel a scheduled job that has not run yet, for example a mis-scheduled reboot,
 # or a running import/export job.
 action "iothub_cancel_job" "reboot_gateways" {
   config {

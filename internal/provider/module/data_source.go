@@ -50,10 +50,10 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 	attrs["id"] = schema.StringAttribute{MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>`.", Computed: true}
 	attrs["hostname"] = schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()}
 	attrs["device_id"] = schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true}
-	attrs["module_id"] = schema.StringAttribute{MarkdownDescription: "Module ID (system modules such as `$edgeAgent` can be read too).", Required: true}
+	attrs["module_id"] = schema.StringAttribute{MarkdownDescription: "Module ID. System modules such as `$edgeAgent` can be read too.", Required: true}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here; " +
-			"use the `iothub_module_credentials` ephemeral resource for keys and connection strings.",
+		MarkdownDescription: "A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here. " +
+			"Use the `iothub_module_credentials` ephemeral resource for keys and connection strings.",
 		Attributes: attrs,
 	}
 }

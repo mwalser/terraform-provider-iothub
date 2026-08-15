@@ -51,13 +51,13 @@ func infoAttributes() map[string]schema.Attribute {
 	}
 	return map[string]schema.Attribute{
 		"module_id":                     c("Module ID."),
-		"managed_by":                    c("Owner of the module (`managedBy`), e.g. `iotEdge` for system modules."),
+		"managed_by":                    c("Owner of the module, for example `iotEdge` for system modules."),
 		"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority` or `none`."),
-		"primary_thumbprint":            c("Primary X.509 thumbprint (selfSigned)."),
-		"secondary_thumbprint":          c("Secondary X.509 thumbprint (selfSigned)."),
+		"primary_thumbprint":            c("Primary X.509 thumbprint, for `selfSigned` authentication."),
+		"secondary_thumbprint":          c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
 		"etag":                          c("ETag of the module identity."),
 		"generation_id":                 c("Hub-generated generation ID."),
-		"connection_state":              c("`Connected` or `Disconnected` (approximate)."),
+		"connection_state":              c("`Connected` or `Disconnected`. Approximate."),
 		"connection_state_updated_time": c("When the connection state last changed."),
 		"last_activity_time":            c("Last activity time."),
 		"cloud_to_device_message_count": schema.Int64Attribute{MarkdownDescription: "Queued cloud-to-device messages.", Computed: true},

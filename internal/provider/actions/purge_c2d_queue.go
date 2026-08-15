@@ -39,8 +39,8 @@ func (a *purgeAction) Metadata(_ context.Context, req action.MetadataRequest, re
 
 func (a *purgeAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical use: " +
-			"an `action_trigger` before re-commissioning a device, or ad hoc with `terraform apply -invoke`.",
+		MarkdownDescription: "Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical " +
+			"uses are an `action_trigger` before re-commissioning a device, or an ad hoc `terraform apply -invoke`.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":  hostnameAttribute(),
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},

@@ -3,17 +3,17 @@
 page_title: "iothub_device List Resource - iothub"
 subcategory: ""
 description: |-
-  Lists device identities for terraform query, e.g. to generate import blocks for an existing fleet.
+  Lists device identities for terraform query, for example to generate import blocks for an existing fleet.
 ---
 
 # iothub_device (List Resource)
 
-Lists device identities for `terraform query`, e.g. to generate `import` blocks for an existing fleet.
+Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet.
 
 ## Example Usage
 
 ```terraform
-# terraform query — discover the devices of a site, e.g. to generate import blocks:
+# Discover the devices of a site with terraform query, for example to generate import blocks:
 #   terraform query -generate-config-out=devices.tf
 list "iothub_device" "munich" {
   provider = iothub
@@ -38,5 +38,5 @@ list "iothub_device" "gateways" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 - `query_condition` (String) `WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, e.g. `tags.site = 'munich'` or `capabilities.iotEdge = true`. All devices when omitted.

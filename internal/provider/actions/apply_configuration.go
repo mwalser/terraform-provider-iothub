@@ -43,15 +43,15 @@ func (a *applyConfigurationAction) Metadata(_ context.Context, req action.Metada
 
 func (a *applyConfigurationAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately, bypassing " +
-			"`iothub_edge_deployment` targeting — the equivalent of `az iot edge set-modules`. Useful for one-off tests on a single " +
-			"gateway; fleets should use `iothub_edge_deployment`. Fails for a device that is not an IoT Edge device.",
+		MarkdownDescription: "Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately. This bypasses " +
+			"`iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. Useful for one-off tests on a " +
+			"single gateway. For fleets, use `iothub_edge_deployment`. Fails for a device that is not an IoT Edge device.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":  hostnameAttribute(),
 			"device_id": schema.StringAttribute{MarkdownDescription: "ID of the IoT Edge device.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"modules_content": schema.StringAttribute{
 				CustomType:          configuration.ModulesContentType,
-				MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON (must contain `$edgeAgent`).",
+				MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON. It must contain `$edgeAgent`.",
 				Required:            true,
 			},
 		},

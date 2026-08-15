@@ -54,17 +54,17 @@ func (e *sasTokenEphemeral) Metadata(_ context.Context, req ephemeral.MetadataRe
 
 func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A device (or module) shared access signature (`SharedAccessSignature sr=…&sig=…&se=…`), " +
-			"signed with the identity's symmetric key. Never written to state or plan; hand it to a write-only argument or a " +
-			"provisioning step that needs a short-lived device credential without exposing the key itself.\n\n" +
-			"Like `iothub_device_credentials`, an identity that does not exist yet (created in the same run) yields " +
-			"unknown values at plan time and the real token at apply.",
+		MarkdownDescription: "A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), " +
+			"signed with the identity's symmetric key. It is never written to state or plan. Hand it to a write-only argument or " +
+			"to a provisioning step that needs a short-lived device credential without exposing the key itself.\n\n" +
+			"As with `iothub_device_credentials`, an identity that is created in the same run yields unknown values at plan " +
+			"time and the real token at apply.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"module_id": schema.StringAttribute{MarkdownDescription: "Module ID, for a module token.", Optional: true},
 			"ttl": schema.StringAttribute{
-				MarkdownDescription: "Token lifetime as a Go duration (`30m`, `24h`, `168h`); default `1h`. Counted from the moment the token is minted.",
+				MarkdownDescription: "Token lifetime as a Go duration such as `30m`, `24h` or `168h` (default `1h`). Counted from the moment the token is minted.",
 				Optional:            true,
 			},
 			"key": schema.StringAttribute{
@@ -73,7 +73,7 @@ func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest,
 				Validators:          []validator.String{stringvalidator.OneOf(keyPrimary, keySecondary)},
 			},
 			"token":        schema.StringAttribute{MarkdownDescription: "The `SharedAccessSignature …` token.", Computed: true, Sensitive: true},
-			"expires_at":   schema.StringAttribute{MarkdownDescription: "Expiry as RFC 3339 (UTC).", Computed: true},
+			"expires_at":   schema.StringAttribute{MarkdownDescription: "Expiry time in RFC 3339 format (UTC).", Computed: true},
 			"resource_uri": schema.StringAttribute{MarkdownDescription: "The `sr` the token was signed for.", Computed: true},
 		},
 	}

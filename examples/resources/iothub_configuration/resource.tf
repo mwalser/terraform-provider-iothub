@@ -10,7 +10,7 @@ resource "iothub_configuration" "fw_channel" {
     "properties.desired.firmware" = { channel = "stable" }
   })
 
-  # Custom metrics; results appear in `metric_results`.
+  # Custom metrics. Results appear in `metric_results`.
   metrics = {
     applied = "SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'"
   }

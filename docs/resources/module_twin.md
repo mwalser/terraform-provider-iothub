@@ -3,21 +3,21 @@
 page_title: "iothub_module_twin Resource - iothub"
 subcategory: ""
 description: |-
-  Partial ownership of a module twin's tags and desired properties.
-  The twin exists as long as the module does; this resource neither creates nor deletes it. It owns exactly the leaf paths it declares — scalars, arrays and empty objects inside tags / desired_properties — and never reads, diffs or writes anything else in the twin: not other top-level keys, and not sibling keys inside objects it declares (a backend writing desired.firmware.lastCheck next to your desired.firmware.channel is invisible to Terraform). Several resources, teams and systems can therefore share one twin.
-  Removing a leaf from the configuration removes it from the twin; destroying the resource removes all owned leaves. To stop managing a twin without touching it, use removed { … lifecycle { destroy = false } }. Importing starts with an empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not mention. External changes to owned leaves show up as drift. Reported properties are read-only and exposed on the data source.
-  Keys and values must follow the twin format rules https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format; violations are reported at plan time. The JSON strings are compared semantically — key order, whitespace and 2 vs 2.0 never cause drift; reformatting the value in the configuration shows as an update that writes nothing.
+  Manages part of a module twin: the tags and desired properties you declare.
+  The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the values you declare in tags and desired_properties. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write desired.firmware.lastCheck beside your desired.firmware.channel without Terraform noticing. Several resources, teams and systems can therefore share one twin.
+  Removing a value from the configuration removes it from the twin. Destroying the resource removes all values it manages. To stop managing a twin without touching it, use removed { … lifecycle { destroy = false } }. An imported twin starts without managed values. The first apply then adopts what the configuration declares and cannot delete anything else. Changes made outside Terraform to managed values show up as drift. Reported properties are read-only and available from the data source.
+  Keys and values must follow the twin format rules https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format. Violations are reported at plan time. The JSON strings are compared by content, so key order, whitespace and 2 versus 2.0 never cause drift. Reformatting a value in the configuration shows as an update that writes nothing.
 ---
 
 # iothub_module_twin (Resource)
 
-Partial ownership of a module twin's tags and desired properties.
+Manages part of a module twin: the tags and desired properties you declare.
 
-The twin exists as long as the module does; this resource neither creates nor deletes it. It **owns exactly the leaf paths** it declares — scalars, arrays and empty objects inside `tags` / `desired_properties` — and never reads, diffs or writes anything else in the twin: not other top-level keys, and not sibling keys inside objects it declares (a backend writing `desired.firmware.lastCheck` next to your `desired.firmware.channel` is invisible to Terraform). Several resources, teams and systems can therefore share one twin.
+The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the values you declare in `tags` and `desired_properties`. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write `desired.firmware.lastCheck` beside your `desired.firmware.channel` without Terraform noticing. Several resources, teams and systems can therefore share one twin.
 
-Removing a leaf from the configuration removes it from the twin; destroying the resource removes all owned leaves. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. Importing starts with an empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not mention. External changes to owned leaves show up as drift. Reported properties are read-only and exposed on the data source.
+Removing a value from the configuration removes it from the twin. Destroying the resource removes all values it manages. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. An imported twin starts without managed values. The first apply then adopts what the configuration declares and cannot delete anything else. Changes made outside Terraform to managed values show up as drift. Reported properties are read-only and available from the data source.
 
-Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format); violations are reported at plan time. The JSON strings are compared semantically — key order, whitespace and `2` vs `2.0` never cause drift; reformatting the value in the configuration shows as an update that writes nothing.
+Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). Violations are reported at plan time. The JSON strings are compared by content, so key order, whitespace and `2` versus `2.0` never cause drift. Reformatting a value in the configuration shows as an update that writes nothing.
 
 ## Example Usage
 
@@ -43,20 +43,20 @@ resource "iothub_module_twin" "telemetry" {
 
 ### Required
 
-- `device_id` (String) ID of the device the module belongs to. Immutable.
-- `module_id` (String) Module ID. Immutable.
+- `device_id` (String) ID of the device the module belongs to. Changing it replaces the resource.
+- `module_id` (String) Module ID. Changing it replaces the resource.
 
 ### Optional
 
-- `desired_properties` (String) JSON object (use `jsonencode`) with the desired properties this resource owns; the same leaf-path rules as `tags`. Omit to manage no desired properties.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
-- `tags` (String) JSON object (use `jsonencode`) with the tags this resource owns. Only the leaf paths declared here are managed; sibling keys written by other systems are left alone. Omit to manage no tags.
+- `desired_properties` (String) The desired properties this resource manages, as a JSON object (use `jsonencode`). The same rules as for `tags` apply. Omit to manage no desired properties.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
+- `tags` (String) The tags this resource manages, as a JSON object (use `jsonencode`). Only the values declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
 - `etag` (String) ETag of the twin.
-- `id` (String) `<hostname>/twins/<device_id>/modules/<module_id>` — also the import ID.
+- `id` (String) `<hostname>/twins/<device_id>/modules/<module_id>`. Also the import ID.
 - `version` (Number) Version of the twin.
 
 <a id="nestedblock--timeouts"></a>

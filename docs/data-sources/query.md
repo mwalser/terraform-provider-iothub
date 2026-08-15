@@ -4,14 +4,14 @@ page_title: "iothub_query Data Source - iothub"
 subcategory: ""
 description: |-
   Runs an IoT Hub query language https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language statement against the hub and returns all results.
-  Results are JSON strings — SELECT * FROM devices yields whole twins, projections yield the selected columns, FROM devices.jobs yields job records — so use jsondecode() on them. The query index is eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed for a while afterwards. Prefer the iothub_device / iothub_device_twin data sources for point lookups.
+  Results are JSON strings, so use jsondecode() on them. SELECT * FROM devices yields whole twins, a projection yields the selected columns, and FROM devices.jobs yields job records. The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the iothub_device or iothub_device_twin data source.
 ---
 
 # iothub_query (Data Source)
 
 Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) statement against the hub and returns all results.
 
-Results are JSON strings — `SELECT * FROM devices` yields whole twins, projections yield the selected columns, `FROM devices.jobs` yields job records — so use `jsondecode()` on them. The query index is eventually consistent: a device is visible a few seconds after creation and a deleted device can be listed for a while afterwards. Prefer the `iothub_device` / `iothub_device_twin` data sources for point lookups.
+Results are JSON strings, so use `jsondecode()` on them. `SELECT * FROM devices` yields whole twins, a projection yields the selected columns, and `FROM devices.jobs` yields job records. The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.
 
 ## Example Usage
 
@@ -40,15 +40,15 @@ output "stale_firmware_count" {
 
 ### Required
 
-- `query` (String) The statement, e.g. `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.
+- `query` (String) The statement, for example `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `id` (String) `<hostname>/query/<short hash of the query>`.
-- `item_type` (String) `Raw` (projection), `Twin` (`SELECT *`) or `DeviceJob`, as reported by the hub.
+- `item_type` (String) The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT *`, or `DeviceJob`.
 - `result_count` (Number) Number of results.
 - `results` (List of String) One JSON string per result row, in the order the hub returns them.

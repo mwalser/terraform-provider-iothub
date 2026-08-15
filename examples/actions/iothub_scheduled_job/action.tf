@@ -12,7 +12,7 @@ action "iothub_scheduled_job" "fw_channel" {
   }
 }
 
-# Reboot every gateway of a site tonight; do not wait for the run.
+# Reboot every gateway of a site tonight. Do not wait for the run.
 action "iothub_scheduled_job" "reboot_gateways" {
   config {
     type            = "scheduleDeviceMethod"

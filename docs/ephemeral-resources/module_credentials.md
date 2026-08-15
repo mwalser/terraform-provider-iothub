@@ -3,15 +3,15 @@
 page_title: "iothub_module_credentials Ephemeral Resource - iothub"
 subcategory: ""
 description: |-
-  The symmetric keys and connection strings of a module, never written to state or plan. Feed them into write-only arguments (e.g. azurerm_key_vault_secret.value_wo). Modules with X.509 authentication have no keys; the key attributes are then null.
-  Terraform opens ephemeral resources during plan as well as apply. When the module does not exist yet because it is created in the same run, the plan shows the values as known after apply (with a "Module not found (yet)" warning) and they are read at apply time.
+  The symmetric keys and connection strings of a module. They are never written to state or plan. Feed them into write-only arguments such as azurerm_key_vault_secret.value_wo. Modules with X.509 authentication have no keys, so the key attributes are null for them.
+  Terraform opens ephemeral resources during plan as well as apply. If the module is created in the same run, it does not exist yet at plan time. The plan then shows the values as known after apply and warns that the module was not found yet. The values are read during apply.
 ---
 
 # iothub_module_credentials (Ephemeral Resource)
 
-The symmetric keys and connection strings of a module, never written to state or plan. Feed them into write-only arguments (e.g. `azurerm_key_vault_secret.value_wo`). Modules with X.509 authentication have no keys; the key attributes are then null.
+The symmetric keys and connection strings of a module. They are never written to state or plan. Feed them into write-only arguments such as `azurerm_key_vault_secret.value_wo`. Modules with X.509 authentication have no keys, so the key attributes are null for them.
 
-Terraform opens ephemeral resources during `plan` as well as `apply`. When the module does not exist yet because it is created in the same run, the plan shows the values as known after apply (with a "Module not found (yet)" warning) and they are read at apply time.
+Terraform opens ephemeral resources during `plan` as well as `apply`. If the module is created in the same run, it does not exist yet at plan time. The plan then shows the values as known after apply and warns that the module was not found yet. The values are read during apply.
 
 ## Example Usage
 
@@ -46,12 +46,12 @@ resource "azurerm_key_vault_secret" "telemetry" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority` or `none`.
 - `primary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<primary key>` (sas only).
-- `primary_key` (String, Sensitive) Base64 primary key (sas only).
+- `primary_key` (String, Sensitive) Primary key, base64 encoded (sas only).
 - `secondary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<secondary key>` (sas only).
-- `secondary_key` (String, Sensitive) Base64 secondary key (sas only).
+- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (sas only).

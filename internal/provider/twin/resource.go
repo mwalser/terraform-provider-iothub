@@ -101,7 +101,7 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 	}
 	attrs := map[string]schema.Attribute{
 		"id": schema.StringAttribute{
-			MarkdownDescription: idFormat + " — also the import ID.",
+			MarkdownDescription: idFormat + ". Also the import ID.",
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 		},
@@ -116,21 +116,21 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 			},
 		},
 		"device_id": schema.StringAttribute{
-			MarkdownDescription: "ID of the device" + map[bool]string{true: " the module belongs to", false: ""}[r.kind.isModule()] + ". Immutable.",
+			MarkdownDescription: "ID of the device" + map[bool]string{true: " the module belongs to", false: ""}[r.kind.isModule()] + ". Changing it replaces the resource.",
 			Required:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			Validators:          []validator.String{identity.IDValidator()},
 		},
 		"tags": schema.StringAttribute{
 			CustomType: DocumentType,
-			MarkdownDescription: "JSON object (use `jsonencode`) with the tags this resource owns. Only the leaf paths declared " +
-				"here are managed; sibling keys written by other systems are left alone. Omit to manage no tags.",
+			MarkdownDescription: "The tags this resource manages, as a JSON object (use `jsonencode`). Only the values declared " +
+				"here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.",
 			Optional: true,
 		},
 		"desired_properties": schema.StringAttribute{
 			CustomType: DocumentType,
-			MarkdownDescription: "JSON object (use `jsonencode`) with the desired properties this resource owns; the same " +
-				"leaf-path rules as `tags`. Omit to manage no desired properties.",
+			MarkdownDescription: "The desired properties this resource manages, as a JSON object (use `jsonencode`). The same " +
+				"rules as for `tags` apply. Omit to manage no desired properties.",
 			Optional: true,
 		},
 		"etag":    schema.StringAttribute{MarkdownDescription: "ETag of the twin.", Computed: true},
@@ -138,27 +138,27 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 	}
 	if r.kind.isModule() {
 		attrs["module_id"] = schema.StringAttribute{
-			MarkdownDescription: "Module ID. Immutable.",
+			MarkdownDescription: "Module ID. Changing it replaces the resource.",
 			Required:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			Validators:          []validator.String{identity.IDValidator()},
 		}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Partial ownership of a " + subject + " twin's tags and desired properties.\n\n" +
-			"The twin exists as long as the " + subject + " does; this resource neither creates nor deletes it. It **owns exactly the " +
-			"leaf paths** it declares — scalars, arrays and empty objects inside `tags` / `desired_properties` — and never reads, " +
-			"diffs or writes anything else in the twin: not other top-level keys, and not sibling keys inside objects it declares " +
-			"(a backend writing `desired.firmware.lastCheck` next to your `desired.firmware.channel` is invisible to Terraform). " +
-			"Several resources, teams and systems can therefore share one twin.\n\n" +
-			"Removing a leaf from the configuration removes it from the twin; destroying the resource removes all owned leaves. To " +
-			"stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. Importing starts with an " +
-			"empty owned set: the first apply adopts the configured leaves and cannot delete anything the configuration does not " +
-			"mention. External changes to owned leaves show up as drift. Reported properties are read-only and exposed on the data " +
-			"source.\n\n" +
-			"Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format); " +
-			"violations are reported at plan time. The JSON strings are compared semantically — key order, whitespace and `2` vs " +
-			"`2.0` never cause drift; reformatting the value in the configuration shows as an update that writes nothing.",
+		MarkdownDescription: "Manages part of a " + subject + " twin: the tags and desired properties you declare.\n\n" +
+			"The twin exists as long as the " + subject + " does. This resource does not create or delete it. Terraform manages " +
+			"only the values you declare in `tags` and `desired_properties`. Everything else in the twin is left alone, including " +
+			"keys that other systems write next to yours. For example, a backend can write `desired.firmware.lastCheck` beside " +
+			"your `desired.firmware.channel` without Terraform noticing. Several resources, teams and systems can therefore " +
+			"share one twin.\n\n" +
+			"Removing a value from the configuration removes it from the twin. Destroying the resource removes all values it " +
+			"manages. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. An imported " +
+			"twin starts without managed values. The first apply then adopts what the configuration declares and cannot delete " +
+			"anything else. Changes made outside Terraform to managed values show up as drift. Reported properties are read-only " +
+			"and available from the data source.\n\n" +
+			"Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). " +
+			"Violations are reported at plan time. The JSON strings are compared by content, so key order, whitespace and `2` " +
+			"versus `2.0` never cause drift. Reformatting a value in the configuration shows as an update that writes nothing.",
 		Attributes: attrs,
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{Create: true, Read: true, Update: true, Delete: true}),

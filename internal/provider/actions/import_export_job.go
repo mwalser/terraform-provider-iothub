@@ -57,17 +57,18 @@ func (a *importExportJobAction) Metadata(_ context.Context, req action.MetadataR
 
 func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Runs a bulk identity registry job: **export** the registry (and optionally configurations and " +
-			"deployments) to a blob container, or **import** a file in the same format from one — see " +
-			"[Import and export IoT Hub device identities in bulk](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) " +
-			"for the file format. Blob access is either `keyBased` (container SAS URIs — action configuration is never stored in " +
-			"state, but it does appear in plan output, so prefer short-lived SAS) or `identityBased` (the hub's system-assigned or a " +
-			"user-assigned managed identity with *Storage Blob Data Contributor* on the container).\n\n" +
-			"With `wait = true` (default) the action waits for the job to finish and fails if it failed or was cancelled. **An import " +
-			"job counts as completed even when individual lines failed** — those errors are only written to `importErrors.log` in the " +
-			"output container, which the action names but does not read. Only one import/export job runs per hub at a time; the " +
-			"action waits for its turn within `timeout`. With `identityBased`, a role assignment that has just been granted can take a " +
-			"few minutes to become effective; the action retries during that window.",
+		MarkdownDescription: "Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally " +
+			"with configurations and deployments. An **import** reads a file in the same format from a container. The file format is " +
+			"described in [Import and export IoT Hub device identities in bulk](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt).\n\n" +
+			"Blob access is either `keyBased` or `identityBased`. With `keyBased` you pass container SAS URIs. Action configuration " +
+			"is never stored in state, but it does appear in plan output, so prefer short-lived SAS. With `identityBased` the hub " +
+			"uses its system-assigned or a user-assigned managed identity, which needs *Storage Blob Data Contributor* on the " +
+			"container.\n\n" +
+			"With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. " +
+			"**An import job counts as completed even when individual lines failed.** Those errors are only written to " +
+			"`importErrors.log` in the output container. The action names the log but does not read it. Only one import or export " +
+			"job runs per hub at a time, so the action waits for its turn within `timeout`. A role assignment that has just been " +
+			"granted can take a few minutes to become effective. The action retries during that window.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": hostnameAttribute(),
 			"type": schema.StringAttribute{
@@ -76,20 +77,20 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 				Validators:          []validator.String{stringvalidator.OneOf(client.JobTypeExport, client.JobTypeImport)},
 			},
 			"input_blob_container_uri": schema.StringAttribute{
-				MarkdownDescription: "Container holding the import file (`import` only). With `keyBased` a container SAS URI with at least read and list permissions.",
+				MarkdownDescription: "Container holding the import file. Only for `import`. With `keyBased`, a container SAS URI with at least read and list permissions.",
 				Optional:            true,
 			},
 			"output_blob_container_uri": schema.StringAttribute{
-				MarkdownDescription: "Destination container for exports and for `importErrors.log` of imports. With `keyBased` a container SAS URI with read, write, delete and list permissions (the hub deletes an existing blob before writing).",
+				MarkdownDescription: "Destination container for exports and for the `importErrors.log` of imports. With `keyBased`, a container SAS URI with read, write, delete and list permissions. The hub deletes an existing blob before writing.",
 				Required:            true,
 			},
 			"storage_authentication_type": schema.StringAttribute{
-				MarkdownDescription: "`keyBased` (default; SAS in the URIs) or `identityBased` (managed identity of the hub).",
+				MarkdownDescription: "`keyBased` for SAS URIs (default), or `identityBased` for the hub's managed identity.",
 				Optional:            true,
 				Validators:          []validator.String{stringvalidator.OneOf(client.StorageAuthKeyBased, client.StorageAuthIdentityBased)},
 			},
 			"user_assigned_identity": schema.StringAttribute{
-				MarkdownDescription: "Resource ID of a user-assigned managed identity of the hub to use with `identityBased` (system-assigned when omitted).",
+				MarkdownDescription: "Resource ID of a user-assigned managed identity of the hub, for `identityBased`. The system-assigned identity is used when omitted.",
 				Optional:            true,
 			},
 			"exclude_keys_in_export": schema.BoolAttribute{
@@ -97,7 +98,7 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 				Optional:            true,
 			},
 			"include_configurations": schema.BoolAttribute{
-				MarkdownDescription: "Also export/import configurations and deployments (`configurations.txt`).",
+				MarkdownDescription: "Also export or import configurations and deployments, in `configurations.txt`.",
 				Optional:            true,
 			},
 			"input_blob_name":          schema.StringAttribute{MarkdownDescription: "Import file name (default `devices.txt`).", Optional: true},

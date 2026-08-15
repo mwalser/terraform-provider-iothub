@@ -3,12 +3,15 @@
 page_title: "iothub_digital_twin Data Source - iothub"
 subcategory: ""
 description: |-
-  The IoT Plug and Play digital twin of a device: the document the hub derives from the device twin and the device's DTDL model — $dtId, $metadata.$model, root-level properties and components (objects carrying their own $metadata). It is read-only: PnP writable properties are twin desired properties, so manage them with iothub_device_twin (component properties need the "__t": "c" marker). A device that never announced a model has a null model_id and a document without properties.
+  The IoT Plug and Play digital twin of a device. The hub derives this document from the device twin and the device's DTDL model. It contains $dtId, $metadata.$model, root-level properties and components. Components are objects with their own $metadata.
+  The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with iothub_device_twin. Component properties need the "__t": "c" marker there. A device that never announced a model has a null model_id and a document without properties.
 ---
 
 # iothub_digital_twin (Data Source)
 
-The IoT Plug and Play **digital twin** of a device: the document the hub derives from the device twin and the device's DTDL model — `$dtId`, `$metadata.$model`, root-level properties and components (objects carrying their own `$metadata`). It is read-only: PnP writable properties *are* twin desired properties, so manage them with `iothub_device_twin` (component properties need the `"__t": "c"` marker). A device that never announced a model has a null `model_id` and a document without properties.
+The IoT Plug and Play digital twin of a device. The hub derives this document from the device twin and the device's DTDL model. It contains `$dtId`, `$metadata.$model`, root-level properties and components. Components are objects with their own `$metadata`.
+
+The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with `iothub_device_twin`. Component properties need the `"__t": "c"` marker there. A device that never announced a model has a null `model_id` and a document without properties.
 
 ## Example Usage
 
@@ -37,8 +40,8 @@ output "thermostat_max_temperature" {
   value = try(local.digital_twin.thermostat1.maxTempSinceLastReboot, null)
 }
 
-# Writable PnP properties are twin desired properties — manage them with
-# iothub_device_twin (component properties carry the "__t" = "c" marker).
+# Writable PnP properties are twin desired properties. Manage them with
+# iothub_device_twin. Component properties carry the "__t" = "c" marker.
 resource "iothub_device_twin" "controller" {
   device_id = "controller-0001"
   desired_properties = jsonencode({
@@ -52,15 +55,15 @@ resource "iothub_device_twin" "controller" {
 
 ### Required
 
-- `digital_twin_id` (String) The device ID (a digital twin ID is the device ID).
+- `digital_twin_id` (String) The device ID. A digital twin has the same ID as its device.
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `document` (String) The digital twin document as a JSON string, verbatim from the hub. Use `jsondecode()`.
 - `etag` (String) ETag of the digital twin.
 - `id` (String) `<hostname>/digitaltwins/<digital_twin_id>`.
-- `model_id` (String) DTDL model ID (`$metadata.$model`) announced by the device; null when the device is not a Plug and Play device.
+- `model_id` (String) The DTDL model ID announced by the device. Null when the device is not a Plug and Play device.

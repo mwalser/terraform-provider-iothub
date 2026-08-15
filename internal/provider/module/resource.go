@@ -77,17 +77,17 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A module identity on a device. Modules have their own credentials and twin (manage the twin " +
-			"with `iothub_module_twin`) but no status of their own — a disabled device disables its modules.\n\n" +
-			"Credentials work as for `iothub_device`: hub-generated SAS keys by default (stored sensitive), write-only " +
-			"`primary_key_wo` / `secondary_key_wo` to keep keys out of state, `iothub_module_credentials` for connection " +
-			"strings. IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub; those are not created " +
-			"through this resource.\n\n" +
+		MarkdownDescription: "A module identity on a device. A module has its own credentials and its own twin. Manage the twin " +
+			"with `iothub_module_twin`. Modules have no status of their own: a disabled device disables its modules.\n\n" +
+			"Credentials work as for `iothub_device`. The hub generates SAS keys by default and they are stored in state as " +
+			"sensitive values. Use the write-only `primary_key_wo` and `secondary_key_wo` arguments to keep keys out of state, " +
+			"and `iothub_module_credentials` to read connection strings. IoT Edge devices get the system modules `$edgeAgent` " +
+			"and `$edgeHub` from the hub. Those are not created through this resource.\n\n" +
 			"~> With shared-access-policy (SAS) authentication the hub refuses to create, change or delete modules of a " +
-			"*disabled* device; enable the device first or authenticate with Entra ID. Reading an unchanged module keeps working.",
+			"*disabled* device. Enable the device first, or authenticate with Entra ID. Reading an unchanged module keeps working.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>` — also the import ID.",
+				MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>`. Also the import ID.",
 				Computed:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
@@ -102,13 +102,13 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"device_id": schema.StringAttribute{
-				MarkdownDescription: "ID of the device the module belongs to. Immutable.",
+				MarkdownDescription: "ID of the device the module belongs to. Changing it replaces the module.",
 				Required:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 				Validators:          []validator.String{identity.IDValidator()},
 			},
 			"module_id": schema.StringAttribute{
-				MarkdownDescription: "Module ID: " + identity.IDDescription + ". Immutable. IDs starting with `$` are reserved for the hub's system modules.",
+				MarkdownDescription: "Module ID: " + identity.IDDescription + ". Changing it replaces the module. IDs starting with `$` are reserved for the hub's system modules.",
 				Required:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 				Validators: []validator.String{
@@ -117,18 +117,18 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"managed_by": schema.StringAttribute{
-				MarkdownDescription: "Free-text owner of the module (`managedBy`); the hub sets `iotEdge` on the system modules.",
+				MarkdownDescription: "Free-text owner of the module. The hub sets `iotEdge` on its system modules.",
 				Optional:            true,
 			},
 			"authentication": identity.AuthAttribute("module"),
 			// ---- computed ----
 			"etag": computed("ETag of the module identity."),
 			"generation_id": schema.StringAttribute{
-				MarkdownDescription: "Hub-generated ID distinguishing re-creations of the same module.",
+				MarkdownDescription: "Hub-generated ID that changes when a module with the same ID is re-created.",
 				Computed:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
-			"connection_state":              computed("`Connected` or `Disconnected` (approximate, updated by the service)."),
+			"connection_state":              computed("`Connected` or `Disconnected`. Updated by the service and approximate."),
 			"connection_state_updated_time": computed("When the connection state last changed (re-read from the registry when `connection_state` changed)."),
 			"last_activity_time":            computed("Last time the module connected, sent or received a message."),
 			"cloud_to_device_message_count": schema.Int64Attribute{

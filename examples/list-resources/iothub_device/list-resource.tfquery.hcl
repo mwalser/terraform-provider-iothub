@@ -1,4 +1,4 @@
-# terraform query — discover the devices of a site, e.g. to generate import blocks:
+# Discover the devices of a site with terraform query, for example to generate import blocks:
 #   terraform query -generate-config-out=devices.tf
 list "iothub_device" "munich" {
   provider = iothub

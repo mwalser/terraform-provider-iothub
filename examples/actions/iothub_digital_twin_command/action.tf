@@ -1,4 +1,4 @@
-# Plug and Play commands need SAS authentication; the equivalent direct method
+# Plug and Play commands need SAS authentication. The equivalent direct method
 # works with Entra ID too.
 provider "iothub" {
   connection_string = var.iothub_service_connection_string # a policy with ServiceConnect

@@ -60,28 +60,28 @@ func (a *directMethodAction) Metadata(_ context.Context, req action.MetadataRequ
 
 func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Invokes a direct method on a device or module and waits for the device's answer. The device-defined " +
-			"response status is compared with `expected_status_codes`; anything else fails the apply, as does a device that is " +
+		MarkdownDescription: "Invokes a direct method on a device or module and waits for the device's answer. The device's " +
+			"response status is compared with `expected_status_codes`. Any other status fails the apply. So does a device that is " +
 			"offline or does not exist. The answer's status and payload are reported as progress output.\n\n" +
-			"Trigger it from a resource lifecycle (`action_trigger { events = [after_update] … }`) — e.g. reboot a device after its " +
-			"twin changed — or ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. A method invocation is never " +
-			"repeated after an ambiguous failure, because it may already have run.",
+			"Trigger the action from a resource lifecycle, for example `action_trigger { events = [after_update] … }` to reboot a " +
+			"device after its twin changed. Or run it ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. " +
+			"A method invocation is never repeated after an ambiguous failure, because it may already have run.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":    hostnameAttribute(),
 			"device_id":   schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"module_id":   schema.StringAttribute{MarkdownDescription: "Module ID, to call a module's method.", Optional: true, Validators: []validator.String{identity.IDValidator()}},
 			"method_name": schema.StringAttribute{MarkdownDescription: "Method name as registered by the device code.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
 			"payload": schema.StringAttribute{
-				MarkdownDescription: "JSON payload (any JSON value; use `jsonencode`). Sent as `null` when omitted.",
+				MarkdownDescription: "JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.",
 				Optional:            true,
 			},
 			"response_timeout_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub waits for the device's response, 5–300 seconds (default 30).",
+				MarkdownDescription: "How long the hub waits for the device's response, 5 to 300 seconds (default 30).",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.Between(5, 300)},
 			},
 			"connect_timeout_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0–300 seconds (default 0).",
+				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0).",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.Between(0, 300)},
 			},

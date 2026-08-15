@@ -3,12 +3,12 @@
 page_title: "iothub_purge_c2d_queue Action - iothub"
 subcategory: ""
 description: |-
-  Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical use: an action_trigger before re-commissioning a device, or ad hoc with terraform apply -invoke.
+  Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical uses are an action_trigger before re-commissioning a device, or an ad hoc terraform apply -invoke.
 ---
 
 # iothub_purge_c2d_queue (Action)
 
-Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical use: an `action_trigger` before re-commissioning a device, or ad hoc with `terraform apply -invoke`.
+Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical uses are an `action_trigger` before re-commissioning a device, or an ad hoc `terraform apply -invoke`.
 
 ## Example Usage
 
@@ -36,4 +36,4 @@ action "iothub_purge_c2d_queue" "sensor" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).

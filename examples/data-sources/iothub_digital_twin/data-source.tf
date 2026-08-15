@@ -22,8 +22,8 @@ output "thermostat_max_temperature" {
   value = try(local.digital_twin.thermostat1.maxTempSinceLastReboot, null)
 }
 
-# Writable PnP properties are twin desired properties — manage them with
-# iothub_device_twin (component properties carry the "__t" = "c" marker).
+# Writable PnP properties are twin desired properties. Manage them with
+# iothub_device_twin. Component properties carry the "__t" = "c" marker.
 resource "iothub_device_twin" "controller" {
   device_id = "controller-0001"
   desired_properties = jsonencode({

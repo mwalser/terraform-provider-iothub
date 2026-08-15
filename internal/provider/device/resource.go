@@ -84,15 +84,15 @@ func (r *deviceResource) Metadata(_ context.Context, req resource.MetadataReques
 func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A device identity in the IoT Hub identity registry.\n\n" +
-			"Creating a device also creates its twin — manage tags and desired properties with `iothub_device_twin`. " +
+			"Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. " +
 			"Deleting a device deletes its twin and its modules.\n\n" +
-			"**Credentials.** With `authentication.type = \"sas\"` and no keys given, the hub generates the keys and they are " +
-			"stored in state (sensitive). To keep keys out of state, pass them through the write-only `primary_key_wo` / " +
-			"`secondary_key_wo` arguments (bump the matching `*_wo_version` to rotate) and read connection strings with the " +
-			"`iothub_device_credentials` ephemeral resource.",
+			"**Credentials.** With `authentication.type = \"sas\"` and no keys given, the hub generates the keys. They are " +
+			"stored in state as sensitive values. To keep keys out of state, pass them through the write-only " +
+			"`primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the `iothub_device_credentials` " +
+			"ephemeral resource. To rotate a write-only key, change the matching `*_wo_version`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				MarkdownDescription: "`<hostname>/devices/<device_id>` — also the import ID.",
+				MarkdownDescription: "`<hostname>/devices/<device_id>`. Also the import ID.",
 				Computed:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
@@ -107,7 +107,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"device_id": schema.StringAttribute{
-				MarkdownDescription: "Device ID: " + identity.IDDescription + ". Immutable.",
+				MarkdownDescription: "Device ID: " + identity.IDDescription + ". Changing it replaces the device.",
 				Required:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 				Validators:          []validator.String{identity.IDValidator()},
@@ -126,24 +126,24 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			},
 			"edge_enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and " +
-					"the `$edgeAgent`/`$edgeHub` module identities. Can be changed in place.",
+					"the `$edgeAgent` and `$edgeHub` module identities. Can be changed in place.",
 				Optional:      true,
 				Computed:      true,
 				Default:       booldefault.StaticBool(false),
 				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"parent_scope": schema.StringAttribute{
-				MarkdownDescription: "`device_scope` of the parent IoT Edge device, making this device its child " +
-					"(a downstream/leaf device, or a nested edge device). One parent per device.",
+				MarkdownDescription: "The `device_scope` of the parent IoT Edge device. Setting it makes this device a child of " +
+					"that gateway, either as a leaf device or as a nested edge device. A device has at most one parent.",
 				Optional:   true,
 				Validators: []validator.String{stringvalidator.RegexMatches(regexpPrefix(parentScopePrefix), "must be an edge device scope starting with "+parentScopePrefix)},
 			},
 			"authentication": identity.AuthAttribute("device"),
 			// ---- computed ----
 			"etag":                          computedString("ETag of the identity."),
-			"generation_id":                 computedStringStable("Hub-generated ID distinguishing re-creations of the same `device_id`."),
-			"device_scope":                  computedString("Own scope: hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty."),
-			"connection_state":              computedString("`Connected` or `Disconnected` (approximate, updated by the service)."),
+			"generation_id":                 computedStringStable("Hub-generated ID that changes when a device with the same `device_id` is re-created."),
+			"device_scope":                  computedString("The device's own scope. Hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty."),
+			"connection_state":              computedString("`Connected` or `Disconnected`. Updated by the service and approximate."),
 			"connection_state_updated_time": computedString("When the connection state last changed."),
 			"last_activity_time":            computedString("Last time the device connected, sent or received a message."),
 			"status_updated_time":           computedString("When `status` last changed."),

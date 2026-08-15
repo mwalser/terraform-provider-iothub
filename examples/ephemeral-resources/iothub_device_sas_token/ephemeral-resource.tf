@@ -9,7 +9,7 @@ ephemeral "iothub_device_sas_token" "sensor" {
   ttl       = "24h"
 }
 
-# Hand it to a write-only argument, e.g. a Key Vault secret the device
+# Hand it to a write-only argument, for example a Key Vault secret the device
 # provisioning pipeline reads.
 resource "azurerm_key_vault_secret" "sensor_token" {
   name             = "sensor-0001-sas"

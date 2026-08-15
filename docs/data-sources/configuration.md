@@ -31,20 +31,20 @@ output "fw_channel_targeted" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `created_time_utc` (String) Creation time.
-- `device_content` (String) Device twin content as a JSON string (null for module configurations).
+- `device_content` (String) Device twin content as a JSON string. Null for module configurations.
 - `etag` (String) ETag of the configuration.
 - `id` (String) `<hostname>/configurations/<id>`.
 - `labels` (Map of String) Labels.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest custom metric results by name.
 - `metrics` (Map of String) Custom metric queries by name.
-- `module_content` (String) Module twin content as a JSON string (null for device configurations).
+- `module_content` (String) Module twin content as a JSON string. Null for device configurations.
 - `priority` (Number) Priority.
 - `schema_version` (String) Schema version, if set.
-- `system_metrics` (Map of Number) Latest system metric results (`targetedCount`, `appliedCount`, …).
+- `system_metrics` (Map of Number) Latest system metrics computed by the hub, such as `targetedCount` and `appliedCount`.
 - `target_condition` (String) Target condition.

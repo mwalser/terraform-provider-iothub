@@ -4,17 +4,17 @@ page_title: "iothub_device Resource - iothub"
 subcategory: ""
 description: |-
   A device identity in the IoT Hub identity registry.
-  Creating a device also creates its twin — manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and its modules.
-  Credentials. With authentication.type = "sas" and no keys given, the hub generates the keys and they are stored in state (sensitive). To keep keys out of state, pass them through the write-only primary_key_wo / secondary_key_wo arguments (bump the matching *_wo_version to rotate) and read connection strings with the iothub_device_credentials ephemeral resource.
+  Creating a device also creates its twin. Manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and its modules.
+  Credentials. With authentication.type = "sas" and no keys given, the hub generates the keys. They are stored in state as sensitive values. To keep keys out of state, pass them through the write-only primary_key_wo and secondary_key_wo arguments and read connection strings with the iothub_device_credentials ephemeral resource. To rotate a write-only key, change the matching *_wo_version.
 ---
 
 # iothub_device (Resource)
 
 A device identity in the IoT Hub identity registry.
 
-Creating a device also creates its twin — manage tags and desired properties with `iothub_device_twin`. Deleting a device deletes its twin and its modules.
+Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. Deleting a device deletes its twin and its modules.
 
-**Credentials.** With `authentication.type = "sas"` and no keys given, the hub generates the keys and they are stored in state (sensitive). To keep keys out of state, pass them through the write-only `primary_key_wo` / `secondary_key_wo` arguments (bump the matching `*_wo_version` to rotate) and read connection strings with the `iothub_device_credentials` ephemeral resource.
+**Credentials.** With `authentication.type = "sas"` and no keys given, the hub generates the keys. They are stored in state as sensitive values. To keep keys out of state, pass them through the write-only `primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the `iothub_device_credentials` ephemeral resource. To rotate a write-only key, change the matching `*_wo_version`.
 
 ## Example Usage
 
@@ -67,20 +67,20 @@ resource "iothub_device" "meter" {
 
 ### Required
 
-- `device_id` (String) Device ID: 1–128 ASCII characters from `A-Z a-z 0-9 - : . + % _ # * ? ! ( ) , = @ ; $ '`. Immutable.
+- `device_id` (String) Device ID: 1–128 ASCII characters from `A-Z a-z 0-9 - : . + % _ # * ? ! ( ) , = @ ; $ '`. Changing it replaces the device.
 
 ### Optional
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `authentication` (Attributes) How the device authenticates. When omitted, the hub generates SAS keys and the block reflects whatever the hub holds (imported devices keep their credentials). (see [below for nested schema](#nestedatt--authentication))
-- `edge_enabled` (Boolean) Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and the `$edgeAgent`/`$edgeHub` module identities. Can be changed in place.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the device.
-- `parent_scope` (String) `device_scope` of the parent IoT Edge device, making this device its child (a downstream/leaf device, or a nested edge device). One parent per device.
-- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key (base64, 16–64 bytes): sent to the hub, never stored in state or plan. Requires `primary_key_wo_version`; a changed version re-sends the value.
-- `primary_key_wo_version` (Number) Version marker for `primary_key_wo`; change it to rotate the key.
-- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key; see `primary_key_wo`.
-- `secondary_key_wo_version` (Number) Version marker for `secondary_key_wo`; change it to rotate the key.
+- `authentication` (Attributes) How the device authenticates. When omitted, the hub generates SAS keys. An imported device keeps its existing credentials. (see [below for nested schema](#nestedatt--authentication))
+- `edge_enabled` (Boolean) Whether the device is an IoT Edge device. Edge devices get a hub-generated `device_scope` and the `$edgeAgent` and `$edgeHub` module identities. Can be changed in place.
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the device.
+- `parent_scope` (String) The `device_scope` of the parent IoT Edge device. Setting it makes this device a child of that gateway, either as a leaf device or as a nested edge device. A device has at most one parent.
+- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version`. Change the version to send the value again.
+- `primary_key_wo_version` (Number) Version marker for `primary_key_wo`. Change it to rotate the key.
+- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key. Works like `primary_key_wo`.
+- `secondary_key_wo_version` (Number) Version marker for `secondary_key_wo`. Change it to rotate the key.
 - `status` (String) `enabled` (default) or `disabled`. A disabled device cannot connect.
 - `status_reason` (String) Free-text reason for the status, up to 128 characters.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
@@ -88,12 +88,12 @@ resource "iothub_device" "meter" {
 ### Read-Only
 
 - `cloud_to_device_message_count` (Number) Number of cloud-to-device messages queued for the device.
-- `connection_state` (String) `Connected` or `Disconnected` (approximate, updated by the service).
+- `connection_state` (String) `Connected` or `Disconnected`. Updated by the service and approximate.
 - `connection_state_updated_time` (String) When the connection state last changed.
-- `device_scope` (String) Own scope: hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty.
+- `device_scope` (String) The device's own scope. Hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty.
 - `etag` (String) ETag of the identity.
-- `generation_id` (String) Hub-generated ID distinguishing re-creations of the same `device_id`.
-- `id` (String) `<hostname>/devices/<device_id>` — also the import ID.
+- `generation_id` (String) Hub-generated ID that changes when a device with the same `device_id` is re-created.
+- `id` (String) `<hostname>/devices/<device_id>`. Also the import ID.
 - `last_activity_time` (String) Last time the device connected, sent or received a message.
 - `parent_scopes` (List of String) Scopes of the parent edge device(s) as reported by the hub.
 - `status_updated_time` (String) When `status` last changed.
@@ -103,11 +103,11 @@ resource "iothub_device" "meter" {
 
 Optional:
 
-- `primary_key` (String, Sensitive) Base64 primary key (16–64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.
-- `primary_thumbprint` (String) Primary X.509 thumbprint (40 or 64 hex characters, no separators) for `selfSigned`.
-- `secondary_key` (String, Sensitive) Base64 secondary key (16–64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.
+- `primary_key` (String, Sensitive) Primary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.
+- `primary_thumbprint` (String) Primary X.509 thumbprint for `selfSigned`: 40 or 64 hex characters without separators.
+- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.
 - `secondary_thumbprint` (String) Secondary X.509 thumbprint for `selfSigned`.
-- `type` (String) `sas` (symmetric keys, default), `selfSigned` (X.509 thumbprints) or `certificateAuthority` (X.509 CA-signed).
+- `type` (String) `sas` for symmetric keys (default), `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates.
 
 
 <a id="nestedblock--timeouts"></a>

@@ -22,15 +22,15 @@ const (
 // no timeouts block).
 func timeoutAttribute(def string) schema.StringAttribute {
 	return schema.StringAttribute{
-		MarkdownDescription: "Overall deadline for the invocation as a Go duration (default `" + def + "`): covers waiting for a free job slot, " +
-			"the job's scheduled start and its execution when `wait` is true.",
+		MarkdownDescription: "Overall deadline for the invocation as a Go duration (default `" + def + "`). It covers waiting for a free " +
+			"job slot, waiting for the scheduled start, and the job's execution when `wait` is true.",
 		Optional: true,
 	}
 }
 
 func waitAttribute() schema.BoolAttribute {
 	return schema.BoolAttribute{
-		MarkdownDescription: "Wait for the job to reach a terminal state (default `true`); `false` returns as soon as the job is created.",
+		MarkdownDescription: "Wait for the job to finish (default `true`). With `false` the action returns as soon as the job is created.",
 		Optional:            true,
 	}
 }

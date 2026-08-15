@@ -3,18 +3,18 @@
 page_title: "iothub_module Resource - iothub"
 subcategory: ""
 description: |-
-  A module identity on a device. Modules have their own credentials and twin (manage the twin with iothub_module_twin) but no status of their own — a disabled device disables its modules.
-  Credentials work as for iothub_device: hub-generated SAS keys by default (stored sensitive), write-only primary_key_wo / secondary_key_wo to keep keys out of state, iothub_module_credentials for connection strings. IoT Edge devices get the system modules $edgeAgent and $edgeHub from the hub; those are not created through this resource.
-  ~> With shared-access-policy (SAS) authentication the hub refuses to create, change or delete modules of a disabled device; enable the device first or authenticate with Entra ID. Reading an unchanged module keeps working.
+  A module identity on a device. A module has its own credentials and its own twin. Manage the twin with iothub_module_twin. Modules have no status of their own: a disabled device disables its modules.
+  Credentials work as for iothub_device. The hub generates SAS keys by default and they are stored in state as sensitive values. Use the write-only primary_key_wo and secondary_key_wo arguments to keep keys out of state, and iothub_module_credentials to read connection strings. IoT Edge devices get the system modules $edgeAgent and $edgeHub from the hub. Those are not created through this resource.
+  ~> With shared-access-policy (SAS) authentication the hub refuses to create, change or delete modules of a disabled device. Enable the device first, or authenticate with Entra ID. Reading an unchanged module keeps working.
 ---
 
 # iothub_module (Resource)
 
-A module identity on a device. Modules have their own credentials and twin (manage the twin with `iothub_module_twin`) but no status of their own — a disabled device disables its modules.
+A module identity on a device. A module has its own credentials and its own twin. Manage the twin with `iothub_module_twin`. Modules have no status of their own: a disabled device disables its modules.
 
-Credentials work as for `iothub_device`: hub-generated SAS keys by default (stored sensitive), write-only `primary_key_wo` / `secondary_key_wo` to keep keys out of state, `iothub_module_credentials` for connection strings. IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub; those are not created through this resource.
+Credentials work as for `iothub_device`. The hub generates SAS keys by default and they are stored in state as sensitive values. Use the write-only `primary_key_wo` and `secondary_key_wo` arguments to keep keys out of state, and `iothub_module_credentials` to read connection strings. IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub. Those are not created through this resource.
 
-~> With shared-access-policy (SAS) authentication the hub refuses to create, change or delete modules of a *disabled* device; enable the device first or authenticate with Entra ID. Reading an unchanged module keeps working.
+~> With shared-access-policy (SAS) authentication the hub refuses to create, change or delete modules of a *disabled* device. Enable the device first, or authenticate with Entra ID. Reading an unchanged module keeps working.
 
 ## Example Usage
 
@@ -57,30 +57,30 @@ resource "iothub_module" "diagnostics" {
 
 ### Required
 
-- `device_id` (String) ID of the device the module belongs to. Immutable.
-- `module_id` (String) Module ID: 1–128 ASCII characters from `A-Z a-z 0-9 - : . + % _ # * ? ! ( ) , = @ ; $ '`. Immutable. IDs starting with `$` are reserved for the hub's system modules.
+- `device_id` (String) ID of the device the module belongs to. Changing it replaces the module.
+- `module_id` (String) Module ID: 1–128 ASCII characters from `A-Z a-z 0-9 - : . + % _ # * ? ! ( ) , = @ ; $ '`. Changing it replaces the module. IDs starting with `$` are reserved for the hub's system modules.
 
 ### Optional
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `authentication` (Attributes) How the module authenticates. When omitted, the hub generates SAS keys and the block reflects whatever the hub holds (imported modules keep their credentials). (see [below for nested schema](#nestedatt--authentication))
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the module.
-- `managed_by` (String) Free-text owner of the module (`managedBy`); the hub sets `iotEdge` on the system modules.
-- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key (base64, 16–64 bytes): sent to the hub, never stored in state or plan. Requires `primary_key_wo_version`; a changed version re-sends the value.
-- `primary_key_wo_version` (Number) Version marker for `primary_key_wo`; change it to rotate the key.
-- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key; see `primary_key_wo`.
-- `secondary_key_wo_version` (Number) Version marker for `secondary_key_wo`; change it to rotate the key.
+- `authentication` (Attributes) How the module authenticates. When omitted, the hub generates SAS keys. An imported module keeps its existing credentials. (see [below for nested schema](#nestedatt--authentication))
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`). Changing it replaces the module.
+- `managed_by` (String) Free-text owner of the module. The hub sets `iotEdge` on its system modules.
+- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version`. Change the version to send the value again.
+- `primary_key_wo_version` (Number) Version marker for `primary_key_wo`. Change it to rotate the key.
+- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key. Works like `primary_key_wo`.
+- `secondary_key_wo_version` (Number) Version marker for `secondary_key_wo`. Change it to rotate the key.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
 - `cloud_to_device_message_count` (Number) Number of cloud-to-device messages queued for the module.
-- `connection_state` (String) `Connected` or `Disconnected` (approximate, updated by the service).
+- `connection_state` (String) `Connected` or `Disconnected`. Updated by the service and approximate.
 - `connection_state_updated_time` (String) When the connection state last changed (re-read from the registry when `connection_state` changed).
 - `etag` (String) ETag of the module identity.
-- `generation_id` (String) Hub-generated ID distinguishing re-creations of the same module.
-- `id` (String) `<hostname>/devices/<device_id>/modules/<module_id>` — also the import ID.
+- `generation_id` (String) Hub-generated ID that changes when a module with the same ID is re-created.
+- `id` (String) `<hostname>/devices/<device_id>/modules/<module_id>`. Also the import ID.
 - `last_activity_time` (String) Last time the module connected, sent or received a message.
 
 <a id="nestedatt--authentication"></a>
@@ -88,11 +88,11 @@ resource "iothub_module" "diagnostics" {
 
 Optional:
 
-- `primary_key` (String, Sensitive) Base64 primary key (16–64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.
-- `primary_thumbprint` (String) Primary X.509 thumbprint (40 or 64 hex characters, no separators) for `selfSigned`.
-- `secondary_key` (String, Sensitive) Base64 secondary key (16–64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.
+- `primary_key` (String, Sensitive) Primary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.
+- `primary_thumbprint` (String) Primary X.509 thumbprint for `selfSigned`: 40 or 64 hex characters without separators.
+- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.
 - `secondary_thumbprint` (String) Secondary X.509 thumbprint for `selfSigned`.
-- `type` (String) `sas` (symmetric keys, default), `selfSigned` (X.509 thumbprints) or `certificateAuthority` (X.509 CA-signed).
+- `type` (String) `sas` for symmetric keys (default), `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates.
 
 
 <a id="nestedblock--timeouts"></a>

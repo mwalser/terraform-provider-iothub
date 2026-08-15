@@ -87,8 +87,8 @@ func (d *scheduledJobDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A scheduled twin-update or device-method job, e.g. one started by the `iothub_scheduled_job` action. " +
-			"The hub keeps job history for a limited time; an unknown job is an error.",
+		MarkdownDescription: "A scheduled twin-update or device-method job, for example one started by the `iothub_scheduled_job` " +
+			"action. The hub keeps job history for a limited time. Reading an unknown job is an error.",
 		Attributes: map[string]schema.Attribute{
 			"id":                         c("`<hostname>/jobs/v2/<job_id>`."),
 			"hostname":                   schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
@@ -98,14 +98,14 @@ func (d *scheduledJobDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 			"query_condition":            c("Target condition."),
 			"created_time":               c("Creation time."),
 			"start_time":                 c("Start time."),
-			"end_time":                   c("End time (a far-future placeholder while running)."),
+			"end_time":                   c("End time. A far-future placeholder while the job is running."),
 			"max_execution_time_seconds": schema.Int64Attribute{MarkdownDescription: "Maximum execution time.", Computed: true},
-			"twin_patch":                 c("The twin patch of a `scheduleUpdateTwin` job as JSON (`{\"tags\":…,\"properties\":{\"desired\":…}}`), null otherwise."),
-			"method":                     c("The method of a `scheduleDeviceMethod` job as JSON, null otherwise."),
+			"twin_patch":                 c("The twin patch of a `scheduleUpdateTwin` job as JSON, with `tags` and `properties.desired`. Null for other job types."),
+			"method":                     c("The method of a `scheduleDeviceMethod` job as JSON. Null for other job types."),
 			"failure_reason":             c("Failure reason, if any."),
 			"status_message":             c("Status message, if any."),
 			"device_job_statistics": schema.SingleNestedAttribute{
-				MarkdownDescription: "Per-device counters (null until the hub reports them).",
+				MarkdownDescription: "Per-device counters. Null until the hub reports them.",
 				Computed:            true,
 				Attributes: map[string]schema.Attribute{
 					"device_count":    schema.Int64Attribute{Computed: true, MarkdownDescription: "Targeted devices."},
@@ -207,7 +207,7 @@ func (d *importExportJobDataSource) Schema(_ context.Context, _ datasource.Schem
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A bulk import/export job, e.g. one started by the `iothub_import_export_job` action. " +
+		MarkdownDescription: "A bulk import or export job, for example one started by the `iothub_import_export_job` action. " +
 			"The job record does not include the container URIs.",
 		Attributes: map[string]schema.Attribute{
 			"id":                          c("`<hostname>/jobs/<job_id>`."),
@@ -218,7 +218,7 @@ func (d *importExportJobDataSource) Schema(_ context.Context, _ datasource.Schem
 			"progress":                    schema.Int64Attribute{MarkdownDescription: "Progress in percent.", Computed: true},
 			"start_time":                  c("Start time."),
 			"end_time":                    c("End time."),
-			"failure_reason":              c("Failure reason, if any. Per-line import errors are not reported here; the hub writes them to `importErrors.log` in the output container."),
+			"failure_reason":              c("Failure reason, if any. Per-line import errors are not reported here. The hub writes them to `importErrors.log` in the output container."),
 			"exclude_keys_in_export":      schema.BoolAttribute{MarkdownDescription: "Whether keys were excluded from the export.", Computed: true},
 			"include_configurations":      schema.BoolAttribute{MarkdownDescription: "Whether configurations were included.", Computed: true},
 			"storage_authentication_type": c("`keyBased` or `identityBased`, when reported."),

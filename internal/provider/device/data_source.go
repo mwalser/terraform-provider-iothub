@@ -56,8 +56,8 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here; " +
-			"use the `iothub_device_credentials` ephemeral resource for keys and connection strings.",
+		MarkdownDescription: "A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here. " +
+			"Use the `iothub_device_credentials` ephemeral resource for keys and connection strings.",
 		Attributes: map[string]schema.Attribute{
 			"id":       c("`<hostname>/devices/<device_id>`."),
 			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
@@ -70,12 +70,12 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"edge_enabled":                  schema.BoolAttribute{MarkdownDescription: "Whether the device is an IoT Edge device.", Computed: true},
 			"parent_scope":                  c("Scope of the parent edge device, if the device is a child."),
 			"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority` or `none`."),
-			"primary_thumbprint":            c("Primary X.509 thumbprint (selfSigned)."),
-			"secondary_thumbprint":          c("Secondary X.509 thumbprint (selfSigned)."),
+			"primary_thumbprint":            c("Primary X.509 thumbprint, for `selfSigned` authentication."),
+			"secondary_thumbprint":          c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
 			"etag":                          c("ETag of the identity."),
 			"generation_id":                 c("Hub-generated generation ID."),
-			"device_scope":                  c("Own scope (hub-generated for edge devices, parent scope for child leaf devices)."),
-			"connection_state":              c("`Connected` or `Disconnected` (approximate)."),
+			"device_scope":                  c("The device's own scope. Hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty."),
+			"connection_state":              c("`Connected` or `Disconnected`. Approximate."),
 			"connection_state_updated_time": c("When the connection state last changed."),
 			"last_activity_time":            c("Last activity time."),
 			"status_updated_time":           c("When the status last changed."),

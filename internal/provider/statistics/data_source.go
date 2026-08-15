@@ -38,9 +38,8 @@ func (d *dataSource) Metadata(_ context.Context, req datasource.MetadataRequest,
 
 func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Identity-registry and service statistics of an IoT Hub. The counts are maintained " +
-			"asynchronously by the service and can lag behind registry changes and device connections " +
-			"by minutes — treat them as approximate.",
+		MarkdownDescription: "Identity registry and service statistics of an IoT Hub. The service updates the counts " +
+			"asynchronously, so they can lag behind registry changes and device connections by minutes. Treat them as approximate.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
 				MarkdownDescription: common.HostnameAttributeDescription,

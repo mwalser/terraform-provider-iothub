@@ -43,19 +43,19 @@ func (e *credentialsEphemeral) Metadata(_ context.Context, req ephemeral.Metadat
 
 func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The symmetric keys and connection strings of a module, never written to state or plan. " +
-			"Feed them into write-only arguments (e.g. `azurerm_key_vault_secret.value_wo`). " +
-			"Modules with X.509 authentication have no keys; the key attributes are then null.\n\n" +
-			"Terraform opens ephemeral resources during `plan` as well as `apply`. When the module does not exist yet " +
-			"because it is created in the same run, the plan shows the values as known after apply (with a " +
-			"\"Module not found (yet)\" warning) and they are read at apply time.",
+		MarkdownDescription: "The symmetric keys and connection strings of a module. They are never written to state or plan. " +
+			"Feed them into write-only arguments such as `azurerm_key_vault_secret.value_wo`. " +
+			"Modules with X.509 authentication have no keys, so the key attributes are null for them.\n\n" +
+			"Terraform opens ephemeral resources during `plan` as well as `apply`. If the module is created in the same run, " +
+			"it does not exist yet at plan time. The plan then shows the values as known after apply and warns that the " +
+			"module was not found yet. The values are read during apply.",
 		Attributes: map[string]schema.Attribute{
 			"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"module_id":           schema.StringAttribute{MarkdownDescription: "Module ID.", Required: true},
 			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, `certificateAuthority` or `none`.", Computed: true},
-			"primary_key":         schema.StringAttribute{MarkdownDescription: "Base64 primary key (sas only).", Computed: true, Sensitive: true},
-			"secondary_key":       schema.StringAttribute{MarkdownDescription: "Base64 secondary key (sas only).", Computed: true, Sensitive: true},
+			"primary_key":         schema.StringAttribute{MarkdownDescription: "Primary key, base64 encoded (sas only).", Computed: true, Sensitive: true},
+			"secondary_key":       schema.StringAttribute{MarkdownDescription: "Secondary key, base64 encoded (sas only).", Computed: true, Sensitive: true},
 			"primary_connection_string": schema.StringAttribute{
 				MarkdownDescription: "`HostName=…;DeviceId=…;ModuleId=…;SharedAccessKey=<primary key>` (sas only).",
 				Computed:            true, Sensitive: true,

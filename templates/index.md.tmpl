@@ -16,7 +16,7 @@ description: |-
 
 | Mode | Selected when | Notes |
 |---|---|---|
-| Microsoft Entra ID (default) | no `connection_string` | Uses the `azidentity` chain (environment, workload identity, managed identity, Azure CLI) unless a method is chosen explicitly. The identity needs an IoT Hub **data-plane** role at hub scope — `Owner`/`Contributor` are not enough. |
+| Microsoft Entra ID (default) | no `connection_string` | Unless a method is chosen explicitly, the provider tries the environment, workload identity, managed identity and the Azure CLI, in that order. The identity needs an IoT Hub **data-plane** role at hub scope. `Owner` and `Contributor` are not enough. |
 | Shared access policy (SAS) | `connection_string` set | Uses the hub shared access policy in the connection string. |
 
 ### Permissions
@@ -26,23 +26,24 @@ policy (SAS). Narrower permissions work for subsets:
 
 | To use | Entra ID role | SAS policy permissions |
 |---|---|---|
-| `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor* (*Data Reader* for read-only use) | RegistryRead, RegistryWrite |
-| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, list resources | *IoT Hub Twin Contributor* (*Data Reader* for read-only use) | ServiceConnect |
+| `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
+| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
 | Configurations, deployments, jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
-| `iothub_digital_twin_command` | — (SAS only, see below) | ServiceConnect |
+| `iothub_digital_twin_command` | not possible, SAS only (see below) | ServiceConnect |
 
 Two service restrictions depend on the authentication mode:
 
 - Plug and Play commands (`iothub_digital_twin_command`) are only accepted
-  with SAS authentication; under Entra ID use `iothub_direct_method` instead.
+  with SAS authentication. Under Entra ID, use `iothub_direct_method` instead.
 - With SAS authentication the hub refuses to create, change or delete
-  modules of a *disabled* device; enable the device first or use Entra ID.
+  modules of a *disabled* device. Enable the device first, or use Entra ID.
 
 ## Hostnames
 
 Every resource, data source, ephemeral resource, action and list resource
-accepts its own `hostname`, so a single provider block can manage several hubs
-and a hub created in the same configuration can be referenced before it
-exists. Hostnames are given in lowercase (`contoso.azure-devices.net`).
+accepts its own `hostname`. This lets a single provider block manage several
+hubs. It also lets you reference a hub that is created in the same
+configuration before it exists. Hostnames are given in lowercase, for example
+`contoso.azure-devices.net`.
 
 {{ .SchemaMarkdown | trimspace }}

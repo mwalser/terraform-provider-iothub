@@ -91,24 +91,24 @@ func (d *twinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 		"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 		"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 		"tags":                c("All tags of the twin as a JSON string."),
-		"desired_properties":  c("All desired properties as a JSON string (`$metadata` and `$version` stripped)."),
-		"reported_properties": c("All reported properties as a JSON string (`$metadata` and `$version` stripped)."),
+		"desired_properties":  c("All desired properties as a JSON string, without `$metadata` and `$version`."),
+		"reported_properties": c("All reported properties as a JSON string, without `$metadata` and `$version`."),
 		"desired_version":     schema.Int64Attribute{MarkdownDescription: "`$version` of the desired properties.", Computed: true},
 		"reported_version":    schema.Int64Attribute{MarkdownDescription: "`$version` of the reported properties.", Computed: true},
 		"etag":                c("ETag of the twin."),
 		"version":             schema.Int64Attribute{MarkdownDescription: "Version of the twin.", Computed: true},
 		"device_etag":         c("ETag of the underlying identity."),
 		"model_id":            c("IoT Plug and Play model ID announced by the " + subject + ", if any."),
-		"status":              c("`enabled` or `disabled` (mirrored from the identity)."),
-		"connection_state":    c("`Connected` or `Disconnected` (approximate)."),
+		"status":              c("`enabled` or `disabled`, as set on the identity."),
+		"connection_state":    c("`Connected` or `Disconnected`. Approximate."),
 		"last_activity_time":  c("Last activity time."),
 	}
 	if d.kind.isModule() {
 		attrs["module_id"] = schema.StringAttribute{MarkdownDescription: "Module ID.", Required: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The complete " + subject + " twin: tags, desired and reported properties as JSON strings, plus versions and " +
-			"the identity mirror. Use `jsondecode()` on the JSON attributes.",
+		MarkdownDescription: "The complete " + subject + " twin: tags, desired properties and reported properties as JSON strings, " +
+			"plus versions and the identity fields the twin carries. Use `jsondecode()` on the JSON attributes.",
 		Attributes: attrs,
 	}
 }

@@ -64,46 +64,46 @@ func (p *IoTHubProvider) Metadata(_ context.Context, _ provider.MetadataRequest,
 
 func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages the Azure IoT Hub **data plane** — device and module identities, twins, " +
+		MarkdownDescription: "Manages the Azure IoT Hub **data plane**: device and module identities, twins, " +
 			"automatic device management configurations, IoT Edge deployments, jobs and direct methods. " +
-			"The hub itself (and everything else under Azure Resource Manager) is managed with the `azurerm` provider.\n\n" +
-			"Authentication is Microsoft Entra ID by default; setting `connection_string` switches to a hub shared access " +
+			"The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.\n\n" +
+			"Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to a hub shared access " +
 			"policy (SAS). Throttled requests are retried automatically until the operation's timeout.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
-				MarkdownDescription: "Default IoT Hub hostname, e.g. `contoso.azure-devices.net`. Every resource, data source " +
-					"and action can override it with its own `hostname`. Falls back to `IOTHUB_HOSTNAME`; derived from " +
+				MarkdownDescription: "Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source " +
+					"and action can override it with its own `hostname`. Falls back to `IOTHUB_HOSTNAME`. Derived from " +
 					"`connection_string` when that is set.",
 				Optional: true,
 			},
 			"tenant_id": schema.StringAttribute{
-				MarkdownDescription: "Entra ID tenant. Falls back to `ARM_TENANT_ID` / `AZURE_TENANT_ID`.",
+				MarkdownDescription: "Entra ID tenant. Falls back to `ARM_TENANT_ID` or `AZURE_TENANT_ID`.",
 				Optional:            true,
 			},
 			"client_id": schema.StringAttribute{
-				MarkdownDescription: "Entra ID application (client) ID. Falls back to `ARM_CLIENT_ID` / `AZURE_CLIENT_ID`.",
+				MarkdownDescription: "Entra ID application (client) ID. Falls back to `ARM_CLIENT_ID` or `AZURE_CLIENT_ID`.",
 				Optional:            true,
 			},
 			"client_secret": schema.StringAttribute{
-				MarkdownDescription: "Client secret for service-principal authentication. Falls back to `ARM_CLIENT_SECRET` / `AZURE_CLIENT_SECRET`.",
+				MarkdownDescription: "Client secret for service-principal authentication. Falls back to `ARM_CLIENT_SECRET` or `AZURE_CLIENT_SECRET`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"client_certificate_path": schema.StringAttribute{
-				MarkdownDescription: "Path to a PEM/PKCS#12 client certificate for service-principal authentication. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` / `AZURE_CLIENT_CERTIFICATE_PATH`.",
+				MarkdownDescription: "Path to a PEM or PKCS#12 client certificate for service-principal authentication. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` or `AZURE_CLIENT_CERTIFICATE_PATH`.",
 				Optional:            true,
 			},
 			"client_certificate_password": schema.StringAttribute{
-				MarkdownDescription: "Password of the client certificate, if any. Falls back to `ARM_CLIENT_CERTIFICATE_PASSWORD` / `AZURE_CLIENT_CERTIFICATE_PASSWORD`.",
+				MarkdownDescription: "Password of the client certificate, if any. Falls back to `ARM_CLIENT_CERTIFICATE_PASSWORD` or `AZURE_CLIENT_CERTIFICATE_PASSWORD`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"use_oidc": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with a workload-identity / OIDC federated token (GitHub Actions, HCP Terraform, Kubernetes). Falls back to `ARM_USE_OIDC`.",
+				MarkdownDescription: "Authenticate with a federated workload identity token, as used by GitHub Actions, HCP Terraform or Kubernetes. Falls back to `ARM_USE_OIDC`.",
 				Optional:            true,
 			},
 			"oidc_token_file_path": schema.StringAttribute{
-				MarkdownDescription: "File containing the federated token when `use_oidc` is set. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` / `AZURE_FEDERATED_TOKEN_FILE`.",
+				MarkdownDescription: "File containing the federated token when `use_oidc` is set. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` or `AZURE_FEDERATED_TOKEN_FILE`.",
 				Optional:            true,
 			},
 			"use_msi": schema.BoolAttribute{
@@ -111,11 +111,11 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Optional:            true,
 			},
 			"use_cli": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`. When no explicit method is selected the azidentity default chain (environment → workload identity → managed identity → Azure CLI) is used.",
+				MarkdownDescription: "Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`. When no method is selected explicitly, the provider tries the environment, workload identity, managed identity and the Azure CLI, in that order.",
 				Optional:            true,
 			},
 			"connection_string": schema.StringAttribute{
-				MarkdownDescription: "Hub shared access policy connection string (`HostName=…;SharedAccessKeyName=…;SharedAccessKey=…`). " +
+				MarkdownDescription: "Connection string of a hub shared access policy (`HostName=…;SharedAccessKeyName=…;SharedAccessKey=…`). " +
 					"Setting it selects SAS authentication instead of Entra ID. Falls back to `IOTHUB_CONNECTION_STRING`. " +
 					"`azurerm_iothub_shared_access_policy` exposes it as `primary_connection_string`.",
 				Optional:  true,

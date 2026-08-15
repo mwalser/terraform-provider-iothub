@@ -143,32 +143,32 @@ func AuthFromHub(am *client.AuthenticationMechanism, keysInState bool) Auth {
 // "module") is used in descriptions.
 func AuthAttribute(subject string) schema.SingleNestedAttribute {
 	return schema.SingleNestedAttribute{
-		MarkdownDescription: "How the " + subject + " authenticates. When omitted, the hub generates SAS keys and the block reflects " +
-			"whatever the hub holds (imported " + subject + "s keep their credentials).",
+		MarkdownDescription: "How the " + subject + " authenticates. When omitted, the hub generates SAS keys. An imported " +
+			subject + " keeps its existing credentials.",
 		Optional: true,
 		Computed: true,
 		Attributes: map[string]schema.Attribute{
 			"type": schema.StringAttribute{
-				MarkdownDescription: "`sas` (symmetric keys, default), `selfSigned` (X.509 thumbprints) or `certificateAuthority` (X.509 CA-signed).",
+				MarkdownDescription: "`sas` for symmetric keys (default), `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates.",
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(client.AuthTypeSAS),
 				Validators:          []validator.String{stringvalidator.OneOf(client.AuthTypeSAS, client.AuthTypeSelfSigned, client.AuthTypeCertificateAuthority)},
 			},
 			"primary_key": schema.StringAttribute{
-				MarkdownDescription: "Base64 primary key (16–64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.",
+				MarkdownDescription: "Primary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `primary_key_wo` is used.",
 				Optional:            true,
 				Computed:            true,
 				Sensitive:           true,
 			},
 			"secondary_key": schema.StringAttribute{
-				MarkdownDescription: "Base64 secondary key (16–64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.",
+				MarkdownDescription: "Secondary key, base64 encoded (16 to 64 bytes). Hub-generated when omitted. Not returned when `secondary_key_wo` is used.",
 				Optional:            true,
 				Computed:            true,
 				Sensitive:           true,
 			},
 			"primary_thumbprint": schema.StringAttribute{
-				MarkdownDescription: "Primary X.509 thumbprint (40 or 64 hex characters, no separators) for `selfSigned`.",
+				MarkdownDescription: "Primary X.509 thumbprint for `selfSigned`: 40 or 64 hex characters without separators.",
 				Optional:            true,
 				Validators:          []validator.String{stringvalidator.RegexMatches(ThumbprintPattern, "must be 40 or 64 hex characters without separators")},
 			},
@@ -187,8 +187,8 @@ func AuthAttribute(subject string) schema.SingleNestedAttribute {
 func WriteOnlyKeyAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"primary_key_wo": schema.StringAttribute{
-			MarkdownDescription: "Write-only primary key (base64, 16–64 bytes): sent to the hub, never stored in state or plan. " +
-				"Requires `primary_key_wo_version`; a changed version re-sends the value.",
+			MarkdownDescription: "Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored " +
+				"in state or plan. Requires `primary_key_wo_version`. Change the version to send the value again.",
 			Optional:  true,
 			WriteOnly: true,
 			Sensitive: true,
@@ -198,12 +198,12 @@ func WriteOnlyKeyAttributes() map[string]schema.Attribute {
 			},
 		},
 		"primary_key_wo_version": schema.Int64Attribute{
-			MarkdownDescription: "Version marker for `primary_key_wo`; change it to rotate the key.",
+			MarkdownDescription: "Version marker for `primary_key_wo`. Change it to rotate the key.",
 			Optional:            true,
 			Validators:          []validator.Int64{int64validator.AlsoRequires(path.MatchRoot("primary_key_wo"))},
 		},
 		"secondary_key_wo": schema.StringAttribute{
-			MarkdownDescription: "Write-only secondary key; see `primary_key_wo`.",
+			MarkdownDescription: "Write-only secondary key. Works like `primary_key_wo`.",
 			Optional:            true,
 			WriteOnly:           true,
 			Sensitive:           true,
@@ -213,7 +213,7 @@ func WriteOnlyKeyAttributes() map[string]schema.Attribute {
 			},
 		},
 		"secondary_key_wo_version": schema.Int64Attribute{
-			MarkdownDescription: "Version marker for `secondary_key_wo`; change it to rotate the key.",
+			MarkdownDescription: "Version marker for `secondary_key_wo`. Change it to rotate the key.",
 			Optional:            true,
 			Validators:          []validator.Int64{int64validator.AlsoRequires(path.MatchRoot("secondary_key_wo"))},
 		},

@@ -3,23 +3,23 @@
 page_title: "iothub_digital_twin_command Action - iothub"
 subcategory: ""
 description: |-
-  Invokes an IoT Plug and Play command on a device — a root-level command, or a component command with component_path — and waits for the device's answer. The device-defined response status is compared with expected_status_codes; anything else fails the apply, as does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
-  ~> Requires shared-access-policy (SAS) authentication. IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with connection_string (a policy with ServiceConnect, e.g. service or iothubowner) to use this action, or invoke the equivalent direct method with iothub_direct_method (method_name = "<component>*<command>"), which works with both authentication modes.
+  Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set component_path for a component command. Leave it out for a root-level command. The device's response status is compared with expected_status_codes. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
+  ~> Requires shared-access-policy (SAS) authentication. IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with connection_string to use this action. The policy needs ServiceConnect, for example service or iothubowner. As an alternative that works with both authentication modes, invoke the equivalent direct method with iothub_direct_method and method_name = "<component>*<command>".
   A command invocation is never repeated after an ambiguous failure, because it may already have run.
 ---
 
 # iothub_digital_twin_command (Action)
 
-Invokes an IoT Plug and Play command on a device — a root-level command, or a component command with `component_path` — and waits for the device's answer. The device-defined response status is compared with `expected_status_codes`; anything else fails the apply, as does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
+Invokes an IoT Plug and Play command on a device and waits for the device's answer. Set `component_path` for a component command. Leave it out for a root-level command. The device's response status is compared with `expected_status_codes`. Any other status fails the apply. So does a device that is offline or does not exist. The answer's status and payload are reported as progress output.
 
-~> **Requires shared-access-policy (SAS) authentication.** IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with `connection_string` (a policy with *ServiceConnect*, e.g. `service` or `iothubowner`) to use this action, or invoke the equivalent direct method with `iothub_direct_method` (`method_name = "<component>*<command>"`), which works with both authentication modes.
+~> **Requires shared-access-policy (SAS) authentication.** IoT Hub does not accept Entra ID tokens for Plug and Play commands, whatever the caller's role. Configure the provider with `connection_string` to use this action. The policy needs *ServiceConnect*, for example `service` or `iothubowner`. As an alternative that works with both authentication modes, invoke the equivalent direct method with `iothub_direct_method` and `method_name = "<component>*<command>"`.
 
 A command invocation is never repeated after an ambiguous failure, because it may already have run.
 
 ## Example Usage
 
 ```terraform
-# Plug and Play commands need SAS authentication; the equivalent direct method
+# Plug and Play commands need SAS authentication. The equivalent direct method
 # works with Entra ID too.
 provider "iothub" {
   connection_string = var.iothub_service_connection_string # a policy with ServiceConnect
@@ -74,13 +74,13 @@ resource "iothub_device_twin" "controller" {
 ### Required
 
 - `command_name` (String) Command name as declared in the device's DTDL model.
-- `digital_twin_id` (String) The device ID (a digital twin ID is the device ID).
+- `digital_twin_id` (String) The device ID. A digital twin has the same ID as its device.
 
 ### Optional
 
-- `component_path` (String) Component name for a component command; omit for a root-level command.
-- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0–300 seconds (default 0).
+- `component_path` (String) Component name for a component command. Omit it for a root-level command.
+- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0).
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
-- `payload` (String) JSON request payload (any JSON value; use `jsonencode`). Sent as `null` when omitted.
-- `response_timeout_seconds` (Number) How long the hub waits for the device's response, 5–300 seconds (default 30).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `payload` (String) JSON request payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.
+- `response_timeout_seconds` (Number) How long the hub waits for the device's response, 5 to 300 seconds (default 30).

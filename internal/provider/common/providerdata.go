@@ -29,9 +29,9 @@ type ProviderData struct {
 }
 
 // HostnameAttributeDescription documents the per-construct hostname attribute.
-const HostnameAttributeDescription = "IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. " +
-	"Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and " +
-	"lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`)."
+const HostnameAttributeDescription = "Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). " +
+	"Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to " +
+	"reference a hub that does not exist yet (`azurerm_iothub.x.hostname`)."
 
 // ResolveHostname picks the hub for a construct: its own `hostname` attribute
 // if set, otherwise the provider default. It returns ok=false without

@@ -3,12 +3,12 @@
 page_title: "iothub_module Data Source - iothub"
 subcategory: ""
 description: |-
-  A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here; use the iothub_module_credentials ephemeral resource for keys and connection strings.
+  A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here. Use the iothub_module_credentials ephemeral resource for keys and connection strings.
 ---
 
 # iothub_module (Data Source)
 
-A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here; use the `iothub_module_credentials` ephemeral resource for keys and connection strings.
+A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here. Use the `iothub_module_credentials` ephemeral resource for keys and connection strings.
 
 ## Example Usage
 
@@ -29,22 +29,22 @@ output "edge_agent_connection_state" {
 ### Required
 
 - `device_id` (String) Device ID.
-- `module_id` (String) Module ID (system modules such as `$edgeAgent` can be read too).
+- `module_id` (String) Module ID. System modules such as `$edgeAgent` can be read too.
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 
 - `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority` or `none`.
 - `cloud_to_device_message_count` (Number) Queued cloud-to-device messages.
-- `connection_state` (String) `Connected` or `Disconnected` (approximate).
+- `connection_state` (String) `Connected` or `Disconnected`. Approximate.
 - `connection_state_updated_time` (String) When the connection state last changed.
 - `etag` (String) ETag of the module identity.
 - `generation_id` (String) Hub-generated generation ID.
 - `id` (String) `<hostname>/devices/<device_id>/modules/<module_id>`.
 - `last_activity_time` (String) Last activity time.
-- `managed_by` (String) Owner of the module (`managedBy`), e.g. `iotEdge` for system modules.
-- `primary_thumbprint` (String) Primary X.509 thumbprint (selfSigned).
-- `secondary_thumbprint` (String) Secondary X.509 thumbprint (selfSigned).
+- `managed_by` (String) Owner of the module, for example `iotEdge` for system modules.
+- `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.
+- `secondary_thumbprint` (String) Secondary X.509 thumbprint, for `selfSigned` authentication.

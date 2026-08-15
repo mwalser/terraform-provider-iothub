@@ -3,12 +3,12 @@
 page_title: "iothub_statistics Data Source - iothub"
 subcategory: ""
 description: |-
-  Identity-registry and service statistics of an IoT Hub. The counts are maintained asynchronously by the service and can lag behind registry changes and device connections by minutes — treat them as approximate.
+  Identity registry and service statistics of an IoT Hub. The service updates the counts asynchronously, so they can lag behind registry changes and device connections by minutes. Treat them as approximate.
 ---
 
 # iothub_statistics (Data Source)
 
-Identity-registry and service statistics of an IoT Hub. The counts are maintained asynchronously by the service and can lag behind registry changes and device connections by minutes — treat them as approximate.
+Identity registry and service statistics of an IoT Hub. The service updates the counts asynchronously, so they can lag behind registry changes and device connections by minutes. Treat them as approximate.
 
 ## Example Usage
 
@@ -30,7 +30,7 @@ output "device_counts" {
 
 ### Optional
 
-- `hostname` (String) IoT Hub hostname (`<hub>.azure-devices.net`, lowercase) this object lives in. Defaults to the provider's `hostname`. Setting it here lets one provider block manage several hubs and lets you reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
+- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub that does not exist yet (`azurerm_iothub.x.hostname`).
 
 ### Read-Only
 

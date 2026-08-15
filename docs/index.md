@@ -1,15 +1,15 @@
 ---
 page_title: "iothub Provider"
 description: |-
-  Manages the Azure IoT Hub data plane — device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself (and everything else under Azure Resource Manager) is managed with the azurerm provider.
-  Authentication is Microsoft Entra ID by default; setting connection_string switches to a hub shared access policy (SAS). Throttled requests are retried automatically until the operation's timeout.
+  Manages the Azure IoT Hub data plane: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself, and everything else under Azure Resource Manager, is managed with the azurerm provider.
+  Authentication is Microsoft Entra ID by default. Setting connection_string switches to a hub shared access policy (SAS). Throttled requests are retried automatically until the operation's timeout.
 ---
 
 # iothub Provider
 
-Manages the Azure IoT Hub **data plane** — device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself (and everything else under Azure Resource Manager) is managed with the `azurerm` provider.
+Manages the Azure IoT Hub **data plane**: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs and direct methods. The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.
 
-Authentication is Microsoft Entra ID by default; setting `connection_string` switches to a hub shared access policy (SAS). Throttled requests are retried automatically until the operation's timeout.
+Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to a hub shared access policy (SAS). Throttled requests are retried automatically until the operation's timeout.
 
 ## Example Usage
 
@@ -25,8 +25,8 @@ terraform {
 
 # Entra ID (default). Credentials come from the usual ARM_* / AZURE_*
 # environment variables, a workload identity, a managed identity or the
-# Azure CLI login. The identity needs an IoT Hub data-plane role on the hub
-# (e.g. "IoT Hub Data Contributor") — Owner/Contributor are not enough.
+# Azure CLI login. The identity needs an IoT Hub data-plane role on the hub,
+# for example "IoT Hub Data Contributor". Owner and Contributor are not enough.
 provider "iothub" {
   hostname = "contoso-prod.azure-devices.net"
 }
@@ -42,7 +42,7 @@ provider "iothub" {
 
 | Mode | Selected when | Notes |
 |---|---|---|
-| Microsoft Entra ID (default) | no `connection_string` | Uses the `azidentity` chain (environment, workload identity, managed identity, Azure CLI) unless a method is chosen explicitly. The identity needs an IoT Hub **data-plane** role at hub scope — `Owner`/`Contributor` are not enough. |
+| Microsoft Entra ID (default) | no `connection_string` | Unless a method is chosen explicitly, the provider tries the environment, workload identity, managed identity and the Azure CLI, in that order. The identity needs an IoT Hub **data-plane** role at hub scope. `Owner` and `Contributor` are not enough. |
 | Shared access policy (SAS) | `connection_string` set | Uses the hub shared access policy in the connection string. |
 
 ### Permissions
@@ -52,38 +52,39 @@ policy (SAS). Narrower permissions work for subsets:
 
 | To use | Entra ID role | SAS policy permissions |
 |---|---|---|
-| `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor* (*Data Reader* for read-only use) | RegistryRead, RegistryWrite |
-| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, list resources | *IoT Hub Twin Contributor* (*Data Reader* for read-only use) | ServiceConnect |
+| `iothub_device`, `iothub_module` and their data sources, credentials and SAS tokens | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
+| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
 | Configurations, deployments, jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
-| `iothub_digital_twin_command` | — (SAS only, see below) | ServiceConnect |
+| `iothub_digital_twin_command` | not possible, SAS only (see below) | ServiceConnect |
 
 Two service restrictions depend on the authentication mode:
 
 - Plug and Play commands (`iothub_digital_twin_command`) are only accepted
-  with SAS authentication; under Entra ID use `iothub_direct_method` instead.
+  with SAS authentication. Under Entra ID, use `iothub_direct_method` instead.
 - With SAS authentication the hub refuses to create, change or delete
-  modules of a *disabled* device; enable the device first or use Entra ID.
+  modules of a *disabled* device. Enable the device first, or use Entra ID.
 
 ## Hostnames
 
 Every resource, data source, ephemeral resource, action and list resource
-accepts its own `hostname`, so a single provider block can manage several hubs
-and a hub created in the same configuration can be referenced before it
-exists. Hostnames are given in lowercase (`contoso.azure-devices.net`).
+accepts its own `hostname`. This lets a single provider block manage several
+hubs. It also lets you reference a hub that is created in the same
+configuration before it exists. Hostnames are given in lowercase, for example
+`contoso.azure-devices.net`.
 
 <!-- schema generated by tfplugindocs -->
 ## Schema
 
 ### Optional
 
-- `client_certificate_password` (String, Sensitive) Password of the client certificate, if any. Falls back to `ARM_CLIENT_CERTIFICATE_PASSWORD` / `AZURE_CLIENT_CERTIFICATE_PASSWORD`.
-- `client_certificate_path` (String) Path to a PEM/PKCS#12 client certificate for service-principal authentication. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` / `AZURE_CLIENT_CERTIFICATE_PATH`.
-- `client_id` (String) Entra ID application (client) ID. Falls back to `ARM_CLIENT_ID` / `AZURE_CLIENT_ID`.
-- `client_secret` (String, Sensitive) Client secret for service-principal authentication. Falls back to `ARM_CLIENT_SECRET` / `AZURE_CLIENT_SECRET`.
-- `connection_string` (String, Sensitive) Hub shared access policy connection string (`HostName=…;SharedAccessKeyName=…;SharedAccessKey=…`). Setting it selects SAS authentication instead of Entra ID. Falls back to `IOTHUB_CONNECTION_STRING`. `azurerm_iothub_shared_access_policy` exposes it as `primary_connection_string`.
-- `hostname` (String) Default IoT Hub hostname, e.g. `contoso.azure-devices.net`. Every resource, data source and action can override it with its own `hostname`. Falls back to `IOTHUB_HOSTNAME`; derived from `connection_string` when that is set.
-- `oidc_token_file_path` (String) File containing the federated token when `use_oidc` is set. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` / `AZURE_FEDERATED_TOKEN_FILE`.
-- `tenant_id` (String) Entra ID tenant. Falls back to `ARM_TENANT_ID` / `AZURE_TENANT_ID`.
-- `use_cli` (Boolean) Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`. When no explicit method is selected the azidentity default chain (environment → workload identity → managed identity → Azure CLI) is used.
+- `client_certificate_password` (String, Sensitive) Password of the client certificate, if any. Falls back to `ARM_CLIENT_CERTIFICATE_PASSWORD` or `AZURE_CLIENT_CERTIFICATE_PASSWORD`.
+- `client_certificate_path` (String) Path to a PEM or PKCS#12 client certificate for service-principal authentication. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` or `AZURE_CLIENT_CERTIFICATE_PATH`.
+- `client_id` (String) Entra ID application (client) ID. Falls back to `ARM_CLIENT_ID` or `AZURE_CLIENT_ID`.
+- `client_secret` (String, Sensitive) Client secret for service-principal authentication. Falls back to `ARM_CLIENT_SECRET` or `AZURE_CLIENT_SECRET`.
+- `connection_string` (String, Sensitive) Connection string of a hub shared access policy (`HostName=…;SharedAccessKeyName=…;SharedAccessKey=…`). Setting it selects SAS authentication instead of Entra ID. Falls back to `IOTHUB_CONNECTION_STRING`. `azurerm_iothub_shared_access_policy` exposes it as `primary_connection_string`.
+- `hostname` (String) Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source and action can override it with its own `hostname`. Falls back to `IOTHUB_HOSTNAME`. Derived from `connection_string` when that is set.
+- `oidc_token_file_path` (String) File containing the federated token when `use_oidc` is set. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` or `AZURE_FEDERATED_TOKEN_FILE`.
+- `tenant_id` (String) Entra ID tenant. Falls back to `ARM_TENANT_ID` or `AZURE_TENANT_ID`.
+- `use_cli` (Boolean) Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`. When no method is selected explicitly, the provider tries the environment, workload identity, managed identity and the Azure CLI, in that order.
 - `use_msi` (Boolean) Authenticate with the managed identity of the machine running Terraform. Falls back to `ARM_USE_MSI`.
-- `use_oidc` (Boolean) Authenticate with a workload-identity / OIDC federated token (GitHub Actions, HCP Terraform, Kubernetes). Falls back to `ARM_USE_OIDC`.
+- `use_oidc` (Boolean) Authenticate with a federated workload identity token, as used by GitHub Actions, HCP Terraform or Kubernetes. Falls back to `ARM_USE_OIDC`.
