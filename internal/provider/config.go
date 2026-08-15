@@ -5,62 +5,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 )
-
-// AuthMode selects how the provider authenticates against the IoT Hub
-// service API. It is inferred from the configuration, never chosen
-// explicitly: a connection string selects SAS, anything else Entra ID.
-type AuthMode int
-
-const (
-	// AuthEntraID uses a Microsoft Entra ID token (scope
-	// https://iothubs.azure.net/.default) obtained via the azidentity chain.
-	AuthEntraID AuthMode = iota
-	// AuthSAS uses a shared access policy of the hub, minting SAS tokens
-	// from the policy key.
-	AuthSAS
-)
-
-func (m AuthMode) String() string {
-	if m == AuthSAS {
-		return "sas"
-	}
-	return "entra-id"
-}
-
-// EntraSettings are the inputs for the Entra ID credential chain. Empty
-// fields fall back to the azidentity defaults (environment, workload
-// identity, managed identity, Azure CLI).
-type EntraSettings struct {
-	TenantID                  string
-	ClientID                  string
-	ClientSecret              string
-	ClientCertificatePath     string
-	ClientCertificatePassword string
-	UseOIDC                   bool
-	OIDCTokenFilePath         string
-	UseMSI                    bool
-	UseCLI                    bool
-}
-
-// SASCredential is a parsed IoT Hub connection string
-// (HostName=…;SharedAccessKeyName=…;SharedAccessKey=…).
-type SASCredential struct {
-	HostName            string
-	SharedAccessKeyName string
-	SharedAccessKey     string
-}
-
-// Settings is the fully resolved provider configuration: explicit
-// configuration merged with environment variables and validated.
-type Settings struct {
-	// Hostname is the default hub (e.g. contoso.azure-devices.net); may be
-	// empty when every resource sets its own hostname.
-	Hostname string
-	Mode     AuthMode
-	Entra    EntraSettings
-	SAS      *SASCredential
-}
 
 // rawConfig mirrors the provider schema before environment fallback.
 type rawConfig struct {
@@ -86,7 +33,7 @@ const publicCloudSuffix = ".azure-devices.net"
 
 // resolve merges configuration and environment (configuration wins),
 // infers the auth mode and validates the result.
-func resolve(cfg rawConfig, env envLookup) (Settings, error) {
+func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 	if env == nil {
 		env = os.Getenv
 	}
@@ -117,27 +64,27 @@ func resolve(cfg rawConfig, env envLookup) (Settings, error) {
 		return false, nil
 	}
 
-	s := Settings{
+	s := common.Settings{
 		Hostname: strings.TrimSpace(first(cfg.Hostname, "IOTHUB_HOSTNAME")),
 	}
 
 	if cs := first(cfg.ConnectionString, "IOTHUB_CONNECTION_STRING"); cs != "" {
 		cred, err := parseConnectionString(cs)
 		if err != nil {
-			return Settings{}, err
+			return common.Settings{}, err
 		}
-		s.Mode = AuthSAS
+		s.Mode = common.AuthSAS
 		s.SAS = cred
 		switch {
 		case s.Hostname == "":
 			s.Hostname = cred.HostName
 		case !strings.EqualFold(s.Hostname, cred.HostName):
-			return Settings{}, fmt.Errorf("hostname %q does not match the HostName in connection_string (%q)", s.Hostname, cred.HostName)
+			return common.Settings{}, fmt.Errorf("hostname %q does not match the HostName in connection_string (%q)", s.Hostname, cred.HostName)
 		}
 	} else {
-		s.Mode = AuthEntraID
+		s.Mode = common.AuthEntraID
 		var err error
-		s.Entra = EntraSettings{
+		s.Entra = common.EntraSettings{
 			TenantID:                  first(cfg.TenantID, "ARM_TENANT_ID", "AZURE_TENANT_ID"),
 			ClientID:                  first(cfg.ClientID, "ARM_CLIENT_ID", "AZURE_CLIENT_ID"),
 			ClientSecret:              first(cfg.ClientSecret, "ARM_CLIENT_SECRET", "AZURE_CLIENT_SECRET"),
@@ -146,19 +93,19 @@ func resolve(cfg rawConfig, env envLookup) (Settings, error) {
 			OIDCTokenFilePath:         first(cfg.OIDCTokenFilePath, "ARM_OIDC_TOKEN_FILE_PATH", "AZURE_FEDERATED_TOKEN_FILE"),
 		}
 		if s.Entra.UseOIDC, err = firstBool(cfg.UseOIDC, "ARM_USE_OIDC"); err != nil {
-			return Settings{}, err
+			return common.Settings{}, err
 		}
 		if s.Entra.UseMSI, err = firstBool(cfg.UseMSI, "ARM_USE_MSI"); err != nil {
-			return Settings{}, err
+			return common.Settings{}, err
 		}
 		if s.Entra.UseCLI, err = firstBool(cfg.UseCLI, "ARM_USE_CLI"); err != nil {
-			return Settings{}, err
+			return common.Settings{}, err
 		}
 	}
 
 	if s.Hostname != "" {
 		if err := validateHostname(s.Hostname); err != nil {
-			return Settings{}, err
+			return common.Settings{}, err
 		}
 	}
 	return s, nil
@@ -177,8 +124,8 @@ func validateHostname(h string) error {
 }
 
 // parseConnectionString parses an IoT Hub *service* connection string.
-func parseConnectionString(cs string) (*SASCredential, error) {
-	cred := &SASCredential{}
+func parseConnectionString(cs string) (*common.SASCredential, error) {
+	cred := &common.SASCredential{}
 	for _, part := range strings.Split(strings.TrimSpace(cs), ";") {
 		if part == "" {
 			continue

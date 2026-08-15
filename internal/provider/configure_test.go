@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
+
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 )
 
 // configure runs Provider.Configure with the given attribute values; values
@@ -41,11 +43,11 @@ func configure(t *testing.T, attrs map[string]tftypes.Value) provider.ConfigureR
 func str(s string) tftypes.Value { return tftypes.NewValue(tftypes.String, s) }
 
 // providerData extracts the *ProviderData handed to resources.
-func providerData(t *testing.T, resp provider.ConfigureResponse) *ProviderData {
+func providerData(t *testing.T, resp provider.ConfigureResponse) *common.ProviderData {
 	t.Helper()
-	pd, ok := resp.ResourceData.(*ProviderData)
+	pd, ok := resp.ResourceData.(*common.ProviderData)
 	if !ok {
-		t.Fatalf("ResourceData is %T, want *ProviderData", resp.ResourceData)
+		t.Fatalf("ResourceData is %T, want *common.ProviderData", resp.ResourceData)
 	}
 	return pd
 }
@@ -72,7 +74,7 @@ func TestConfigure_EntraDefault(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
 	}
 	pd := providerData(t, resp)
-	if pd.Settings.Mode != AuthEntraID || pd.Settings.Hostname != "contoso.azure-devices.net" || pd.HostnameUnknown {
+	if pd.Settings.Mode != common.AuthEntraID || pd.Settings.Hostname != "contoso.azure-devices.net" || pd.HostnameUnknown {
 		t.Errorf("unexpected settings: %+v", pd)
 	}
 	if resp.DataSourceData == nil || resp.EphemeralResourceData == nil || resp.ActionData == nil {
@@ -89,7 +91,7 @@ func TestConfigure_SAS(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
 	}
 	pd := providerData(t, resp)
-	if pd.Settings.Mode != AuthSAS || pd.Settings.Hostname != "x.azure-devices.net" || pd.Settings.SAS.SharedAccessKeyName != "iothubowner" {
+	if pd.Settings.Mode != common.AuthSAS || pd.Settings.Hostname != "x.azure-devices.net" || pd.Settings.SAS.SharedAccessKeyName != "iothubowner" {
 		t.Errorf("unexpected settings: %+v", pd.Settings)
 	}
 }

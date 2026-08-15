@@ -13,6 +13,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	"github.com/mwalser/terraform-provider-iothub/internal/client"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/statistics"
 )
 
 // Ensure IoTHubProvider satisfies the provider interfaces it implements.
@@ -176,7 +180,13 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	pd := &ProviderData{Settings: settings, HostnameUnknown: data.Hostname.IsUnknown()}
+	factory, err := newClientFactory(settings, p.version)
+	if err != nil {
+		resp.Diagnostics.AddError("Cannot initialise IoT Hub client", err.Error())
+		return
+	}
+
+	pd := &common.ProviderData{Settings: settings, HostnameUnknown: data.Hostname.IsUnknown(), Clients: factory}
 	tflog.Info(ctx, "configured iothub provider", map[string]any{
 		"auth_mode":        settings.Mode.String(),
 		"default_hostname": settings.Hostname,
@@ -188,15 +198,28 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	resp.ActionData = pd
 }
 
-// ProviderData is handed to every resource, data source, ephemeral resource
-// and action. The service client is added in the next step (see CONCEPT.md
-// §12); for now it carries the resolved settings.
-type ProviderData struct {
-	Settings Settings
-	// HostnameUnknown is true when the provider-level hostname was unknown
-	// at configure time; resources without their own hostname must then
-	// defer until apply.
-	HostnameUnknown bool
+// newClientFactory wires the resolved settings into the service client:
+// Entra ID credential or SAS key, provider version for the User-Agent, and
+// tflog as the client's debug logger.
+func newClientFactory(s common.Settings, version string) (*client.Factory, error) {
+	cfg := client.Config{
+		Version: version,
+		Logger: func(ctx context.Context, msg string, fields map[string]any) {
+			tflog.Debug(ctx, msg, fields)
+		},
+	}
+	if s.Mode == common.AuthSAS {
+		cfg.SharedAccessKey = &client.SharedAccessKey{
+			HostName: s.SAS.HostName, KeyName: s.SAS.SharedAccessKeyName, Key: s.SAS.SharedAccessKey,
+		}
+	} else {
+		cred, err := newEntraCredential(s.Entra)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Credential = cred
+	}
+	return client.NewFactory(cfg)
 }
 
 func (p *IoTHubProvider) Resources(_ context.Context) []func() resource.Resource {
@@ -204,7 +227,9 @@ func (p *IoTHubProvider) Resources(_ context.Context) []func() resource.Resource
 }
 
 func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		statistics.NewDataSource,
+	}
 }
 
 func (p *IoTHubProvider) EphemeralResources(_ context.Context) []func() ephemeral.EphemeralResource {

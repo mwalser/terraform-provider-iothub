@@ -3,6 +3,8 @@ package provider
 import (
 	"strings"
 	"testing"
+
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 )
 
 func envFrom(m map[string]string) envLookup {
@@ -14,7 +16,7 @@ func TestResolve_EntraDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if s.Mode != AuthEntraID {
+	if s.Mode != common.AuthEntraID {
 		t.Fatalf("mode = %v, want entra-id", s.Mode)
 	}
 	if s.Hostname != "contoso.azure-devices.net" {
@@ -64,7 +66,7 @@ func TestResolve_ConnectionString(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if s.Mode != AuthSAS || s.SAS == nil {
+	if s.Mode != common.AuthSAS || s.SAS == nil {
 		t.Fatalf("expected SAS mode with credential, got %+v", s)
 	}
 	if s.Hostname != "contoso.azure-devices.net" {
@@ -84,7 +86,7 @@ func TestResolve_ConnectionString(t *testing.T) {
 	}
 	// Env var works too.
 	s, err = resolve(rawConfig{}, envFrom(map[string]string{"IOTHUB_CONNECTION_STRING": cs}))
-	if err != nil || s.Mode != AuthSAS {
+	if err != nil || s.Mode != common.AuthSAS {
 		t.Errorf("IOTHUB_CONNECTION_STRING not honoured: %v %+v", err, s)
 	}
 }
