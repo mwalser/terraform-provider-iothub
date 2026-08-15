@@ -250,6 +250,7 @@ func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.Data
 		module.NewModulesDataSource,
 		twin.NewDeviceDataSource,
 		twin.NewModuleDataSource,
+		twin.NewDigitalTwinDataSource,
 		configuration.NewConfigurationDataSource,
 		configuration.NewEdgeDeploymentDataSource,
 		jobs.NewScheduledJobDataSource,
@@ -275,6 +276,7 @@ func (p *IoTHubProvider) Actions(_ context.Context) []func() action.Action {
 		actions.NewScheduledJobAction,
 		actions.NewImportExportJobAction,
 		actions.NewCancelJobAction,
+		actions.NewDigitalTwinCommandAction,
 	}
 }
 

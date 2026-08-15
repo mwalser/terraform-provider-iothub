@@ -41,6 +41,16 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 			t.Errorf("%s: missing reported_properties", name)
 		}
 	}
+	var dt datasource.SchemaResponse
+	NewDigitalTwinDataSource().Schema(ctx, datasource.SchemaRequest{}, &dt)
+	if diags := dt.Schema.ValidateImplementation(ctx); diags.HasError() {
+		t.Fatalf("digital twin data source schema: %v", diags)
+	}
+	for _, a := range []string{"id", "hostname", "digital_twin_id", "document", "model_id", "etag"} {
+		if _, ok := dt.Schema.Attributes[a]; !ok {
+			t.Errorf("digital twin: missing %q", a)
+		}
+	}
 }
 
 func TestDocument(t *testing.T) {

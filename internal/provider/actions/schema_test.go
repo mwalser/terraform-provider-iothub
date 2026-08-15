@@ -12,6 +12,7 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 	for name, a := range map[string]action.Action{
 		"direct_method": NewDirectMethodAction(), "apply_configuration": NewApplyConfigurationAction(), "purge": NewPurgeC2DQueueAction(),
 		"scheduled_job": NewScheduledJobAction(), "import_export_job": NewImportExportJobAction(), "cancel_job": NewCancelJobAction(),
+		"digital_twin_command": NewDigitalTwinCommandAction(),
 	} {
 		var resp action.SchemaResponse
 		a.Schema(ctx, action.SchemaRequest{}, &resp)
@@ -31,6 +32,19 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 	NewImportExportJobAction().Schema(ctx, action.SchemaRequest{}, &ie)
 	if ie.Schema.Attributes["output_blob_container_uri"].IsWriteOnly() {
 		t.Error("action attributes must not be write-only")
+	}
+}
+
+func TestDTDLNamePattern(t *testing.T) {
+	for _, ok := range []string{"reboot", "getMaxMinReport", "thermostat1", "a", "A_b9"} {
+		if !dtdlNamePattern.MatchString(ok) {
+			t.Errorf("%q should be a valid DTDL name", ok)
+		}
+	}
+	for _, bad := range []string{"", "1abc", "a-b", "a b", "a*b", "trailing_", "$edgeAgent"} {
+		if dtdlNamePattern.MatchString(bad) {
+			t.Errorf("%q should not be a valid DTDL name", bad)
+		}
 	}
 }
 
