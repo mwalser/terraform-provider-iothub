@@ -16,6 +16,7 @@ import (
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/configuration"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/device"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/module"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/query"
@@ -232,6 +233,8 @@ func (p *IoTHubProvider) Resources(_ context.Context) []func() resource.Resource
 		module.NewResource,
 		twin.NewDeviceResource,
 		twin.NewModuleResource,
+		configuration.NewConfigurationResource,
+		configuration.NewEdgeDeploymentResource,
 	}
 }
 
@@ -242,6 +245,8 @@ func (p *IoTHubProvider) DataSources(_ context.Context) []func() datasource.Data
 		module.NewModulesDataSource,
 		twin.NewDeviceDataSource,
 		twin.NewModuleDataSource,
+		configuration.NewConfigurationDataSource,
+		configuration.NewEdgeDeploymentDataSource,
 		query.NewDataSource,
 		statistics.NewDataSource,
 	}

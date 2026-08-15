@@ -8,10 +8,13 @@ FEATURES:
 * **New Resource:** `iothub_device` — identity registry entries with SAS / X.509 authentication, IoT Edge capability, parent/child scopes, write-only keys, import
 * **New Resource:** `iothub_module` — module identities with the same authentication options, write-only keys and import
 * **New Resource:** `iothub_device_twin`, `iothub_module_twin` — leaf-path ownership of twin tags and desired properties (JSON merge patches; keys written by other systems are never touched); import starts with an empty owned set
+* **New Resource:** `iothub_configuration` — automatic device/module management configurations; content is immutable (replacement), target condition and metric queries are validated against the hub at plan time
+* **New Resource:** `iothub_edge_deployment` — IoT Edge deployments incl. layered deployments, same behaviour
 * **New Data Source:** `iothub_device`
 * **New Data Source:** `iothub_module`
 * **New Data Source:** `iothub_modules`
 * **New Data Source:** `iothub_device_twin`, `iothub_module_twin` — full twins incl. reported properties
+* **New Data Source:** `iothub_configuration`, `iothub_edge_deployment` — incl. the hub's system and custom metric results
 * **New Data Source:** `iothub_statistics`
 * **New Data Source:** `iothub_query` — IoT Hub query language statements, all pages
 * **New Ephemeral Resource:** `iothub_device_credentials`

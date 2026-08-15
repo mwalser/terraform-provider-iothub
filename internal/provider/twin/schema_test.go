@@ -9,6 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/jsondoc"
 )
 
 func TestSchemas_ValidateImplementation(t *testing.T) {
@@ -54,7 +56,7 @@ func TestDocument(t *testing.T) {
 	if a.Equal(b) {
 		t.Error("Equal is exact")
 	}
-	// validation
+	// validation: JSON object + twin rules
 	for s, wantErr := range map[string]bool{
 		`{"a":1}`:        false,
 		`{}`:             false,
@@ -70,7 +72,6 @@ func TestDocument(t *testing.T) {
 			t.Errorf("%s: error=%v, want %v (%v)", s, resp.Diagnostics.HasError(), wantErr, resp.Diagnostics)
 		}
 	}
-	// nulls
 	var resp xattr.ValidateAttributeResponse
 	NewDocumentNull().ValidateAttribute(ctx, xattr.ValidateAttributeRequest{}, &resp)
 	if resp.Diagnostics.HasError() {
@@ -80,12 +81,14 @@ func TestDocument(t *testing.T) {
 		t.Error("null object")
 	}
 	// type plumbing
-	var typ DocumentType
-	v, diags := typ.ValueFromString(ctx, basetypes.NewStringValue(`{}`))
+	v, diags := DocumentType.ValueFromString(ctx, basetypes.NewStringValue(`{}`))
 	if diags.HasError() || !v.Equal(NewDocumentValue(`{}`)) {
 		t.Error("ValueFromString")
 	}
-	if !typ.Equal(DocumentType{}) || typ.Equal(basetypes.StringType{}) {
+	if !DocumentType.Equal(DocumentType) || DocumentType.Equal(basetypes.StringType{}) || DocumentType.Equal(jsondoc.Type{Name: "other"}) {
 		t.Error("type equality")
+	}
+	if !NewDocumentValue(`{}`).Type(ctx).Equal(DocumentType) {
+		t.Error("value type")
 	}
 }

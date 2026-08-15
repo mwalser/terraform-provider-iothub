@@ -121,13 +121,13 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 			Validators:          []validator.String{identity.IDValidator()},
 		},
 		"tags": schema.StringAttribute{
-			CustomType: DocumentType{},
+			CustomType: DocumentType,
 			MarkdownDescription: "JSON object (use `jsonencode`) with the tags this resource owns. Only the leaf paths declared " +
 				"here are managed; sibling keys written by other systems are left alone. Omit to manage no tags.",
 			Optional: true,
 		},
 		"desired_properties": schema.StringAttribute{
-			CustomType: DocumentType{},
+			CustomType: DocumentType,
 			MarkdownDescription: "JSON object (use `jsonencode`) with the desired properties this resource owns; the same " +
 				"leaf-path rules as `tags`. Omit to manage no desired properties.",
 			Optional: true,

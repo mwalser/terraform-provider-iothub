@@ -400,7 +400,7 @@ func TestAccDeviceTwin_configValidation(t *testing.T) {
   device_id = "d"
   tags      = "not json"
 }`,
-				ExpectError: regexp.MustCompile(`Invalid twin document`),
+				ExpectError: regexp.MustCompile(`Invalid JSON document`),
 			},
 		},
 	})

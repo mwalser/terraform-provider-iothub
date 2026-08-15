@@ -9,11 +9,12 @@ resources and stay with the [`azurerm`](https://registry.terraform.io/providers/
 provider; this provider starts exactly where `azurerm` stops.
 
 > **Status: alpha, not yet published to the Terraform Registry.**
-> Phases 0 and 1 are complete: authentication, the service client, the
+> Phases 0–2 are complete: authentication, the service client, the
 > identity registry (`iothub_device`, `iothub_module`, credentials and SAS
 > tokens as ephemeral resources), device and module twins with leaf-path
-> ownership, `iothub_query` and `iothub_statistics`. Configurations, edge
-> deployments and actions follow ([roadmap](CONCEPT.md#14-roadmap)).
+> ownership, `iothub_configuration` and `iothub_edge_deployment`,
+> `iothub_query` and `iothub_statistics`. Actions (direct methods, jobs)
+> and list resources follow ([roadmap](CONCEPT.md#14-roadmap)).
 
 The design — every resource, action and behaviour, the decisions behind
 them, and the service facts verified against a live hub — is in
@@ -62,6 +63,14 @@ resource "iothub_device_twin" "sensor" {
     telemetryIntervalSec = 60
     firmware             = { channel = "stable" }
   })
+}
+
+# Roll a firmware channel out to the whole EU fleet.
+resource "iothub_configuration" "fw_channel" {
+  configuration_id = "fw-channel-stable"
+  target_condition = "tags.fleet.region = 'eu'"
+  priority         = 10
+  device_content   = jsonencode({ "properties.desired.firmware" = { channel = "stable" } })
 }
 
 # Keys never touch state: read them at apply time into a write-only argument.
