@@ -9,12 +9,15 @@ resources and stay with the [`azurerm`](https://registry.terraform.io/providers/
 provider; this provider starts exactly where `azurerm` stops.
 
 > **Status: alpha, not yet published to the Terraform Registry.**
-> Phases 0–2 are complete: authentication, the service client, the
-> identity registry (`iothub_device`, `iothub_module`, credentials and SAS
-> tokens as ephemeral resources), device and module twins with leaf-path
-> ownership, `iothub_configuration` and `iothub_edge_deployment`,
-> `iothub_query` and `iothub_statistics`. Actions (direct methods, jobs)
-> and list resources follow ([roadmap](CONCEPT.md#14-roadmap)).
+> Phases 0–3 are complete — everything in the concept up to the 1.0
+> candidate: authentication, the service client, the identity registry
+> (`iothub_device`, `iothub_module`, credentials and SAS tokens as ephemeral
+> resources), device and module twins with leaf-path ownership,
+> `iothub_configuration` and `iothub_edge_deployment`, `iothub_query`,
+> `iothub_statistics`, actions (direct methods, scheduled and import/export
+> jobs, apply configuration, purge, cancel) and list resources with resource
+> identity for `terraform query`. Phase 4 (Plug and Play, ETag-gated
+> refresh) is demand-driven ([roadmap](CONCEPT.md#14-roadmap)).
 
 The design — every resource, action and behaviour, the decisions behind
 them, and the service facts verified against a live hub — is in
@@ -71,6 +74,14 @@ resource "iothub_configuration" "fw_channel" {
   target_condition = "tags.fleet.region = 'eu'"
   priority         = 10
   device_content   = jsonencode({ "properties.desired.firmware" = { channel = "stable" } })
+}
+
+# Reboot the sensor whenever its twin changes.
+action "iothub_direct_method" "reboot" {
+  config {
+    device_id   = iothub_device.sensor.device_id
+    method_name = "reboot"
+  }
 }
 
 # Keys never touch state: read them at apply time into a write-only argument.
@@ -143,6 +154,11 @@ make testacc                                    # everything
 go test ./internal/provider/ -run TestAccDevice -v   # one family
 ```
 
+The import/export job test additionally needs a blob container the hub can
+use, as a container SAS URI with `racwdl` permissions in
+`IOTHUB_TEST_BLOB_CONTAINER_SAS_URI`; it is skipped otherwise. Everything
+else runs against the hub alone (F1 is enough).
+
 ### Acceptance tests in CI
 
 The `Tests` workflow runs the acceptance suite on `workflow_dispatch`, and on
@@ -154,6 +170,9 @@ is set. Credentials come from repository **secrets**, either
   application with a [federated credential for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust?pivots=identity-wif-apps-methods-azp#github-actions)
   and *IoT Hub Data Contributor* on the hub; the workflow logs in with
   `azure/login` and the provider uses that CLI session.
+
+Optionally, `IOTHUB_TEST_BLOB_CONTAINER_SAS_URI` enables the import/export
+job test.
 
 ## Releasing
 

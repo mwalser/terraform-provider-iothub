@@ -122,5 +122,7 @@ jobs:
           TF_ACC: "1"
           IOTHUB_TEST_HOSTNAME: ${{ vars.IOTHUB_TEST_HOSTNAME }}
           IOTHUB_CONNECTION_STRING: ${{ secrets.IOTHUB_CONNECTION_STRING }}
+          # optional: a container SAS URI (racwdl) for the import/export job test
+          IOTHUB_TEST_BLOB_CONTAINER_SAS_URI: ${{ secrets.IOTHUB_TEST_BLOB_CONTAINER_SAS_URI }}
           ARM_USE_CLI: ${{ env.AZURE_CLIENT_ID != '' }}
         run: go test -v -cover -timeout 50m -run 'TestAcc' ./internal/...

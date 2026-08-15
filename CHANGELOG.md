@@ -15,6 +15,12 @@ FEATURES:
 * **New Data Source:** `iothub_modules`
 * **New Data Source:** `iothub_device_twin`, `iothub_module_twin` — full twins incl. reported properties
 * **New Data Source:** `iothub_configuration`, `iothub_edge_deployment` — incl. the hub's system and custom metric results
+* **New Data Source:** `iothub_scheduled_job`, `iothub_import_export_job`
+* **New Action:** `iothub_direct_method` — device/module direct methods with expected status codes
+* **New Action:** `iothub_scheduled_job` — twin update / device method jobs, waited to completion
+* **New Action:** `iothub_import_export_job` — bulk registry export/import (key- or identity-based storage access)
+* **New Action:** `iothub_apply_configuration`, `iothub_purge_c2d_queue`, `iothub_cancel_job`
+* **New List Resource:** `iothub_device`, `iothub_module`, `iothub_configuration`, `iothub_edge_deployment` — `terraform query` with resource identity (import by identity supported)
 * **New Data Source:** `iothub_statistics`
 * **New Data Source:** `iothub_query` — IoT Hub query language statements, all pages
 * **New Ephemeral Resource:** `iothub_device_credentials`
