@@ -4,7 +4,6 @@ description: |-
   Manages the Azure IoT Hub data plane: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play. The hub itself, and everything else under Azure Resource Manager, is managed with the azurerm provider.
   Requirements: Terraform 1.14 or later, an IoT Hub in the Azure public cloud (no sovereign clouds), and an Entra ID identity with an IoT Hub data-plane role on the hub or a shared access policy connection string.
   Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, and Device Provisioning Service enrollments.
-  The provider is at version 0.x: minor releases may still change attribute names and behaviour. The changelog lists every such change.
 ---
 
 # iothub Provider
@@ -15,8 +14,6 @@ Requirements: Terraform 1.14 or later, an IoT Hub in the Azure public cloud (no 
 
 Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, and Device Provisioning Service enrollments.
 
-The provider is at version 0.x: minor releases may still change attribute names and behaviour. The changelog lists every such change.
-
 ## Example Usage
 
 ```terraform
@@ -25,7 +22,7 @@ terraform {
   required_providers {
     iothub = {
       source  = "mwalser/iothub"
-      version = "~> 0.1"
+      version = "~> 1.0"
     }
   }
 }

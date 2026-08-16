@@ -2,7 +2,7 @@
 name: Release
 
 # This GitHub action creates a release when a tag that matches the pattern
-# "v*" (e.g. v0.1.0) is created — after the Tests workflow (build, lint,
+# "v*" (e.g. v1.0.0) is created — after the Tests workflow (build, lint,
 # docs freshness, unit tests and, when a test hub is configured, the
 # acceptance suite) has passed on that very commit.
 on:

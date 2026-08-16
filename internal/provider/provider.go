@@ -79,9 +79,7 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 			"Requirements: Terraform 1.14 or later, an IoT Hub in the Azure public cloud (no sovereign clouds), and an " +
 			"Entra ID identity with an IoT Hub data-plane role on the hub or a shared access policy connection string.\n\n" +
 			"Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, " +
-			"and Device Provisioning Service enrollments.\n\n" +
-			"The provider is at version 0.x: minor releases may still change attribute names and behaviour. The changelog " +
-			"lists every such change.",
+			"and Device Provisioning Service enrollments.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
 				MarkdownDescription: "Hostname of the IoT Hub, in lowercase, for example `contoso.azure-devices.net`. Falls back to " +

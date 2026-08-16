@@ -3,7 +3,7 @@ terraform {
   required_providers {
     iothub = {
       source  = "mwalser/iothub"
-      version = "~> 0.1"
+      version = "~> 1.0"
     }
   }
 }

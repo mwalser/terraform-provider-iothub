@@ -1,6 +1,9 @@
-## 0.1.0 (Unreleased)
+## 1.0.0 (August 16, 2026)
 
-Initial release.
+First release. The surface below is the 1.x contract: resource, data source,
+ephemeral, action and list names and their attributes, the ID and import ID
+formats, the twin leaf-path ownership model, and the authentication arguments
+with their precedence. Breaking changes come only with a major version.
 
 FEATURES:
 
