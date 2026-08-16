@@ -21,9 +21,9 @@ What it manages:
   properties and the Plug and Play digital twin as data sources.
 - **Configurations** — `iothub_configuration` for automatic device management
   and `iothub_edge_deployment` for IoT Edge, including layered deployments.
-- **Actions** — direct methods, Plug and Play commands, scheduled twin and
-  method jobs, bulk import and export, applying a manifest to one edge device,
-  purging a device's cloud-to-device queue, cancelling jobs.
+- **Actions** — direct methods (including Plug and Play commands), scheduled
+  twin and method jobs, bulk import and export, setting the modules of one
+  edge device, purging a device's cloud-to-device queue, cancelling jobs.
 - **Data sources** — `iothub_query` for the IoT Hub query language,
   `iothub_statistics`, job status.
 
@@ -50,7 +50,7 @@ terraform {
   }
 }
 
-# Entra ID via ARM_*/AZURE_* variables, a workload/managed identity or `az login`.
+# Entra ID like azurerm: ARM_* variables, use_oidc, use_msi or `az login`.
 provider "iothub" {
   hostname = "contoso-prod.azure-devices.net"
 }

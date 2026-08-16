@@ -149,7 +149,7 @@ func AuthAttribute(subject string) schema.SingleNestedAttribute {
 		Computed: true,
 		Attributes: map[string]schema.Attribute{
 			"type": schema.StringAttribute{
-				MarkdownDescription: "`sas` for symmetric keys (default), `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates.",
+				MarkdownDescription: "`sas` for symmetric keys, `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates. An identity created without an `authentication` block gets `sas`; an existing identity keeps its type.",
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(client.AuthTypeSAS),
@@ -190,14 +190,14 @@ func WriteOnlyKeyAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"primary_key_wo": schema.StringAttribute{
 			MarkdownDescription: "Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored " +
-				"in state or plan. Requires `primary_key_wo_version`. Changing the key value alone has no effect. Change the version " +
-				"whenever you change the key. Cannot be combined with `authentication.primary_key`. Set `secondary_key_wo` as well: " +
-				"with only one write-only key, the hub generates the other and it is stored in state.",
+				"in state or plan. Requires `primary_key_wo_version` and `secondary_key_wo`, so that no key ends up in state. " +
+				"Changing the key value alone has no effect. Change the version whenever you change the key. Cannot be combined " +
+				"with `authentication.primary_key`.",
 			Optional:  true,
 			WriteOnly: true,
 			Sensitive: true,
 			Validators: []validator.String{
-				stringvalidator.AlsoRequires(path.MatchRoot("primary_key_wo_version")),
+				stringvalidator.AlsoRequires(path.MatchRoot("primary_key_wo_version"), path.MatchRoot("secondary_key_wo")),
 				stringvalidator.ConflictsWith(path.MatchRoot("authentication").AtName("primary_key")),
 			},
 		},
@@ -207,12 +207,12 @@ func WriteOnlyKeyAttributes() map[string]schema.Attribute {
 			Validators:          []validator.Int64{int64validator.AlsoRequires(path.MatchRoot("primary_key_wo"))},
 		},
 		"secondary_key_wo": schema.StringAttribute{
-			MarkdownDescription: "Write-only secondary key. Works like `primary_key_wo`. Cannot be combined with `authentication.secondary_key`.",
+			MarkdownDescription: "Write-only secondary key. Works like `primary_key_wo` and requires it. Cannot be combined with `authentication.secondary_key`.",
 			Optional:            true,
 			WriteOnly:           true,
 			Sensitive:           true,
 			Validators: []validator.String{
-				stringvalidator.AlsoRequires(path.MatchRoot("secondary_key_wo_version")),
+				stringvalidator.AlsoRequires(path.MatchRoot("secondary_key_wo_version"), path.MatchRoot("primary_key_wo")),
 				stringvalidator.ConflictsWith(path.MatchRoot("authentication").AtName("secondary_key")),
 			},
 		},

@@ -40,7 +40,7 @@ output "custom_modules" {
 
 Read-Only:
 
-- `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.
+- `authentication` (Attributes) How the module authenticates. Keys are not exposed here. (see [below for nested schema](#nestedatt--modules--authentication))
 - `cloud_to_device_message_count` (Number) Queued cloud-to-device messages.
 - `connection_state` (String) `Connected` or `Disconnected`. Approximate.
 - `connection_state_updated_time` (String) When the connection state last changed.
@@ -49,5 +49,12 @@ Read-Only:
 - `last_activity_time` (String) Last time the module connected, sent or received a message.
 - `managed_by` (String) Owner of the module, for example `iotEdge` for system modules.
 - `module_id` (String) Module ID.
+
+<a id="nestedatt--modules--authentication"></a>
+### Nested Schema for `modules.authentication`
+
+Read-Only:
+
 - `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.
 - `secondary_thumbprint` (String) Secondary X.509 thumbprint, for `selfSigned` authentication.
+- `type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.

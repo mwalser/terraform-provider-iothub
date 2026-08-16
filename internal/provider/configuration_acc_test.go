@@ -78,7 +78,7 @@ resource "iothub_configuration" "test" {
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("schema_version"), knownvalue.Null()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("etag"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("system_metrics"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("created_time_utc"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("created_time"), knownvalue.NotNull()),
 				},
 			},
 			{
@@ -131,7 +131,7 @@ resource "iothub_configuration" "test" {
 				ResourceName:            res,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"timeouts", "system_metrics", "metric_results", "last_updated_time_utc"},
+				ImportStateVerifyIgnore: []string{"timeouts", "system_metrics", "metric_results", "last_updated_time"},
 			},
 		},
 	})
@@ -220,7 +220,6 @@ resource "iothub_configuration" "mod" {
   configuration_id = %q
   target_condition = "FROM devices.modules WHERE moduleId = 'telemetry'"
   priority         = 5
-  schema_version   = "1.0"
   module_content   = jsonencode({ "properties.desired.interval" = 30 })
 }
 data "iothub_configuration" "mod" {
@@ -235,7 +234,7 @@ data "iothub_configuration" "mod" {
 				Config: cfg,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("iothub_configuration.mod", tfjsonpath.New("device_content"), knownvalue.Null()),
-					statecheck.ExpectKnownValue("iothub_configuration.mod", tfjsonpath.New("schema_version"), knownvalue.StringExact("1.0")),
+					statecheck.ExpectKnownValue("iothub_configuration.mod", tfjsonpath.New("schema_version"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("data.iothub_configuration.mod", tfjsonpath.New("module_content"), knownvalue.StringExact(`{"properties.desired.interval":30}`)),
 					statecheck.ExpectKnownValue("data.iothub_configuration.mod", tfjsonpath.New("device_content"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("data.iothub_configuration.mod", tfjsonpath.New("priority"), knownvalue.Int64Exact(5)),
@@ -380,7 +379,7 @@ data "iothub_edge_deployment" "layer" {
 				ResourceName:            res,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"timeouts", "system_metrics", "metric_results", "last_updated_time_utc"},
+				ImportStateVerifyIgnore: []string{"timeouts", "system_metrics", "metric_results", "last_updated_time"},
 			},
 			{ // an edge deployment cannot be read as a configuration
 				Config: cfg(12, regexp.MustCompile(`7200`).ReplaceAllString(edgeManifest, "3600")) + `

@@ -11,8 +11,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/action/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -26,6 +28,7 @@ var (
 	_ action.Action                   = &scheduledJobAction{}
 	_ action.ActionWithConfigure      = &scheduledJobAction{}
 	_ action.ActionWithValidateConfig = &scheduledJobAction{}
+	_ action.ActionWithModifyPlan     = &scheduledJobAction{}
 )
 
 // NewScheduledJobAction returns the iothub_scheduled_job action.
@@ -37,7 +40,6 @@ type scheduledJobAction struct {
 
 type scheduledJobModel struct {
 	JobID                   types.String `tfsdk:"job_id"`
-	Type                    types.String `tfsdk:"type"`
 	QueryCondition          types.String `tfsdk:"query_condition"`
 	StartTime               types.String `tfsdk:"start_time"`
 	MaxExecutionTimeSeconds types.Int64  `tfsdk:"max_execution_time_seconds"`
@@ -71,8 +73,8 @@ func (a *scheduledJobAction) Metadata(_ context.Context, req action.MetadataRequ
 func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Runs a scheduled job on every device that matches `query_condition`, now or at a future `start_time`. " +
-			"A `scheduleUpdateTwin` job merges tags and desired properties into the twins. A `scheduleDeviceMethod` job invokes a " +
-			"direct method on the devices.\n\n" +
+			"Set `twin_patch` to merge tags and desired properties into the twins, or `method` to invoke a direct method on the " +
+			"devices.\n\n" +
 			"With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With " +
 			"`fail_on_device_failures` (default) it also fails if any targeted device failed. Read a job's outcome later with the " +
 			"`iothub_scheduled_job` data source.\n\n" +
@@ -85,11 +87,6 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 					"when omitted and shown in the apply output, so you can read or cancel the job later.",
 				Optional:   true,
 				Validators: []validator.String{stringvalidator.RegexMatches(scheduledJobIDPattern, "must be 1 to 64 lowercase letters, digits and hyphens")},
-			},
-			"type": schema.StringAttribute{
-				MarkdownDescription: "`scheduleUpdateTwin`, which needs `twin_patch`, or `scheduleDeviceMethod`, which needs `method`.",
-				Required:            true,
-				Validators:          []validator.String{stringvalidator.OneOf(client.JobTypeScheduleUpdateTwin, client.JobTypeScheduleDeviceMethod)},
 			},
 			"query_condition": schema.StringAttribute{
 				MarkdownDescription: "Which devices the job targets: a `WHERE` clause over `devices`, for example `tags.site = 'munich'` or `deviceId IN ['a','b']`. Use `*` for all devices.",
@@ -107,7 +104,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Validators:          []validator.Int64{int64validator.AtLeast(1)},
 			},
 			"twin_patch": schema.SingleNestedAttribute{
-				MarkdownDescription: "For `scheduleUpdateTwin`: the tags and desired properties merged into every targeted twin. Same JSON documents as `iothub_device_twin`.",
+				MarkdownDescription: "The tags and desired properties merged into every targeted twin. Same JSON documents as `iothub_device_twin`. Exactly one of `twin_patch` and `method` must be set.",
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
 					"tags":               schema.StringAttribute{CustomType: twin.PatchDocumentType, MarkdownDescription: "Tags to merge, as a JSON object. Set a value to `null` to remove it from the twins.", Optional: true},
@@ -115,7 +112,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				},
 			},
 			"method": schema.SingleNestedAttribute{
-				MarkdownDescription: "For `scheduleDeviceMethod`: the direct method to invoke on every targeted device.",
+				MarkdownDescription: "The direct method to invoke on every targeted device. Exactly one of `twin_patch` and `method` must be set.",
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
 					"name":                     schema.StringAttribute{MarkdownDescription: "Method name.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
@@ -135,54 +132,58 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 }
 
 func (a *scheduledJobAction) ValidateConfig(ctx context.Context, req action.ValidateConfigRequest, resp *action.ValidateConfigResponse) {
+	resp.Diagnostics.Append(a.validate(ctx, req.Config)...)
+}
+
+// ModifyPlan repeats the validation at plan time, when values such as
+// `start_time = timeadd(plantimestamp(), …)` are known.
+func (a *scheduledJobAction) ModifyPlan(ctx context.Context, req action.ModifyPlanRequest, resp *action.ModifyPlanResponse) {
+	resp.Diagnostics.Append(a.validate(ctx, req.Config)...)
+}
+
+func (a *scheduledJobAction) validate(ctx context.Context, cfg tfsdk.Config) diag.Diagnostics {
+	var diags diag.Diagnostics
 	var data scheduledJobModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
+	diags.Append(cfg.Get(ctx, &data)...)
+	if diags.HasError() {
+		return diags
 	}
-	if !data.Type.IsUnknown() && !data.Type.IsNull() {
-		switch data.Type.ValueString() {
-		case client.JobTypeScheduleUpdateTwin:
-			if data.TwinPatch.IsNull() {
-				resp.Diagnostics.AddAttributeError(path.Root("twin_patch"), "twin_patch is required", "A scheduleUpdateTwin job needs `twin_patch` with `tags` and/or `desired_properties`.")
-			}
-			if !data.Method.IsNull() {
-				resp.Diagnostics.AddAttributeError(path.Root("method"), "method is not allowed", "A scheduleUpdateTwin job takes `twin_patch`, not `method`.")
-			}
-		case client.JobTypeScheduleDeviceMethod:
-			if data.Method.IsNull() {
-				resp.Diagnostics.AddAttributeError(path.Root("method"), "method is required", "A scheduleDeviceMethod job needs `method`.")
-			}
-			if !data.TwinPatch.IsNull() {
-				resp.Diagnostics.AddAttributeError(path.Root("twin_patch"), "twin_patch is not allowed", "A scheduleDeviceMethod job takes `method`, not `twin_patch`.")
-			}
-		}
+	switch {
+	case data.TwinPatch.IsNull() && data.Method.IsNull():
+		diags.AddError("Missing job content", "Set `twin_patch` to update twins or `method` to invoke a direct method.")
+	case !data.TwinPatch.IsNull() && !data.TwinPatch.IsUnknown() && !data.Method.IsNull() && !data.Method.IsUnknown():
+		diags.AddAttributeError(path.Root("method"), "Only one of twin_patch and method", "A job either updates twins (`twin_patch`) or invokes a method (`method`), not both.")
 	}
 	if !data.TwinPatch.IsNull() && !data.TwinPatch.IsUnknown() {
 		var tp twinPatchModel
-		resp.Diagnostics.Append(data.TwinPatch.As(ctx, &tp, objectAsOptions)...)
+		diags.Append(data.TwinPatch.As(ctx, &tp, objectAsOptions)...)
 		if tp.Tags.IsNull() && tp.DesiredProperties.IsNull() {
-			resp.Diagnostics.AddAttributeError(path.Root("twin_patch"), "Empty twin patch", "Set `tags` and/or `desired_properties`.")
+			diags.AddAttributeError(path.Root("twin_patch"), "Empty twin patch", "Set `tags` and/or `desired_properties`.")
 		}
 	}
 	if !data.Method.IsNull() && !data.Method.IsUnknown() {
 		var m jobMethodModel
-		resp.Diagnostics.Append(data.Method.As(ctx, &m, objectAsOptions)...)
+		diags.Append(data.Method.As(ctx, &m, objectAsOptions)...)
 		if !m.Payload.IsNull() && !m.Payload.IsUnknown() && !json.Valid([]byte(m.Payload.ValueString())) {
-			resp.Diagnostics.AddAttributeError(path.Root("method").AtName("payload"), "Invalid payload", "payload must be valid JSON (use jsonencode).")
+			diags.AddAttributeError(path.Root("method").AtName("payload"), "Invalid payload", "payload must be valid JSON (use jsonencode).")
 		}
 	}
+	timeout, d := parseTimeout(data.Timeout, defaultJobTimeout)
+	diags.Append(d...)
 	if !data.StartTime.IsNull() && !data.StartTime.IsUnknown() {
 		st, err := time.Parse(time.RFC3339, data.StartTime.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddAttributeError(path.Root("start_time"), "Invalid start_time", "Use RFC 3339, e.g. 2026-09-01T02:00:00Z.")
-		} else if time.Until(st) > maxScheduleAhead {
-			resp.Diagnostics.AddAttributeError(path.Root("start_time"), "start_time too far ahead", "The hub schedules jobs at most 168 hours (7 days) ahead.")
+		switch {
+		case err != nil:
+			diags.AddAttributeError(path.Root("start_time"), "Invalid start_time", "Use RFC 3339, e.g. 2026-09-01T02:00:00Z.")
+		case time.Until(st) > maxScheduleAhead:
+			diags.AddAttributeError(path.Root("start_time"), "start_time too far ahead", "The hub schedules jobs at most 168 hours (7 days) ahead.")
+		case boolOr(data.Wait, true) && !d.HasError() && time.Until(st) > timeout:
+			diags.AddAttributeError(path.Root("wait"), "wait would time out before the job starts",
+				fmt.Sprintf("start_time is %s away but timeout is %s. Set `wait = false` to schedule the job without waiting, or raise `timeout`.",
+					time.Until(st).Round(time.Minute), timeout))
 		}
 	}
-	if _, d := parseTimeout(data.Timeout, defaultJobTimeout); d.HasError() {
-		resp.Diagnostics.Append(d...)
-	}
+	return diags
 }
 
 func (a *scheduledJobAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
@@ -203,7 +204,7 @@ func (a *scheduledJobAction) Invoke(ctx context.Context, req action.InvokeReques
 
 	spec := client.ScheduledJobSpec{
 		JobID:                   data.JobID.ValueString(),
-		Type:                    data.Type.ValueString(),
+		Type:                    client.JobTypeScheduleUpdateTwin,
 		QueryCondition:          data.QueryCondition.ValueString(),
 		StartTime:               data.StartTime.ValueString(),
 		MaxExecutionTimeSeconds: data.MaxExecutionTimeSeconds.ValueInt64(),
@@ -236,6 +237,7 @@ func (a *scheduledJobAction) Invoke(ctx context.Context, req action.InvokeReques
 			mr.Payload = json.RawMessage(m.Payload.ValueString())
 		}
 		spec.Method = mr
+		spec.Type = client.JobTypeScheduleDeviceMethod
 	}
 	if resp.Diagnostics.HasError() {
 		return

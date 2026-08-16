@@ -53,6 +53,43 @@ func TestResolve_EnvFallbackAndPrecedence(t *testing.T) {
 	}
 }
 
+func TestResolve_UseCLIDefaultsToTrue(t *testing.T) {
+	s, err := resolve(rawConfig{Hostname: "contoso.azure-devices.net"}, envFrom(nil))
+	if err != nil || !s.Entra.UseCLI || s.Entra.UseMSI || s.Entra.UseOIDC {
+		t.Fatalf("defaults: use_cli must be true, use_msi/use_oidc false: %+v %v", s.Entra, err)
+	}
+	s, err = resolve(rawConfig{Hostname: "contoso.azure-devices.net"}, envFrom(map[string]string{"ARM_USE_CLI": "false"}))
+	if err != nil || s.Entra.UseCLI {
+		t.Fatalf("ARM_USE_CLI=false must disable the CLI: %+v %v", s.Entra, err)
+	}
+	f := false
+	s, err = resolve(rawConfig{Hostname: "contoso.azure-devices.net", UseCLI: &f}, envFrom(map[string]string{"ARM_USE_CLI": "true"}))
+	if err != nil || s.Entra.UseCLI {
+		t.Fatalf("explicit use_cli must win over the environment: %+v %v", s.Entra, err)
+	}
+}
+
+func TestResolve_OIDCSourcesFromEnv(t *testing.T) {
+	// GitHub Actions: id-token: write provides the request URL and token.
+	s, err := resolve(rawConfig{}, envFrom(map[string]string{
+		"ARM_USE_OIDC": "true", "ARM_CLIENT_ID": "c", "ARM_TENANT_ID": "t",
+		"ACTIONS_ID_TOKEN_REQUEST_URL": "https://token.actions/x", "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "req",
+	}))
+	if err != nil || s.Entra.OIDCRequestURL != "https://token.actions/x" || s.Entra.OIDCRequestToken != "req" {
+		t.Fatalf("GitHub Actions variables not resolved: %+v %v", s.Entra, err)
+	}
+	// HCP Terraform: the token itself.
+	s, err = resolve(rawConfig{}, envFrom(map[string]string{"ARM_USE_OIDC": "true", "ARM_OIDC_TOKEN": "jwt"}))
+	if err != nil || s.Entra.OIDCToken != "jwt" {
+		t.Fatalf("ARM_OIDC_TOKEN not resolved: %+v %v", s.Entra, err)
+	}
+	// Azure DevOps.
+	s, err = resolve(rawConfig{}, envFrom(map[string]string{"ARM_USE_OIDC": "true", "ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID": "sc", "SYSTEM_ACCESSTOKEN": "sys"}))
+	if err != nil || s.Entra.ADOPipelineServiceConnID != "sc" || s.Entra.OIDCRequestToken != "sys" {
+		t.Fatalf("Azure DevOps variables not resolved: %+v %v", s.Entra, err)
+	}
+}
+
 func TestResolve_BadBoolEnv(t *testing.T) {
 	_, err := resolve(rawConfig{}, envFrom(map[string]string{"ARM_USE_MSI": "maybe"}))
 	if err == nil || !strings.Contains(err.Error(), "ARM_USE_MSI") {

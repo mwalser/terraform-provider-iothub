@@ -47,6 +47,9 @@ type configResource struct {
 	pd   *common.ProviderData
 }
 
+// planValidationTimeout bounds the plan-time testQueries call.
+const planValidationTimeout = 30 * time.Second
+
 const defaultTimeout = 20 * time.Minute
 
 func (r *configResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -94,14 +97,13 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			Validators:          []validator.Map{mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1))},
 		},
 		"schema_version": schema.StringAttribute{
-			MarkdownDescription: "Optional version string of the " + r.kind.noun() + " document, for example `1.0` as the Azure CLI writes it. When omitted, whatever the hub reports is accepted and never shows as drift.",
-			Optional:            true,
+			MarkdownDescription: "Version string of the " + r.kind.noun() + " document as the hub reports it, if any. Tools such as the Azure CLI write `1.0`.",
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 		},
-		"etag":                  computed("ETag of the " + r.kind.noun() + "."),
-		"created_time_utc":      computed("Creation time."),
-		"last_updated_time_utc": computed("Last update time."),
+		"etag":              computed("ETag of the " + r.kind.noun() + "."),
+		"created_time":      computed("Creation time."),
+		"last_updated_time": computed("Last update time."),
 		"system_metrics": schema.MapAttribute{
 			MarkdownDescription: systemMetricsDescription(r.kind),
 			ElementType:         types.Int64Type,
@@ -128,7 +130,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"IoT Edge device that matches `target_condition`, in order of `priority`. There is no separate flag for layered " +
 			"deployments: a deployment is layered when its `$edgeAgent` content sets `properties.desired.modules.<name>` keys " +
 			"instead of a full `properties.desired`.\n\n" +
-			"`target_condition`, `priority`, `labels`, `metrics` and `schema_version` can be changed in place. `target_condition` " +
+			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. `target_condition` " +
 			"and the `metrics` queries are checked against the hub at plan time. **Changing `modules_content` replaces the " +
 			"deployment.** The content is compared by value, so reformatting it is not a change. A replacement deletes the " +
 			"deployment and creates it again under the same ID. To avoid a window without a deployment, put a version in " +
@@ -156,7 +158,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		}
 		description = "An automatic device management configuration. The hub applies its desired properties to every device or " +
 			"module that matches `target_condition`, in order of `priority`.\n\n" +
-			"`target_condition`, `priority`, `labels`, `metrics` and `schema_version` can be changed in place. `target_condition` " +
+			"`target_condition`, `priority`, `labels` and `metrics` can be changed in place. `target_condition` " +
 			"and the `metrics` queries are checked against the hub at plan time. **Changing `device_content` or `module_content` " +
 			"replaces the configuration.** The content is compared by value, so reformatting it is not a change. A replacement " +
 			"deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a " +
@@ -228,7 +230,11 @@ func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	resp.Diagnostics.Append(r.validateQueries(ctx, plan, state)...)
+	// Plan-time validation is best effort: a short deadline keeps a throttled
+	// hub from stalling the plan (the check degrades to a warning).
+	vctx, cancel := context.WithTimeout(ctx, planValidationTimeout)
+	defer cancel()
+	resp.Diagnostics.Append(r.validateQueries(vctx, plan, state)...)
 }
 
 // validateQueries calls testQueries when the planned target condition or

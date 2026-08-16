@@ -108,7 +108,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				m := resourceModel{Timeouts: nullTimeouts()}
 				m.PrimaryKeyWO, m.SecondaryKeyWO = types.StringNull(), types.StringNull()
 				m.PrimaryKeyWOVersion, m.SecondaryKeyWOVersion = types.Int64Null(), types.Int64Null()
-				result.Diagnostics.Append(setState(&m, dev, true, true)...)
+				setState(&m, dev, true, true)
 				result.Diagnostics.Append(result.Resource.Set(ctx, &m)...)
 			}
 			n++

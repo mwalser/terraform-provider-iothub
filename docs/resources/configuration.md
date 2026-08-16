@@ -4,7 +4,7 @@ page_title: "iothub_configuration Resource - iothub"
 subcategory: ""
 description: |-
   An automatic device management configuration. The hub applies its desired properties to every device or module that matches target_condition, in order of priority.
-  target_condition, priority, labels, metrics and schema_version can be changed in place. target_condition and the metrics queries are checked against the hub at plan time. Changing device_content or module_content replaces the configuration. The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }.
+  target_condition, priority, labels and metrics can be changed in place. target_condition and the metrics queries are checked against the hub at plan time. Changing device_content or module_content replaces the configuration. The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }.
   Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 ---
 
@@ -12,7 +12,7 @@ description: |-
 
 An automatic device management configuration. The hub applies its desired properties to every device or module that matches `target_condition`, in order of `priority`.
 
-`target_condition`, `priority`, `labels`, `metrics` and `schema_version` can be changed in place. `target_condition` and the `metrics` queries are checked against the hub at plan time. **Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`.
+`target_condition`, `priority`, `labels` and `metrics` can be changed in place. `target_condition` and the `metrics` queries are checked against the hub at plan time. **Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`.
 
 Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 
@@ -73,16 +73,16 @@ resource "iothub_configuration" "telemetry_interval" {
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.
 - `module_content` (String) Module twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys. Use it with a module target condition such as `FROM devices.modules WHERE moduleId = '…'`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
 - `priority` (Number) Priority, 0 or higher (default 0). When several configurations target the same device, the highest priority wins.
-- `schema_version` (String) Optional version string of the configuration document, for example `1.0` as the Azure CLI writes it. When omitted, whatever the hub reports is accepted and never shows as drift.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
-- `created_time_utc` (String) Creation time.
+- `created_time` (String) Creation time.
 - `etag` (String) ETag of the configuration.
 - `id` (String) The `configuration_id`. Also the import ID.
-- `last_updated_time_utc` (String) Last update time.
+- `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
+- `schema_version` (String) Version string of the configuration document as the hub reports it, if any. Tools such as the Azure CLI write `1.0`.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration.
 
 <a id="nestedblock--timeouts"></a>

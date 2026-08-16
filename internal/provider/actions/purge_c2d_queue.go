@@ -30,6 +30,7 @@ type purgeAction struct {
 
 type purgeModel struct {
 	DeviceID types.String `tfsdk:"device_id"`
+	Timeout  types.String `tfsdk:"timeout"`
 }
 
 func (a *purgeAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
@@ -42,6 +43,7 @@ func (a *purgeAction) Schema(_ context.Context, _ action.SchemaRequest, resp *ac
 			"uses are an `action_trigger` before re-commissioning a device, or an ad hoc `terraform apply -invoke`.",
 		Attributes: map[string]schema.Attribute{
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},
+			"timeout":   timeoutAttribute("10m", "It covers retries of throttled requests."),
 		},
 	}
 }
@@ -52,11 +54,15 @@ func (a *purgeAction) Invoke(ctx context.Context, req action.InvokeRequest, resp
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, diags := hubClient(a.pd)
+	timeout, diags := parseTimeout(data.Timeout, defaultActionTimeout)
 	resp.Diagnostics.Append(diags...)
+	c, d := hubClient(a.pd)
+	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	deviceID := data.DeviceID.ValueString()
 	res, err := c.PurgeCloudToDeviceQueue(ctx, deviceID)
 	if err != nil {

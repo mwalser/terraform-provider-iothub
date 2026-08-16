@@ -19,9 +19,7 @@ var notSystemModulePattern = regexp.MustCompile(`^[^$]`)
 type infoModel struct {
 	ModuleID                   types.String `tfsdk:"module_id"`
 	ManagedBy                  types.String `tfsdk:"managed_by"`
-	AuthenticationType         types.String `tfsdk:"authentication_type"`
-	PrimaryThumbprint          types.String `tfsdk:"primary_thumbprint"`
-	SecondaryThumbprint        types.String `tfsdk:"secondary_thumbprint"`
+	Authentication             types.Object `tfsdk:"authentication"`
 	ETag                       types.String `tfsdk:"etag"`
 	GenerationID               types.String `tfsdk:"generation_id"`
 	ConnectionState            types.String `tfsdk:"connection_state"`
@@ -33,9 +31,7 @@ type infoModel struct {
 var infoAttrTypes = map[string]attr.Type{
 	"module_id":                     types.StringType,
 	"managed_by":                    types.StringType,
-	"authentication_type":           types.StringType,
-	"primary_thumbprint":            types.StringType,
-	"secondary_thumbprint":          types.StringType,
+	"authentication":                types.ObjectType{AttrTypes: identity.AuthInfoAttrTypes},
 	"etag":                          types.StringType,
 	"generation_id":                 types.StringType,
 	"connection_state":              types.StringType,
@@ -52,9 +48,7 @@ func infoAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"module_id":                     c("Module ID."),
 		"managed_by":                    c("Owner of the module, for example `iotEdge` for system modules."),
-		"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules."),
-		"primary_thumbprint":            c("Primary X.509 thumbprint, for `selfSigned` authentication."),
-		"secondary_thumbprint":          c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
+		"authentication":                identity.AuthInfoAttribute("module"),
 		"etag":                          c("ETag of the module identity."),
 		"generation_id":                 c("Hub-generated ID that changes when a module with the same ID is re-created."),
 		"connection_state":              c("`Connected` or `Disconnected`. Approximate."),
@@ -65,13 +59,10 @@ func infoAttributes() map[string]schema.Attribute {
 }
 
 func infoFromHub(m *client.Module) infoModel {
-	auth := identity.AuthFromHub(m.Authentication, false)
 	return infoModel{
 		ModuleID:                   types.StringValue(m.ModuleID),
 		ManagedBy:                  identity.StringOrNull(m.ManagedBy),
-		AuthenticationType:         auth.Type,
-		PrimaryThumbprint:          auth.PrimaryThumbprint,
-		SecondaryThumbprint:        auth.SecondaryThumbprint,
+		Authentication:             identity.AuthInfoFromHub(m.Authentication),
 		ETag:                       types.StringValue(m.ETag),
 		GenerationID:               types.StringValue(m.GenerationID),
 		ConnectionState:            identity.StringOrNull(m.ConnectionState),
@@ -85,9 +76,7 @@ func (i infoModel) object() types.Object {
 	return types.ObjectValueMust(infoAttrTypes, map[string]attr.Value{
 		"module_id":                     i.ModuleID,
 		"managed_by":                    i.ManagedBy,
-		"authentication_type":           i.AuthenticationType,
-		"primary_thumbprint":            i.PrimaryThumbprint,
-		"secondary_thumbprint":          i.SecondaryThumbprint,
+		"authentication":                i.Authentication,
 		"etag":                          i.ETag,
 		"generation_id":                 i.GenerationID,
 		"connection_state":              i.ConnectionState,

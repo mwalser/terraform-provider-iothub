@@ -16,9 +16,14 @@ type rawConfig struct {
 	ClientID                  string
 	ClientSecret              string
 	ClientCertificatePath     string
+	ClientCertificate         string
 	ClientCertificatePassword string
 	UseOIDC                   *bool
+	OIDCToken                 string
 	OIDCTokenFilePath         string
+	OIDCRequestURL            string
+	OIDCRequestToken          string
+	ADOPipelineServiceConnID  string
 	UseMSI                    *bool
 	UseCLI                    *bool
 	ConnectionString          string
@@ -44,7 +49,7 @@ func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 		}
 		return ""
 	}
-	firstBool := func(explicit *bool, keys ...string) (bool, error) {
+	firstBool := func(explicit *bool, def bool, keys ...string) (bool, error) {
 		if explicit != nil {
 			return *explicit, nil
 		}
@@ -57,7 +62,7 @@ func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 				return b, nil
 			}
 		}
-		return false, nil
+		return def, nil
 	}
 
 	s := common.Settings{
@@ -85,16 +90,21 @@ func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 			ClientID:                  first(cfg.ClientID, "ARM_CLIENT_ID", "AZURE_CLIENT_ID"),
 			ClientSecret:              first(cfg.ClientSecret, "ARM_CLIENT_SECRET", "AZURE_CLIENT_SECRET"),
 			ClientCertificatePath:     first(cfg.ClientCertificatePath, "ARM_CLIENT_CERTIFICATE_PATH", "AZURE_CLIENT_CERTIFICATE_PATH"),
+			ClientCertificate:         first(cfg.ClientCertificate, "ARM_CLIENT_CERTIFICATE"),
 			ClientCertificatePassword: first(cfg.ClientCertificatePassword, "ARM_CLIENT_CERTIFICATE_PASSWORD", "AZURE_CLIENT_CERTIFICATE_PASSWORD"),
+			OIDCToken:                 first(cfg.OIDCToken, "ARM_OIDC_TOKEN"),
 			OIDCTokenFilePath:         first(cfg.OIDCTokenFilePath, "ARM_OIDC_TOKEN_FILE_PATH", "AZURE_FEDERATED_TOKEN_FILE"),
+			OIDCRequestURL:            first(cfg.OIDCRequestURL, "ARM_OIDC_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_URL"),
+			OIDCRequestToken:          first(cfg.OIDCRequestToken, "ARM_OIDC_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "SYSTEM_ACCESSTOKEN"),
+			ADOPipelineServiceConnID:  first(cfg.ADOPipelineServiceConnID, "ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID", "ARM_OIDC_AZURE_SERVICE_CONNECTION_ID"),
 		}
-		if s.Entra.UseOIDC, err = firstBool(cfg.UseOIDC, "ARM_USE_OIDC"); err != nil {
+		if s.Entra.UseOIDC, err = firstBool(cfg.UseOIDC, false, "ARM_USE_OIDC"); err != nil {
 			return common.Settings{}, err
 		}
-		if s.Entra.UseMSI, err = firstBool(cfg.UseMSI, "ARM_USE_MSI"); err != nil {
+		if s.Entra.UseMSI, err = firstBool(cfg.UseMSI, false, "ARM_USE_MSI"); err != nil {
 			return common.Settings{}, err
 		}
-		if s.Entra.UseCLI, err = firstBool(cfg.UseCLI, "ARM_USE_CLI"); err != nil {
+		if s.Entra.UseCLI, err = firstBool(cfg.UseCLI, true, "ARM_USE_CLI"); err != nil {
 			return common.Settings{}, err
 		}
 	}

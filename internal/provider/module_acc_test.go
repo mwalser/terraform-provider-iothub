@@ -90,10 +90,12 @@ resource "iothub_device" "test" {
   device_id = %q
 }
 resource "iothub_module" "test" {
-  device_id              = iothub_device.test.device_id
-  module_id              = "m1"
-  primary_key_wo         = %q
-  primary_key_wo_version = %d
+  device_id                = iothub_device.test.device_id
+  module_id                = "m1"
+  primary_key_wo           = %q
+  primary_key_wo_version   = %d
+  secondary_key_wo         = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA="
+  secondary_key_wo_version = 1
 }
 resource "iothub_module" "other" {
   device_id  = iothub_device.test.device_id
@@ -133,7 +135,7 @@ data "iothub_module" "other" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("primary_key_wo"), knownvalue.Null()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("primary_key"), knownvalue.Null()),
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("secondary_key"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("secondary_key"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("echo.creds", tfjsonpath.New("data").AtMapKey("primary_key"), knownvalue.StringExact(k1)),
 					statecheck.ExpectKnownValue("echo.creds", tfjsonpath.New("data").AtMapKey("primary_connection_string"),
 						knownvalue.StringExact("HostName="+iotacc.Hostname()+";DeviceId="+dev+";ModuleId=m1;SharedAccessKey="+k1)),
@@ -141,7 +143,7 @@ data "iothub_module" "other" {
 					statecheck.ExpectKnownValue("data.iothub_modules.all", tfjsonpath.New("modules"), knownvalue.ListSizeExact(2)),
 					statecheck.ExpectKnownValue("data.iothub_modules.all", tfjsonpath.New("id"), knownvalue.StringExact(dev)),
 					statecheck.ExpectKnownValue("data.iothub_module.other", tfjsonpath.New("managed_by"), knownvalue.StringExact("someone")),
-					statecheck.ExpectKnownValue("data.iothub_module.other", tfjsonpath.New("authentication_type"), knownvalue.StringExact("certificateAuthority")),
+					statecheck.ExpectKnownValue("data.iothub_module.other", tfjsonpath.New("authentication").AtMapKey("type"), knownvalue.StringExact("certificateAuthority")),
 				},
 			},
 			{

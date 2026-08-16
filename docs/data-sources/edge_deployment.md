@@ -35,11 +35,11 @@ output "base_deployment_health" {
 
 ### Read-Only
 
-- `created_time_utc` (String) Creation time.
+- `created_time` (String) Creation time.
 - `etag` (String) ETag of the IoT Edge deployment.
 - `id` (String) The `deployment_id`.
 - `labels` (Map of String) Free-form labels.
-- `last_updated_time_utc` (String) Last update time.
+- `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query.
 - `modules_content` (String) The deployment's `modulesContent` as a JSON string.

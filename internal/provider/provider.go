@@ -49,9 +49,14 @@ type providerModel struct {
 	ClientID                  types.String `tfsdk:"client_id"`
 	ClientSecret              types.String `tfsdk:"client_secret"`
 	ClientCertificatePath     types.String `tfsdk:"client_certificate_path"`
+	ClientCertificate         types.String `tfsdk:"client_certificate"`
 	ClientCertificatePassword types.String `tfsdk:"client_certificate_password"`
 	UseOIDC                   types.Bool   `tfsdk:"use_oidc"`
+	OIDCToken                 types.String `tfsdk:"oidc_token"`
 	OIDCTokenFilePath         types.String `tfsdk:"oidc_token_file_path"`
+	OIDCRequestURL            types.String `tfsdk:"oidc_request_url"`
+	OIDCRequestToken          types.String `tfsdk:"oidc_request_token"`
+	ADOPipelineServiceConnID  types.String `tfsdk:"ado_pipeline_service_connection_id"`
 	UseMSI                    types.Bool   `tfsdk:"use_msi"`
 	UseCLI                    types.Bool   `tfsdk:"use_cli"`
 	ConnectionString          types.String `tfsdk:"connection_string"`
@@ -74,8 +79,9 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 			"string (see Permissions below).\n\n" +
 			"Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, " +
 			"and Device Provisioning Service enrollments.\n\n" +
-			"Authentication is Microsoft Entra ID by default. Setting `connection_string` switches to SAS authentication with a " +
-			"hub shared access policy. Throttled requests are retried automatically until the operation's timeout. The provider " +
+			"Authentication is Microsoft Entra ID by default, with the same arguments and environment variables as the `azurerm` " +
+			"provider. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled " +
+			"requests are retried automatically until the operation's timeout. The provider " +
 			"is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every " +
 			"such change.",
 		Attributes: map[string]schema.Attribute{
@@ -104,27 +110,51 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				MarkdownDescription: "Path to a PEM or PKCS#12 client certificate for service-principal authentication. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` or `AZURE_CLIENT_CERTIFICATE_PATH`.",
 				Optional:            true,
 			},
+			"client_certificate": schema.StringAttribute{
+				MarkdownDescription: "The client certificate itself, base64 encoded (PEM or PKCS#12), instead of a file. Falls back to `ARM_CLIENT_CERTIFICATE`.",
+				Optional:            true,
+				Sensitive:           true,
+			},
 			"client_certificate_password": schema.StringAttribute{
 				MarkdownDescription: "Password of the client certificate, if any. Falls back to `ARM_CLIENT_CERTIFICATE_PASSWORD` or `AZURE_CLIENT_CERTIFICATE_PASSWORD`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"use_oidc": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with a federated workload identity token read from `oidc_token_file_path`, as Kubernetes " +
-					"workload identity provides it. Falls back to `ARM_USE_OIDC`. `ARM_OIDC_TOKEN` and the GitHub Actions request URL " +
-					"are not supported. In GitHub Actions, log in with `azure/login` and let the provider use the Azure CLI session.",
+				MarkdownDescription: "Authenticate with a federated (OIDC) token, as HCP Terraform, GitHub Actions, Azure DevOps and " +
+					"Kubernetes workload identity provide it. The token comes from `oidc_token`, `oidc_token_file_path`, or " +
+					"`oidc_request_url` and `oidc_request_token`, in that order; Azure DevOps uses `ado_pipeline_service_connection_id`. " +
+					"Falls back to `ARM_USE_OIDC`.",
 				Optional: true,
 			},
+			"oidc_token": schema.StringAttribute{
+				MarkdownDescription: "The federated token itself. Falls back to `ARM_OIDC_TOKEN`.",
+				Optional:            true,
+				Sensitive:           true,
+			},
 			"oidc_token_file_path": schema.StringAttribute{
-				MarkdownDescription: "File containing the federated token when `use_oidc` is set. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` or `AZURE_FEDERATED_TOKEN_FILE`.",
+				MarkdownDescription: "File containing the federated token, read on every request. Falls back to `ARM_OIDC_TOKEN_FILE_PATH` or `AZURE_FEDERATED_TOKEN_FILE`.",
+				Optional:            true,
+			},
+			"oidc_request_url": schema.StringAttribute{
+				MarkdownDescription: "URL of a token request endpoint such as the one GitHub Actions provides. Falls back to `ARM_OIDC_REQUEST_URL` or `ACTIONS_ID_TOKEN_REQUEST_URL`.",
+				Optional:            true,
+			},
+			"oidc_request_token": schema.StringAttribute{
+				MarkdownDescription: "Bearer token for `oidc_request_url`, or the system access token of an Azure DevOps pipeline. Falls back to `ARM_OIDC_REQUEST_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_TOKEN` or `SYSTEM_ACCESSTOKEN`.",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"ado_pipeline_service_connection_id": schema.StringAttribute{
+				MarkdownDescription: "Azure DevOps service connection ID for workload identity federation. Falls back to `ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID` or `ARM_OIDC_AZURE_SERVICE_CONNECTION_ID`.",
 				Optional:            true,
 			},
 			"use_msi": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with the managed identity of the machine running Terraform. Falls back to `ARM_USE_MSI`.",
+				MarkdownDescription: "Authenticate with the managed identity of the machine running Terraform (default `false`). Set `client_id` for a user-assigned identity. Falls back to `ARM_USE_MSI`.",
 				Optional:            true,
 			},
 			"use_cli": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with the Azure CLI login. Falls back to `ARM_USE_CLI`.",
+				MarkdownDescription: "Allow the Azure CLI login as the authentication method when no other method is configured (default `true`). Set it to `false` in CI to make a missing configuration fail instead of using a developer's login. Falls back to `ARM_USE_CLI`.",
 				Optional:            true,
 			},
 			"connection_string": schema.StringAttribute{
@@ -156,9 +186,10 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		v    interface{ IsUnknown() bool }
 	}{
 		{"tenant_id", data.TenantID}, {"client_id", data.ClientID}, {"client_secret", data.ClientSecret},
-		{"client_certificate_path", data.ClientCertificatePath}, {"client_certificate_password", data.ClientCertificatePassword},
-		{"use_oidc", data.UseOIDC}, {"oidc_token_file_path", data.OIDCTokenFilePath}, {"use_msi", data.UseMSI},
-		{"use_cli", data.UseCLI},
+		{"client_certificate_path", data.ClientCertificatePath}, {"client_certificate", data.ClientCertificate},
+		{"client_certificate_password", data.ClientCertificatePassword}, {"use_oidc", data.UseOIDC}, {"oidc_token", data.OIDCToken},
+		{"oidc_token_file_path", data.OIDCTokenFilePath}, {"oidc_request_url", data.OIDCRequestURL}, {"oidc_request_token", data.OIDCRequestToken},
+		{"ado_pipeline_service_connection_id", data.ADOPipelineServiceConnID}, {"use_msi", data.UseMSI}, {"use_cli", data.UseCLI},
 	}
 	for _, a := range mustBeKnown {
 		if a.v.IsUnknown() {
@@ -189,8 +220,13 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		ClientID:                  data.ClientID.ValueString(),
 		ClientSecret:              data.ClientSecret.ValueString(),
 		ClientCertificatePath:     data.ClientCertificatePath.ValueString(),
+		ClientCertificate:         data.ClientCertificate.ValueString(),
 		ClientCertificatePassword: data.ClientCertificatePassword.ValueString(),
+		OIDCToken:                 data.OIDCToken.ValueString(),
 		OIDCTokenFilePath:         data.OIDCTokenFilePath.ValueString(),
+		OIDCRequestURL:            data.OIDCRequestURL.ValueString(),
+		OIDCRequestToken:          data.OIDCRequestToken.ValueString(),
+		ADOPipelineServiceConnID:  data.ADOPipelineServiceConnID.ValueString(),
 		ConnectionString:          data.ConnectionString.ValueString(),
 	}
 	if !data.Hostname.IsUnknown() {
@@ -302,12 +338,11 @@ func (p *IoTHubProvider) EphemeralResources(_ context.Context) []func() ephemera
 func (p *IoTHubProvider) Actions(_ context.Context) []func() action.Action {
 	return []func() action.Action{
 		actions.NewDirectMethodAction,
-		actions.NewApplyConfigurationAction,
+		actions.NewSetEdgeModulesAction,
 		actions.NewPurgeC2DQueueAction,
 		actions.NewScheduledJobAction,
 		actions.NewImportExportJobAction,
 		actions.NewCancelJobAction,
-		actions.NewDigitalTwinCommandAction,
 	}
 }
 

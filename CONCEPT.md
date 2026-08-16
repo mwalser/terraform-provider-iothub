@@ -20,7 +20,7 @@ This concept proposes a dedicated provider that:
 
 - authenticates with **Microsoft Entra ID** by default (RBAC data actions, `https://iothubs.azure.net/.default`) and with **shared-access-policy SAS tokens** as a fallback;
 - models the registry and twins as **managed resources** (`iothub_device`, `iothub_module`, `iothub_device_twin`, `iothub_module_twin`, `iothub_configuration`, `iothub_edge_deployment`);
-- models one-shot operations as **Terraform Actions** (`iothub_direct_method`, `iothub_scheduled_job`, `iothub_import_export_job`, `iothub_apply_configuration`, `iothub_purge_c2d_queue`, …) instead of pretending they are resources;
+- models one-shot operations as **Terraform Actions** (`iothub_direct_method`, `iothub_scheduled_job`, `iothub_import_export_job`, `iothub_set_edge_modules`, `iothub_purge_c2d_queue`, …) instead of pretending they are resources;
 - keeps device credentials out of state where possible via **ephemeral resources** and **write-only arguments**;
 - ships **list resources** and a **query data source** for discovery/import;
 - is built to survive IoT Hub's aggressive **throttling** (100 registry ops/min/unit on S1) with time-budgeted `429`/`503` retries (honouring `Retry-After`) instead of client-side rate limits, plus clear scale guidance.
@@ -115,12 +115,14 @@ provider "iothub" {
   hostname = "contoso-prod.azure-devices.net"      # env IOTHUB_HOSTNAME
 
   # --- Authentication: Entra ID (default) ------------------------------
-  # Uses azidentity chain: explicit client credentials → workload identity /
-  # OIDC (GitHub Actions, HCP Terraform) → managed identity → Azure CLI.
-  # tenant_id / client_id / client_secret / client_certificate_path /
-  # use_oidc / use_msi / use_cli  — same names & env vars as azurerm
-  # (ARM_TENANT_ID …) plus native AZURE_TENANT_ID … so both providers can
-  # share one environment. Public cloud only (authority login.microsoftonline.com).
+  # The first configured method wins, in azurerm's order: client certificate
+  # (path or base64) → client secret → OIDC (use_oidc: oidc_token,
+  # oidc_token_file_path, or the GitHub Actions request URL/token; Azure
+  # DevOps via ado_pipeline_service_connection_id) → managed identity
+  # (use_msi) → Azure CLI (use_cli, default true; false makes CI fail
+  # instead of using a developer login). Same names & env vars as azurerm
+  # (ARM_*), plus AZURE_* for AKS workload identity. Nothing is probed:
+  # a wrong secret fails, it does not fall back. Public cloud only.
 
   # --- Authentication: shared access policy (fallback) -----------------
   # connection_string = "HostName=…;SharedAccessKeyName=iothubowner;SharedAccessKey=…"   # env IOTHUB_CONNECTION_STRING
@@ -170,13 +172,12 @@ Auth mode is inferred: `connection_string` present → SAS, otherwise Entra ID. 
 | `iothub_scheduled_job`, `iothub_import_export_job` | data source (status) | Jobs: Get Scheduled Job / Get Import Export Job |
 | `iothub_digital_twin` | data source | Digital Twin: Get |
 | `iothub_device_credentials`, `iothub_module_credentials` | ephemeral | Get Identity (keys → connection strings) |
-| `iothub_device_sas_token` | ephemeral | Get Identity + local HMAC (device SAS token) |
+| `iothub_sas_token` | ephemeral | Get Identity + local HMAC (device SAS token) |
 | `iothub_direct_method` | action | Devices/Modules: Invoke Method |
 | `iothub_scheduled_job` | action | Jobs: Create Scheduled Job (+ Get/Cancel for wait) |
 | `iothub_import_export_job` | action | Jobs: Create Import Export Job (+ Get/Cancel for wait) |
-| `iothub_apply_configuration` | action | Configuration: Apply On Edge Device |
+| `iothub_set_edge_modules` | action | Configuration: Apply On Edge Device |
 | `iothub_purge_c2d_queue` | action | Cloud To Device Messages: Purge Queue |
-| `iothub_digital_twin_command` | action | Digital Twin: Invoke Root Level / Component Command |
 | `iothub_cancel_job` | action | Jobs: Cancel Scheduled / Import Export Job |
 
 Deliberately **not** resources: jobs (one-shot, 30-day retention → a resource would re-run itself when history expires), digital twins (PnP writable properties *are* desired properties; use `iothub_device_twin`), bulk registry (Terraform's unit is one object; bulk import is an action).
@@ -199,7 +200,8 @@ resource "iothub_device" "gateway" {
     # sas:        primary_key / secondary_key   (Optional+Computed, Sensitive)
     # selfSigned: primary_thumbprint / secondary_thumbprint
   }
-  # write-only alternative for sas keys (top level, so the nested attribute can stay Computed):
+  # write-only alternative for sas keys (top level, so the nested attribute can stay Computed);
+  # both keys or neither, so that no key lands in state:
   # primary_key_wo / primary_key_wo_version, secondary_key_wo / secondary_key_wo_version
 }
 
@@ -212,7 +214,7 @@ resource "iothub_device" "sensor" {
 
 Implementation notes (Phase 0): `authentication` is a nested *attribute* (`= { … }`), Optional+Computed, so an omitted block means "leave the hub's credentials alone" (imports keep their auth) instead of a perpetual diff; the write-only keys live at the top level because Terraform forbids write-only children under a Computed nested attribute. When only one of the two keys is supplied, the provider generates the counterpart (the service insists on both or neither).
 
-Computed: `id`, `etag`, `generation_id`, `device_scope`, `parent_scopes`, `connection_state`, `connection_state_updated_time`, `last_activity_time`, `status_updated_time`, `cloud_to_device_message_count`.
+Computed: `id`, `etag`, `generation_id`, `device_scope`, `connection_state`, `connection_state_updated_time`, `last_activity_time`, `status_updated_time`, `cloud_to_device_message_count`.
 
 Behaviour:
 
@@ -294,9 +296,9 @@ resource "iothub_configuration" "fw_channel" {
   }
 }
 ```
-Computed: `etag`, `schema_version`, `created_time_utc`, `last_updated_time_utc`, `system_metrics` (targeted/applied counts).
-`id` and `content` are immutable per API ("Configuration identifier and Content cannot be updated") → RequiresReplace. **Verified: a `PUT` with changed content returns 200 and silently keeps the old content** — so the provider *must* enforce replacement itself; the API gives no signal. `priority`, `target_condition`, `labels`, `metrics` (and `schema_version`) update in place with a **quoted** `If-Match: "<etag>"` (an unquoted value yields a misleading 409 `ConfigurationAlreadyExists`); the body must include `content` on every update (400 `InvalidConfigurationContent` otherwise). Target conditions may only reference `deviceId`, `tags` and `properties.reported`.
-Plan-time validation (fixed behaviour, no knob): when `target_condition` or `metrics` change in the plan, `ModifyPlan` calls `POST /configurations/testQueries` so a typo surfaces before apply — one call per *changed* configuration, skipped while the hub is unknown, and degraded to a warning (not a failed plan) on 429/network errors. Unchanged configurations cost nothing at plan time. (`testQueries` answers 200 with `targetConditionError` / `customMetricQueryErrors` fields — validation errors are in the body, not the status.)
+Computed: `etag`, `schema_version` (echoed from the hub; tools such as the CLI write `1.0`), `created_time`, `last_updated_time`, `system_metrics` (targeted/applied counts).
+`id` and `content` are immutable per API ("Configuration identifier and Content cannot be updated") → RequiresReplace. **Verified: a `PUT` with changed content returns 200 and silently keeps the old content** — so the provider *must* enforce replacement itself; the API gives no signal. `priority`, `target_condition`, `labels`, `metrics` update in place with a **quoted** `If-Match: "<etag>"` (an unquoted value yields a misleading 409 `ConfigurationAlreadyExists`); the body must include `content` on every update (400 `InvalidConfigurationContent` otherwise). Target conditions may only reference `deviceId`, `tags` and `properties.reported`.
+Plan-time validation (fixed behaviour, no knob): when `target_condition` or `metrics` change in the plan, `ModifyPlan` calls `POST /configurations/testQueries` so a typo surfaces before apply — one call per *changed* configuration, skipped while the hub is unknown, bounded by a 30 s deadline (so a throttled hub cannot stall the plan; the 20-minute retry budget applies only to apply-time calls), and degraded to a warning (not a failed plan) on 429/network errors. Unchanged configurations cost nothing at plan time. (`testQueries` answers 200 with `targetConditionError` / `customMetricQueryErrors` fields — validation errors are in the body, not the status.)
 
 ### 6.5 `iothub_edge_deployment` — IoT Edge deployment (incl. layered)
 
@@ -318,14 +320,14 @@ Same API as `iothub_configuration` (`/configurations/{id}`), split into its own 
 
 | Data source | Inputs → outputs |
 |---|---|
-| `iothub_device`, `iothub_module` | id → identity incl. `authentication.type`, thumbprints, scopes, connection state — **no key material** (data-source state is state; use the ephemeral credentials resource) |
+| `iothub_device`, `iothub_module` | id → identity incl. `authentication = { type, thumbprints }` (the resource's shape, keys omitted), scopes, connection state — **no key material** (data-source state is state; use the ephemeral credentials resource) |
 | `iothub_device_twin`, `iothub_module_twin` | id → full `tags`, `desired_properties`, **`reported_properties`**, `version`, `etag`, `model_id` |
 | `iothub_configuration`, `iothub_edge_deployment` | id → full object incl. `system_metrics_results` |
-| `iothub_query` | `query` (IoT Hub SQL) → `results` (list of JSON strings), `result_count` (`count` is a reserved attribute name), `item_type`; paginates via `x-ms-continuation`; **20 queries/min/unit on S1** — use sparingly |
+| `iothub_query` | `query` (IoT Hub SQL) → `results` (list of JSON strings; `length()` counts them — a `result_count` output was dropped 2026-08-16 as derivable), `item_type`; paginates via `x-ms-continuation`; **20 queries/min/unit on S1** — use sparingly |
 | `iothub_modules` | `device_id` → module identities on the device (`GET /devices/{id}/modules`) |
 | `iothub_statistics` | → `total_device_count`, `enabled_device_count`, `disabled_device_count`, `connected_device_count` |
 | `iothub_scheduled_job`, `iothub_import_export_job` | `job_id` → status, statistics/progress, failure reason |
-| `iothub_digital_twin` | `digital_twin_id` (= device ID) → `document` (JSON, verbatim), `model_id` (`$metadata.$model`, null for non-PnP devices), `etag` (= twin ETag). Read-only by design: writable PnP properties are desired properties → `iothub_device_twin` |
+| `iothub_digital_twin` | `device_id` → `document` (JSON, verbatim), `model_id` (`$metadata.$model`, null for non-PnP devices), `etag` (= twin ETag). Read-only by design: writable PnP properties are desired properties → `iothub_device_twin` |
 
 ---
 
@@ -343,7 +345,7 @@ resource "azurerm_key_vault_secret" "sensor_cs" {
 }
 ```
 - `iothub_device_credentials` / `iothub_module_credentials`: `primary_key`, `secondary_key`, `primary_connection_string`, `secondary_connection_string` — never written to state or plan. Terraform opens ephemeral resources during **plan** as well (unless an input is unknown) and does not tell the provider which phase it is in; `DeferralAllowed` is off by default in Terraform 1.15. When the device does not exist yet — the normal same-run creation case — the provider returns the values as **unknown** with a "Device not found (yet)" warning, Terraform re-opens at apply and gets the real values, and later plans are clean; a device that is truly missing keeps the warning and fails at apply through its consumer. (Verified; see Appendix D.)
-- `iothub_device_sas_token`: `device_id`, `module_id?`, `ttl`, `key = primary|secondary` → `token`, `expires_at` (HMAC-SHA256 computed locally after one registry read).
+- `iothub_sas_token`: `device_id`, `module_id?`, `ttl`, `key = primary|secondary` → `token`, `expires_at` (HMAC-SHA256 computed locally after one registry read).
 
 ---
 
@@ -376,11 +378,10 @@ resource "iothub_device_twin" "sensor" {
 | Action | Config | Backing |
 |---|---|---|
 | `iothub_direct_method` | `device_id`, `module_id?`, `method_name`, `payload`, timeouts, `expected_status_codes` | `POST /twins/{id}[/modules/{mid}]/methods` |
-| `iothub_scheduled_job` | `job_id?`, `type = scheduleUpdateTwin \| scheduleDeviceMethod`, `query_condition`, `start_time?`, `max_execution_time_seconds`, `twin_patch` *or* `method {…}`, `wait = true` (with a future `start_time` this waits through the scheduled start, bounded by `timeouts`), `fail_on_device_failures` | `PUT /jobs/v2/{id}`, poll `GET /jobs/v2/{id}` |
+| `iothub_scheduled_job` | `job_id?`, `query_condition`, `start_time?`, `max_execution_time_seconds`, exactly one of `twin_patch` / `method {…}` (the job type is inferred; a `type` input was dropped 2026-08-16 as derivable), `wait = true` (with a future `start_time` this waits through the scheduled start, bounded by `timeout`; a start beyond `timeout` while waiting is rejected at plan time), `fail_on_device_failures`, `timeout` (default 1 h) | `PUT /jobs/v2/{id}`, poll `GET /jobs/v2/{id}` |
 | `iothub_import_export_job` | `type = import \| export`, blob container URIs (Sensitive), `storage_authentication_type = keyBased \| identityBased`, `user_assigned_identity?`, `exclude_keys_in_export`, `include_configurations`, blob names, `wait` | `POST /jobs/create`, poll `GET /jobs/{id}` (see verified mechanics below) |
-| `iothub_apply_configuration` | `device_id` (edge), `modules_content` | `POST /devices/{id}/applyConfigurationContent` (204; non-edge device → 400 "Not an Azure IoT Edge device") |
+| `iothub_set_edge_modules` | `device_id` (edge), `modules_content` | `POST /devices/{id}/applyConfigurationContent` (204; non-edge device → 400 "Not an Azure IoT Edge device") |
 | `iothub_purge_c2d_queue` | `device_id` | `DELETE /devices/{id}/commands` (200, `{deviceId, totalMessagesPurged}`) |
-| `iothub_digital_twin_command` | `digital_twin_id`, `component_path?`, `command_name`, `payload`, `response_timeout_seconds`, `connect_timeout_seconds`, `expected_status_codes` | `POST /digitaltwins/{id}[/components/{path}]/commands/{name}?connectTimeoutInSeconds&responseTimeoutInSeconds`; device status in `x-ms-command-statuscode`, payload in the body — **verified to reject Entra ID tokens with 401 (works with SAS + ServiceConnect)**; under Entra ID the action fails with an explanation and names the equivalent direct method (`<component>*<command>`), which works under both modes |
 | `iothub_cancel_job` | `job_id`, `kind = scheduled \| import_export` | `POST /jobs/v2/{id}/cancel`, `DELETE /jobs/{id}` |
 
 Why not resources: jobs complete and their history is retained only 30 days; a resource would either need a fake delete or re-run itself when history expires. Actions model the truth. Concurrency limits (1 job on S1, 5 on S2, 10 on S3; 1 import/export job on all tiers) → actions poll and honour `429`.
@@ -445,7 +446,7 @@ IoT Hub throttles per hub/unit and answers `429 ThrottlingException` after a sho
 Consequences and design:
 
 - **No client-side rate limiter.** The correct rate is not knowable in the client — it depends on tier × units and on every other client sharing the hub (DPS, backends, CLI) — and IoT Hub already smooths bursts server-side (traffic shaping queues requests before answering `429`). Terraform's `-parallelism` (default 10) bounds concurrency; the service bounds the rate.
-- **Time-budgeted retries instead.** `429` (`ThrottlingBacklogTimeout`/`ThrottlingException`) and `503 ServerBusy/ServiceUnavailable` are retried until the operation's `timeouts {}` budget is spent (default 20 min for CRUD, 30 min for job actions) — never a fixed retry *count*, which would still fail applies at 1.67 ops/s. Verified: the hub sends **no `Retry-After` header** on 429; the body says *"The request has been throttled. Wait 10 seconds and try again. Operation type: ConfigurationWrite"* — so the policy honours `Retry-After` if it ever appears and otherwise starts at **10 s** with full jitter (cap 60 s). Built on the `azcore` retry policy with a custom time-based `ShouldRetry`.
+- **Time-budgeted retries instead.** `429` (`ThrottlingBacklogTimeout`/`ThrottlingException`) and `503 ServerBusy/ServiceUnavailable` are retried until the operation's deadline is reached (resources: `timeouts {}`, default 20 min; actions: `timeout`, default 1 h for job actions and 10 min for the others; data-source reads and ephemeral opens: a fixed 20 min) — never a fixed retry *count*, which would still fail applies at 1.67 ops/s. Verified: the hub sends **no `Retry-After` header** on 429; the body says *"The request has been throttled. Wait 10 seconds and try again. Operation type: ConfigurationWrite"* — so the policy honours `Retry-After` if it ever appears and otherwise starts at **10 s** with full jitter (cap 60 s). Implemented as an own `azcore` pipeline policy (azcore's count-based policy is disabled). Errors azcore marks non-retriable — above all a credential that cannot get a token — are not retried, so a wrong secret or an expired login fails at once.
 - **What throttling looks like in practice** (F1, one unit): 250 registry reads in 10.5 s all succeeded (p50 135 ms, p90 1.2 s, max 3.2 s) — traffic shaping *queues* first; 45 configuration writes were shaped to ≈1/s over 42 s with 1–2 × 429 among them. So `terraform plan` over a few hundred devices is faster than the nominal 100/min suggests, but latency rises under load and the generous HTTP timeout below matters.
 - **Generous HTTP timeouts** (≥ 60 s per attempt) so requests queued by server-side traffic shaping do not time out client-side and get re-sent, which would only add load.
 - **Escalation path without config:** if acceptance tests under `-parallelism=10` show retry storms, add *adaptive* pacing learned from `429` responses (the AWS SDK "adaptive retry mode" pattern) inside the client — invisible to users, no knobs.
@@ -471,13 +472,14 @@ ephemeral "random_bytes" "s0001" {                        # hashicorp/random ≥
   length = 32                                             # IoT Hub keys: base64 of 16–64 bytes
 }
 
+ephemeral "random_bytes" "s0001_secondary" { length = 32 }
+
 resource "iothub_device" "s0001" {
-  device_id = "s-0001"
-  authentication {
-    type                   = "sas"
-    primary_key_wo         = ephemeral.random_bytes.s0001.base64
-    primary_key_wo_version = var.key_rotation             # only a version change re-sends the key
-  }
+  device_id                = "s-0001"
+  primary_key_wo           = ephemeral.random_bytes.s0001.base64
+  primary_key_wo_version   = var.key_rotation             # only a version change re-sends the key
+  secondary_key_wo         = ephemeral.random_bytes.s0001_secondary.base64
+  secondary_key_wo_version = 1                            # both keys write-only, so no key is in state
 }
 
 ephemeral "iothub_device_credentials" "s0001" {           # read back what the hub holds
@@ -510,12 +512,12 @@ The reliable discriminator is the **`iothub-errorcode` response header**; bodies
 
 ### 11.5 Eventual consistency & timing
 
-- Twin becomes readable shortly after identity creation → `iothub_*_twin` Create retries `GET /twins/{id}` on 404 for up to 30 s (in tests it was available immediately).
+- The twin is readable as soon as the identity exists (verified: available immediately, no retry needed) → `iothub_*_twin` Create fails on 404 with a "create the identity first" message.
 - Query results (`iothub_query`, list resources) index with a lag (≈1–2 s measured for a new device; a *deleted* device was still listed 25 min later) → not used inside resource CRUD; list resources confirm hits with a `GET`.
 - Statistics lag noticeably (deleted devices still counted, `connectedDeviceCount` 0 while a device was connected) → data source only, documented as approximate.
 - Job status after `cancel` lags (`cancelled` in the cancel response, `scheduled` on the next `GET`) → job actions poll to a terminal state.
 - Configuration `systemMetrics` update asynchronously → computed, never diffed.
-- Standard `timeouts {}` on resources and actions (job actions default 30 min).
+- Standard `timeouts {}` on resources; every action has a `timeout` (job actions default 1 h, the others 10 min, `iothub_cancel_job` 5 min).
 
 ### 11.6 API version
 
@@ -557,7 +559,7 @@ flowchart TB
 |---|---|
 | Unit | `twinpatch` table tests; client against `httptest` fixtures recorded from a real hub (headers, ETags, 412/429 paths); retry policy (429 with and without `Retry-After`, budget exhaustion, jitter bounds); schema/plan-modifier tests |
 | Contract | Request/response shapes validated against `service.json` (2021-04-12), plus recorded fixtures for the verified service deviations (Appendix D) |
-| Acceptance (`TF_ACC=1`) | Real hub (F1 free tier verified sufficient: twins, methods, jobs, configurations, deployments all available). Harness creates the hub via `azurerm` or uses `IOTHUB_TEST_HOSTNAME`; runs both auth modes; covers import, drift, ETag conflict + conflict inspection, throttling under `-parallelism=10`, edge parent/child, layered deployment; a simulated device (`az iot device simulate`, with `--model-id` for the Plug and Play command paths) for direct-method, PnP command and connection-state cases; a throw-away Standard_LRS storage account + container (created and destroyed by the harness) for the import/export action |
+| Acceptance (`TF_ACC=1`) | Real hub (F1 free tier verified sufficient: twins, methods, jobs, configurations, deployments all available). Harness creates the hub via `azurerm` or uses `IOTHUB_TEST_HOSTNAME`; runs both auth modes; covers import, drift, ETag conflict + conflict inspection, throttling under `-parallelism=10`, edge parent/child, layered deployment; a simulated device (`az iot device simulate`) for direct-method and connection-state cases; a throw-away Standard_LRS storage account + container (created and destroyed by the harness) for the import/export action |
 | Matrix | Terraform 1.14 and latest × Go latest two |
 | Docs | `tfplugindocs` from schema + `examples/`; the user-facing docs describe the contract, not the mechanism or the evidence (rules in `CONTRIBUTING.md`); permissions per construct group on the provider index page; this document is the home of endpoints, verified service facts, tiers and rationale |
 | Release | GoReleaser, GPG signing, registry publish; `CHANGELOG.md`; SemVer with `0.x` until Phase 3 |
@@ -572,7 +574,7 @@ flowchart TB
 | **1 — Registry & twins** | `iothub_module`, `iothub_device_twin`, `iothub_module_twin` (twinpatch engine), `iothub_statistics`, `iothub_query`, `iothub_modules`, SAS-token ephemeral | Core fleet-as-code |
 | **2 — Configuration** | `iothub_configuration`, `iothub_edge_deployment` | Edge fleets fully declarative |
 | **3 — Day-2 (TF 1.14)** | Actions (direct method, scheduled/import-export jobs, apply configuration, purge, cancel), list resources | 1.0 candidate |
-| **4 — PnP & scale** | `iothub_digital_twin` data source + command action, ETag-gated refresh (§11.2) | **Done.** DPS enrollments remain a *sister scope*: a different host (`*.azure-devices-provisioning.net`) and spec, i.e. a separate provider that reuses this one's patterns (§2.3) |
+| **4 — PnP & scale** | `iothub_digital_twin` data source, ETag-gated refresh (§11.2) (the PnP command action was built and then dropped, §15 #20) | **Done.** DPS enrollments remain a *sister scope*: a different host (`*.azure-devices-provisioning.net`) and spec, i.e. a separate provider that reuses this one's patterns (§2.3) |
 
 ---
 
@@ -593,7 +595,7 @@ Resolved 2026-08-15:
 | 9 | `api_version` provider setting | **Dropped** — `2021-04-12` is a compiled-in constant | The api-version is the contract the client's models are written against; a user-selected value could not be honoured. Newer versions arrive as provider releases (§11.6). Net effect of 5/8/9: the provider block has no behaviour knobs at all — only hub address and credentials. |
 | 10 | `on_destroy` on twin resources | **Dropped** — destroy always nulls owned leaves | Terraform already has `removed { … lifecycle { destroy = false } }` for "stop managing without touching". |
 | 11 | `validate_queries` on configurations | **Dropped** — fixed plan-time validation when `target_condition`/`metrics` change, warning-only on transient errors | Early feedback at negligible cost; no knob. |
-| 12 | `wait` on job actions | **Kept** as an explicit input | A genuine per-invocation choice; with a future `start_time` waiting is bounded by `timeouts`. |
+| 12 | `wait` on job actions | **Kept** as an explicit input | A genuine per-invocation choice; with a future `start_time` waiting is bounded by `timeout`, and a start beyond `timeout` is rejected at plan time. |
 | 13 | `read_strategy = "twin"` | **Replaced** by ETag-gated refresh (twin first, registry only when `deviceEtag` changed) | Same saving, lossless, no knob (§11.2). |
 | 14 | Twin ownership granularity | **Leaf paths** — Terraform owns exactly the leaf paths it declares; import starts with an empty owned set | Coexists with other writers inside shared objects; import can never wipe foreign keys (§6.3). |
 | 15 | Key rotation | **No provider feature** — documented pattern with `ephemeral random_bytes` + write-only args + ephemeral credentials (§11.3) | Composes from existing primitives, state-free. |
@@ -601,6 +603,8 @@ Resolved 2026-08-15:
 | 17 | Key material in identity data sources; `shared_access_key_name`/`shared_access_key` provider inputs | **Dropped** — data sources carry no keys; `connection_string` is the only SAS input | Data-source state is state; one way to do each thing. |
 | 18 | `fail_on_import_errors` on the import/export action (reading `importErrors.log` from blob storage) | **Dropped** — the action reports what the IoT Hub API reports and names the log's location | Reading the blob needs a storage token scope, a storage role for the Terraform principal and blob parsing — another service's data plane, outside the provider boundary (§2). |
 | 19 | Per-construct `hostname` (v0.15) | **Dropped** (2026-08-16) — the hub lives on the provider block only; aliases for several hubs; IDs and import IDs without hostname prefix | Non-standard for an endpoint-bound provider, only worked with Entra ID (a SAS policy is bound to one hub), and bootstrapping does not need it: an unknown provider `hostname` is tolerated during plan and the provider is configured again at apply (§4.4). Removes 21 attributes, per-hub client and refresh-gate plumbing, and the risk of sibling resources on different hubs. |
+| 20 | `iothub_digital_twin_command` action (Phase 4) | **Dropped** (2026-08-16) | The endpoint rejects Entra ID tokens (verified), so the action only worked under SAS, and it was `iothub_direct_method` with `method_name = "<component>*<command>"` — same payload, same device status, both auth modes; the action's own error told users to do that. Same shape as #19: a construct that duplicates another and works in one auth mode. The `iothub_digital_twin` data source stays. |
+| 21 | Second surface review (2026-08-16) | **Simplified**: `iothub_scheduled_job.type` dropped (inferred from `twin_patch`/`method`); `iothub_device.parent_scopes` dropped (echo of `parent_scope`); `iothub_query.result_count` dropped; `schema_version` Computed-only; `primary_key_wo` and `secondary_key_wo` require each other (no key may land in state); `expected_status_codes` must be non-empty (no empty-list wildcard); identity data sources nest `authentication` like the resources; renames `created_time_utc`→`created_time`, `last_updated_time_utc`→`last_updated_time`, `iothub_device_sas_token`→`iothub_sas_token`, `iothub_apply_configuration`→`iothub_set_edge_modules`, `iothub_digital_twin.digital_twin_id`→`device_id`; every action has a `timeout`; plan-time `testQueries` bounded by 30 s; Entra ID auth aligned with azurerm (`use_oidc` covers token, token file, GitHub request URL and Azure DevOps; `use_cli` default true and `false` disables the CLI; first configured method wins, no probing); credential failures are not retried; the 401/403 hint depends on the auth mode | Same criterion as #19/#20: no knob whose value is derivable, no attribute duplicating another, nothing that only works in one auth mode, azurerm's names with azurerm's semantics. |
 
 ---
 
@@ -705,14 +709,14 @@ resource "azurerm_key_vault_secret" "s0001" {
 | Configuration | Create Or Update / Get / Delete | `PUT`/`GET`/`DELETE /configurations/{id}` | `iothub_configuration`, `iothub_edge_deployment` |
 | Configuration | Get Configurations | `GET /configurations` | list resources |
 | Configuration | Test Queries | `POST /configurations/testQueries` | plan-time validation when `target_condition`/`metrics` change |
-| Configuration | Apply On Edge Device | `POST /devices/{id}/applyConfigurationContent` | action `iothub_apply_configuration` |
+| Configuration | Apply On Edge Device | `POST /devices/{id}/applyConfigurationContent` | action `iothub_set_edge_modules` |
 | Query | Get Twins | `POST /devices/query` | data source `iothub_query`, list resources |
 | Statistics | Get Device / Service Statistics | `GET /statistics/devices`, `/statistics/service` | data source `iothub_statistics` |
 | Jobs | Create Scheduled Job / Get / Cancel / Query | `PUT /jobs/v2/{id}`, `GET`, `POST …/cancel`, `GET /jobs/v2/query` | action `iothub_scheduled_job`, action `iothub_cancel_job`, data source |
 | Jobs | Create Import Export Job / Get / Get All / Cancel | `POST /jobs/create`, `GET /jobs/{id}`, `GET /jobs`, `DELETE /jobs/{id}` | action `iothub_import_export_job`, action `iothub_cancel_job`, data source |
 | Bulk Registry | Update Registry | `POST /devices` (≤100; body is a bare `ExportImportDevice[]`, not `{devices:[…]}` as the Learn page shows) | *not exposed* (same throttle; Terraform unit is one object) |
 | Digital Twin | Get / Update | `GET`/`PATCH /digitaltwins/{id}` | data source `iothub_digital_twin` (update via device twin desired props) |
-| Digital Twin | Invoke Root / Component Command | `POST /digitaltwins/{id}[/components/{path}]/commands/{name}` | action `iothub_digital_twin_command` (SAS only — the service rejects Entra ID tokens) |
+| Digital Twin | Invoke Root / Component Command | `POST /digitaltwins/{id}[/components/{path}]/commands/{name}` | not exposed (SAS only — the service rejects Entra ID tokens; the equivalent direct method `<component>*<command>` works under both modes, see §15 #20) |
 | C2D Messages | Purge Queue | `DELETE /devices/{id}/commands` | action `iothub_purge_c2d_queue` |
 | C2D Messages | Receive / Complete / Abandon Feedback | `/messages/serviceBound/feedback…` | *not covered* (queue consumer) |
 | Device Messaging API | all | `/devices/{id}/messages/…`, file upload | *out of scope* (device-side) |
@@ -725,9 +729,8 @@ resource "azurerm_key_vault_secret" "s0001" {
 | `iothub_*_twin` (resource) | `twins/read`, `twins/write` |
 | twin / query data sources, list resources | `twins/read` |
 | `iothub_configuration`, `iothub_edge_deployment` | `configurations/read|write|delete`, `configurations/testQueries/action` |
-| `iothub_apply_configuration` | `configurations/applyToEdgeDevice/action` |
+| `iothub_set_edge_modules` | `configurations/applyToEdgeDevice/action` |
 | `iothub_direct_method` | `directMethods/invoke/action` |
-| `iothub_digital_twin_command` | *none usable* — the endpoint rejects Entra ID tokens (verified); SAS policy with *ServiceConnect* |
 | `iothub_digital_twin` (data source) | `twins/read` (SAS: *ServiceConnect*) |
 | job actions / data sources | `jobs/read`, `jobs/write`, `jobs/delete` |
 | `iothub_purge_c2d_queue` | `cloudToDeviceMessages/queue/purge/action` |
@@ -757,10 +760,10 @@ Verified against an F1 hub in West Europe with `api-version=2021-04-12`, using r
 | Configuration | deleting a configuration leaves the desired properties it applied in the twins (verified 2026-08-16); content change on update: **200 but silently ignored**; `content` required in every update body; `schemaVersion` mutable (null unless set); target condition limited to `deviceId`/`tags`/`properties.reported`; `?top` ignored; `DELETE` works without `If-Match`; `testQueries` → 200 with error fields **but rejects the `*` (all devices) target that `PUT` accepts**; 412 possible with `If-Match: *` under concurrent writes; 429 `ThrottlingBacklogTimeout` observed; `PUT` without `If-Match` on an existing ID → 409 `ConfigurationAlreadyExists` (create-only, like identities); IDs are `[a-z0-9-+%_*!']{1,128}` (uppercase → 400, other punctuation → 400/500); `priority` defaults to 0, `labels` null unless set; `deviceContent`/`moduleContent` keys must be `properties.desired[.…]` (`tags.x` → 400 `InvalidConfigurationContent`) | Provider-enforced replacement on content (semantic comparison, so reformatting is not a replacement); quoted `If-Match`; 412 → conflict inspection, retry ≤ 3; plan-time `testQueries` skips `*` |
 | Edge deployment | `applyConfigurationContent` on a device that a deployment targets: the directly applied manifest stays (60 s idle, and after a device tag change) until the deployment is evaluated again — updating the deployment re-applied its manifest, deleting the deployment left the last manifest in place (verified 2026-08-16); `modulesContent` needs `$edgeAgent` (an `$edgeHub`-only document is rejected too); mixed content rejected; layered accepted; `applyConfigurationContent` 204 on edge, 400 on non-edge; system metrics `targetedCount/appliedCount/reportedSuccessfulCount/reportedFailedCount` (results `{}` until the hub evaluates) | As specified; `$edgeAgent` presence and `properties.desired…` keys validated client-side |
 | Query | `x-ms-max-item-count` + `x-ms-continuation` paging; `x-ms-item-type` `Raw`/`Twin`/`DeviceJob`; `COUNT()` works (but counts index ghosts); new device visible after ≈1.4 s; `GET /devices?top=` still works; syntax errors are a bare 400 `ArgumentInvalid;BadRequest` | Data source / list resources as specified (`count` is a reserved Terraform attribute name → `result_count`) |
-| Device SAS tokens | `SharedAccessSignature sr=<host>%2Fdevices%2F<id>&sig=…&se=…` (no `skn`) accepted by the device-facing `GET /devices/{id}/messages/deviceBound` (204); the device HTTPS protocol has no twin endpoint (401) and module endpoints answer 404 | `iothub_device_sas_token` mints locally; module tokens use `…/modules/<mid>` per the documented format |
+| Device SAS tokens | `SharedAccessSignature sr=<host>%2Fdevices%2F<id>&sig=…&se=…` (no `skn`) accepted by the device-facing `GET /devices/{id}/messages/deviceBound` (204); the device HTTPS protocol has no twin endpoint (401) and module endpoints answer 404 | `iothub_sas_token` mints locally; module tokens use `…/modules/<mid>` per the documented format |
 | Jobs | scheduled job IDs allow only lowercase letters, digits and hyphens (and `'`), at most 64 characters — uppercase, `_`, `.`, other punctuation and spaces are rejected with 400 `ArgumentInvalid` (verified 2026-08-16; the action validates client-side); `scheduleUpdateTwin` completed on 2 devices; a `null` in the job's twin patch removes the key, at the top level and nested (verified 2026-08-16 — the action's `twin_patch` therefore accepts nulls, unlike the twin resources); `queued` on create; duplicate → 409 `JobAlreadyExists`; cancel lags; unknown job → 200 `{type:unknown,status:unknown}`; job without `startTime` runs immediately; **`startTime` must be within 168 hours**; a second job while one is active/scheduled → 429 `ThrottlingMaxActiveJobCountExceeded` (a *scheduled* job occupies the slot until it runs); a job with an invalid query is accepted (`queued`) and fails asynchronously; a device-method job on an offline device completes with `failedCount 1`; `GET /jobs/v2/query` pages via `x-ms-continuation`; the method job echoes `payload` as a byte array | Actions poll and let the retry policy wait out the 429; data source maps unknown/unknown to not-found; `start_time` validated client-side |
 | Direct methods | Live device: `{status:200,payload:…}`; offline: 404 `DeviceNotOnline` (`errorCode 404103`, nested envelope) | Action semantics as specified |
-| Digital twin | `GET /digitaltwins/{id}` works for non-PnP devices (`{"$dtId":…,"$metadata":{"$model":""}}`) and for PnP devices announced via MQTT `model-id` (`$metadata.$model`, root properties, components as objects with their own `$metadata`, per-property `lastUpdateTime`); response `ETag` header equals the twin ETag; unknown device → 404 `DeviceNotFound`; under SAS needs *ServiceConnect*. `PATCH` (JSON Patch) → 202 + ETag/Location. **Command invocation: 401 `IotHubUnauthorizedAccess` (401002) under Entra ID regardless of role, works under SAS** — root `POST /digitaltwins/{id}/commands/{name}` and component `…/components/{path}/commands/{name}`, `?connectTimeoutInSeconds&responseTimeoutInSeconds`, 200 with the device status in `x-ms-command-statuscode` and the device payload as body; `null`/empty body accepted; offline device → 404 `DeviceNotOnline` (404103); missing device → 404 `DeviceNotFound` (404001). The simulator receives a component command as direct method `<component>*<command>` | Data source `iothub_digital_twin` (document/model_id/etag); action `iothub_digital_twin_command` documents the SAS requirement and names the equivalent direct method |
+| Digital twin | `GET /digitaltwins/{id}` works for non-PnP devices (`{"$dtId":…,"$metadata":{"$model":""}}`) and for PnP devices announced via MQTT `model-id` (`$metadata.$model`, root properties, components as objects with their own `$metadata`, per-property `lastUpdateTime`); response `ETag` header equals the twin ETag; unknown device → 404 `DeviceNotFound`; under SAS needs *ServiceConnect*. `PATCH` (JSON Patch) → 202 + ETag/Location. **Command invocation: 401 `IotHubUnauthorizedAccess` (401002) under Entra ID regardless of role, works under SAS** — root `POST /digitaltwins/{id}/commands/{name}` and component `…/components/{path}/commands/{name}`, `?connectTimeoutInSeconds&responseTimeoutInSeconds`, 200 with the device status in `x-ms-command-statuscode` and the device payload as body; `null`/empty body accepted; offline device → 404 `DeviceNotOnline` (404103); missing device → 404 `DeviceNotFound` (404001). The simulator receives a component command as direct method `<component>*<command>` | Data source `iothub_digital_twin` (document/model_id/etag); no command action — `iothub_direct_method` with `method_name = "<component>*<command>"` covers it under both auth modes (§15 #20) |
 | Bulk | Body is a bare array; per-device errors in a 400 `BulkRegistryOperationResult` | Not exposed; recorded for completeness |
 | Import/export jobs (key-based) | Export: `enqueued` → `completed` in ≈3 s, `devices.txt` NDJSON (modules as own lines, keys included), `configurations.txt` PascalCase; container URI not echoed back; `GET /jobs` lists history; bad SAS → synchronous 400 `BlobContainerValidationError`; **the output container SAS needs delete permission** (`Unauthorized to delete from output blob container` with `rwl`); second job → 403 `JobQuotaExceeded`; cancel instant; unknown → 404 `JobNotFound` | Action semantics in §9; documented SAS permissions `racwdl` |
 | Import/export jobs (import) | `create`/`updateTwin`/`delete` verified; `status` required on every line; **job `completed` with `failureReason: null` despite per-line failures** — errors only in `importErrors.log` (`{"deviceId","errorCode","errorStatus"}`) | Action reports the job status and names `importErrors.log`; reading blobs is out of scope (§15 row 18) |

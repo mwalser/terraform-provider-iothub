@@ -17,7 +17,7 @@ The digital twin is read-only here. Writable Plug and Play properties are twin d
 
 ```terraform
 data "iothub_digital_twin" "controller" {
-  digital_twin_id = "controller-0001"
+  device_id = "controller-0001"
 }
 
 # The DTDL model the device announced when it connected (null for non-PnP devices).
@@ -55,11 +55,11 @@ resource "iothub_device_twin" "controller" {
 
 ### Required
 
-- `digital_twin_id` (String) The device ID. A digital twin has the same ID as its device.
+- `device_id` (String) ID of the device.
 
 ### Read-Only
 
 - `document` (String) The digital twin document as a JSON string, verbatim from the hub. Use `jsondecode()`.
 - `etag` (String) ETag of the digital twin.
-- `id` (String) The digital twin ID.
+- `id` (String) The device ID.
 - `model_id` (String) The DTDL model ID announced by the device. Null when the device is not a Plug and Play device.

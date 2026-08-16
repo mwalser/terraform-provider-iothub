@@ -31,7 +31,7 @@ action "iothub_purge_c2d_queue" "purge" {
   }
 }
 
-action "iothub_apply_configuration" "apply" {
+action "iothub_set_edge_modules" "apply" {
   config {
     device_id = iothub_device.edge.device_id
     modules_content = jsonencode({
@@ -69,7 +69,7 @@ resource "terraform_data" "trigger" {
   lifecycle {
     action_trigger {
       events  = [after_create]
-      actions = [action.iothub_purge_c2d_queue.purge, action.iothub_apply_configuration.apply]
+      actions = [action.iothub_purge_c2d_queue.purge, action.iothub_set_edge_modules.apply]
     }
   }
 }`,
@@ -115,7 +115,7 @@ resource "terraform_data" "trigger" {
 resource "iothub_device" "leaf" {
   device_id = "%s-leaf"
 }
-action "iothub_apply_configuration" "apply" {
+action "iothub_set_edge_modules" "apply" {
   config {
     device_id       = iothub_device.leaf.device_id
     modules_content = jsonencode({ "$edgeAgent" = { "properties.desired" = { schemaVersion = "1.1" } } })
@@ -126,7 +126,7 @@ resource "terraform_data" "trigger_leaf" {
   lifecycle {
     action_trigger {
       events  = [after_create]
-      actions = [action.iothub_apply_configuration.apply]
+      actions = [action.iothub_set_edge_modules.apply]
     }
   }
 }`, dev),
@@ -186,7 +186,7 @@ resource "terraform_data" "t" {
 			},
 			{
 				Config: `
-action "iothub_apply_configuration" "bad" {
+action "iothub_set_edge_modules" "bad" {
   config {
     device_id       = "d"
     modules_content = jsonencode({ "$edgeHub" = {} })
@@ -196,7 +196,7 @@ resource "terraform_data" "t" {
   lifecycle {
     action_trigger {
       events  = [after_create]
-      actions = [action.iothub_apply_configuration.bad]
+      actions = [action.iothub_set_edge_modules.bad]
     }
   }
 }`,

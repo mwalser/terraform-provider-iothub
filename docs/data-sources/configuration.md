@@ -31,12 +31,12 @@ output "fw_channel_targeted" {
 
 ### Read-Only
 
-- `created_time_utc` (String) Creation time.
+- `created_time` (String) Creation time.
 - `device_content` (String) Device twin content as a JSON string. Null for module configurations.
 - `etag` (String) ETag of the configuration.
 - `id` (String) The `configuration_id`.
 - `labels` (Map of String) Free-form labels.
-- `last_updated_time_utc` (String) Last update time.
+- `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query.
 - `module_content` (String) Module twin content as a JSON string. Null for device configurations.

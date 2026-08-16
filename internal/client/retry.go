@@ -232,11 +232,16 @@ func retryableStatus(code int) bool {
 }
 
 // retryableError reports whether a transport error is worth retrying: network
-// errors and per-try timeouts are; a cancellation from the caller and a
-// hostname that does not resolve (a typo, or a hub that does not exist) are
-// not.
+// errors and per-try timeouts are; a cancellation from the caller, a hostname
+// that does not resolve (a typo, or a hub that does not exist) and anything
+// azcore marks non-retriable — above all a credential that cannot get a
+// token — are not.
 func retryableError(err error) bool {
 	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	var nonRetriable interface{ NonRetriable() }
+	if errors.As(err, &nonRetriable) {
 		return false
 	}
 	var dnsErr *net.DNSError

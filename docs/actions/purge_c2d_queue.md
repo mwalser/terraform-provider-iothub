@@ -33,3 +33,7 @@ action "iothub_purge_c2d_queue" "sensor" {
 ### Required
 
 - `device_id` (String) Device ID.
+
+### Optional
+
+- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `10m`). It covers retries of throttled requests.

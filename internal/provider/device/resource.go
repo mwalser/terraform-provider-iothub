@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -60,7 +59,6 @@ type resourceModel struct {
 	ETag                       types.String   `tfsdk:"etag"`
 	GenerationID               types.String   `tfsdk:"generation_id"`
 	DeviceScope                types.String   `tfsdk:"device_scope"`
-	ParentScopes               types.List     `tfsdk:"parent_scopes"`
 	ConnectionState            types.String   `tfsdk:"connection_state"`
 	ConnectionStateUpdatedTime types.String   `tfsdk:"connection_state_updated_time"`
 	LastActivityTime           types.String   `tfsdk:"last_activity_time"`
@@ -140,11 +138,6 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"status_updated_time":           computedString("When `status` last changed."),
 			"cloud_to_device_message_count": schema.Int64Attribute{
 				MarkdownDescription: "Number of cloud-to-device messages queued for the device.",
-				Computed:            true,
-			},
-			"parent_scopes": schema.ListAttribute{
-				MarkdownDescription: "The parent's scope as a one-element list, as the hub reports it. Empty for a device without a parent.",
-				ElementType:         types.StringType,
 				Computed:            true,
 			},
 		},
@@ -287,10 +280,7 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 	pk, sk := plan.keysInState()
-	resp.Diagnostics.Append(setState(&plan, created, pk, sk)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	setState(&plan, created, pk, sk)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, created.DeviceID)...)
 }
@@ -343,10 +333,7 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 	pk, sk := state.keysInState()
-	resp.Diagnostics.Append(setState(&state, dev, pk, sk)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	setState(&state, dev, pk, sk)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, dev.DeviceID)...)
 }
@@ -438,10 +425,7 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 
 	pk, sk := plan.keysInState()
-	resp.Diagnostics.Append(setState(&plan, updated, pk, sk)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	setState(&plan, updated, pk, sk)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, updated.DeviceID)...)
 }
@@ -542,7 +526,7 @@ func writtenFromState(state resourceModel, auth identity.Auth) writtenFields {
 }
 
 // setState maps a hub identity onto the model.
-func setState(m *resourceModel, d *client.Device, primaryInState, secondaryInState bool) diag.Diagnostics {
+func setState(m *resourceModel, d *client.Device, primaryInState, secondaryInState bool) {
 	m.ID = types.StringValue(d.DeviceID)
 	m.DeviceID = types.StringValue(d.DeviceID)
 	m.Status = types.StringValue(d.Status)
@@ -563,16 +547,9 @@ func setState(m *resourceModel, d *client.Device, primaryInState, secondaryInSta
 	m.ETag = types.StringValue(d.ETag)
 	m.GenerationID = types.StringValue(d.GenerationID)
 	m.DeviceScope = identity.StringOrNull(d.DeviceScope)
-	scopes := make([]attr.Value, 0, len(d.ParentScopes))
-	for _, s := range d.ParentScopes {
-		scopes = append(scopes, types.StringValue(s))
-	}
-	list, diags := types.ListValue(types.StringType, scopes)
-	m.ParentScopes = list
 	m.ConnectionState = identity.StringOrNull(d.ConnectionState)
 	m.ConnectionStateUpdatedTime = identity.TimeOrNull(d.ConnectionStateUpdatedTime)
 	m.LastActivityTime = identity.TimeOrNull(d.LastActivityTime)
 	m.StatusUpdatedTime = identity.TimeOrNull(d.StatusUpdatedTime)
 	m.CloudToDeviceMessageCount = types.Int64Value(d.CloudToDeviceMessageCount)
-	return diags
 }

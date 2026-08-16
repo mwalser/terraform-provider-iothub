@@ -4,7 +4,7 @@ Initial release.
 
 FEATURES:
 
-* provider: Microsoft Entra ID (default) and shared-access-policy (SAS) authentication; one provider block per hub, `hostname` in lowercase
+* provider: Microsoft Entra ID (default; the `azurerm` arguments and `ARM_*` variables — client secret or certificate, OIDC for HCP Terraform, GitHub Actions, Azure DevOps and workload identity, managed identity, Azure CLI) and shared-access-policy (SAS) authentication; one provider block per hub, `hostname` in lowercase
 * **New Resource:** `iothub_device` — device identities with SAS / X.509 authentication, IoT Edge capability, parent/child scopes, write-only keys, import
 * **New Resource:** `iothub_module` — module identities with the same authentication options, write-only keys and import
 * **New Resource:** `iothub_device_twin`, `iothub_module_twin` — manage exactly the twin tags and desired properties you declare; keys written by other systems are never touched, and an imported twin starts without managed values
@@ -18,12 +18,11 @@ FEATURES:
 * **New Data Source:** `iothub_statistics`
 * **New Data Source:** `iothub_scheduled_job`, `iothub_import_export_job` — job status
 * **New Ephemeral Resource:** `iothub_device_credentials`, `iothub_module_credentials` — keys and connection strings that never enter state
-* **New Ephemeral Resource:** `iothub_device_sas_token` — short-lived device/module SAS tokens
-* **New Action:** `iothub_direct_method` — device/module direct methods with expected status codes
-* **New Action:** `iothub_digital_twin_command` — root-level and component Plug and Play commands (SAS authentication only)
+* **New Ephemeral Resource:** `iothub_sas_token` — short-lived device/module SAS tokens
+* **New Action:** `iothub_direct_method` — device/module direct methods (including Plug and Play commands) with expected status codes
 * **New Action:** `iothub_scheduled_job` — twin update / device method jobs, waited to completion
 * **New Action:** `iothub_import_export_job` — bulk registry export/import (key- or identity-based storage access)
-* **New Action:** `iothub_apply_configuration`, `iothub_purge_c2d_queue`, `iothub_cancel_job`
+* **New Action:** `iothub_set_edge_modules`, `iothub_purge_c2d_queue`, `iothub_cancel_job`
 * **New List Resource:** `iothub_device`, `iothub_module`, `iothub_configuration`, `iothub_edge_deployment` — `terraform query` with resource identity (import by identity supported)
 
 NOTES:

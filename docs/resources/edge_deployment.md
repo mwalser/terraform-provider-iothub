@@ -4,7 +4,7 @@ page_title: "iothub_edge_deployment Resource - iothub"
 subcategory: ""
 description: |-
   An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches target_condition, in order of priority. There is no separate flag for layered deployments: a deployment is layered when its $edgeAgent content sets properties.desired.modules.<name> keys instead of a full properties.desired.
-  target_condition, priority, labels, metrics and schema_version can be changed in place. target_condition and the metrics queries are checked against the hub at plan time. Changing modules_content replaces the deployment. The content is compared by value, so reformatting it is not a change. A replacement deletes the deployment and creates it again under the same ID. To avoid a window without a deployment, put a version in deployment_id and use lifecycle { create_before_destroy = true }, as the example shows.
+  target_condition, priority, labels and metrics can be changed in place. target_condition and the metrics queries are checked against the hub at plan time. Changing modules_content replaces the deployment. The content is compared by value, so reformatting it is not a change. A replacement deletes the deployment and creates it again under the same ID. To avoid a window without a deployment, put a version in deployment_id and use lifecycle { create_before_destroy = true }, as the example shows.
   Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment targets them.
 ---
 
@@ -12,7 +12,7 @@ description: |-
 
 An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches `target_condition`, in order of `priority`. There is no separate flag for layered deployments: a deployment is layered when its `$edgeAgent` content sets `properties.desired.modules.<name>` keys instead of a full `properties.desired`.
 
-`target_condition`, `priority`, `labels`, `metrics` and `schema_version` can be changed in place. `target_condition` and the `metrics` queries are checked against the hub at plan time. **Changing `modules_content` replaces the deployment.** The content is compared by value, so reformatting it is not a change. A replacement deletes the deployment and creates it again under the same ID. To avoid a window without a deployment, put a version in `deployment_id` and use `lifecycle { create_before_destroy = true }`, as the example shows.
+`target_condition`, `priority`, `labels` and `metrics` can be changed in place. `target_condition` and the `metrics` queries are checked against the hub at plan time. **Changing `modules_content` replaces the deployment.** The content is compared by value, so reformatting it is not a change. A replacement deletes the deployment and creates it again under the same ID. To avoid a window without a deployment, put a version in `deployment_id` and use `lifecycle { create_before_destroy = true }`, as the example shows.
 
 Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment targets them.
 
@@ -76,16 +76,16 @@ resource "iothub_edge_deployment" "temp_sensor" {
 - `labels` (Map of String) Free-form labels (string map).
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200`. Results are in `metric_results`.
 - `priority` (Number) Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base.
-- `schema_version` (String) Optional version string of the IoT Edge deployment document, for example `1.0` as the Azure CLI writes it. When omitted, whatever the hub reports is accepted and never shows as drift.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
-- `created_time_utc` (String) Creation time.
+- `created_time` (String) Creation time.
 - `etag` (String) ETag of the IoT Edge deployment.
 - `id` (String) The `deployment_id`. Also the import ID.
-- `last_updated_time_utc` (String) Last update time.
+- `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
+- `schema_version` (String) Version string of the IoT Edge deployment document as the hub reports it, if any. Tools such as the Azure CLI write `1.0`.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
 
 <a id="nestedblock--timeouts"></a>

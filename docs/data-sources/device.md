@@ -31,7 +31,7 @@ output "gateway_scope" {
 
 ### Read-Only
 
-- `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.
+- `authentication` (Attributes) How the device authenticates. Keys are not exposed here. (see [below for nested schema](#nestedatt--authentication))
 - `cloud_to_device_message_count` (Number) Queued cloud-to-device messages.
 - `connection_state` (String) `Connected` or `Disconnected`. Approximate.
 - `connection_state_updated_time` (String) When the connection state last changed.
@@ -42,9 +42,15 @@ output "gateway_scope" {
 - `id` (String) The device ID.
 - `last_activity_time` (String) Last time the device connected, sent or received a message.
 - `parent_scope` (String) Scope of the parent edge device, if the device is a child.
-- `parent_scopes` (List of String) The parent's scope as a one-element list, as the hub reports it. Empty for a device without a parent.
-- `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.
-- `secondary_thumbprint` (String) Secondary X.509 thumbprint, for `selfSigned` authentication.
 - `status` (String) `enabled` or `disabled`.
 - `status_reason` (String) Free-text reason for the status, if any.
 - `status_updated_time` (String) When the status last changed.
+
+<a id="nestedatt--authentication"></a>
+### Nested Schema for `authentication`
+
+Read-Only:
+
+- `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.
+- `secondary_thumbprint` (String) Secondary X.509 thumbprint, for `selfSigned` authentication.
+- `type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.

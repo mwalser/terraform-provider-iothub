@@ -30,11 +30,10 @@ type dataSource struct {
 }
 
 type model struct {
-	ID          types.String `tfsdk:"id"`
-	Query       types.String `tfsdk:"query"`
-	Results     types.List   `tfsdk:"results"`
-	ResultCount types.Int64  `tfsdk:"result_count"`
-	ItemType    types.String `tfsdk:"item_type"`
+	ID       types.String `tfsdk:"id"`
+	Query    types.String `tfsdk:"query"`
+	Results  types.List   `tfsdk:"results"`
+	ItemType types.String `tfsdk:"item_type"`
 }
 
 func (d *dataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -61,8 +60,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 				ElementType:         types.StringType,
 				Computed:            true,
 			},
-			"result_count": schema.Int64Attribute{MarkdownDescription: "Number of results.", Computed: true},
-			"item_type":    schema.StringAttribute{MarkdownDescription: "The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT * FROM devices` or `devices.modules`, `DeviceJob` for `FROM devices.jobs`.", Computed: true},
+			"item_type": schema.StringAttribute{MarkdownDescription: "The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT * FROM devices` or `devices.modules`, `DeviceJob` for `FROM devices.jobs`.", Computed: true},
 		},
 	}
 }
@@ -100,7 +98,6 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	sum := sha256.Sum256([]byte(query))
 	data.ID = types.StringValue(hex.EncodeToString(sum[:8]))
 	data.Results = list
-	data.ResultCount = types.Int64Value(int64(len(items)))
 	data.ItemType = types.StringValue(itemType)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

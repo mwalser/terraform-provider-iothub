@@ -74,11 +74,9 @@ data "iothub_query" "twins" {
 				},
 				Config: withQuery,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.iothub_query.test", tfjsonpath.New("result_count"), knownvalue.Int64Exact(2)),
 					statecheck.ExpectKnownValue("data.iothub_query.test", tfjsonpath.New("item_type"), knownvalue.StringExact("Raw")),
 					statecheck.ExpectKnownValue("data.iothub_query.test", tfjsonpath.New("results"), knownvalue.ListSizeExact(2)),
 					statecheck.ExpectKnownValue("data.iothub_query.twins", tfjsonpath.New("item_type"), knownvalue.StringExact("Twin")),
-					statecheck.ExpectKnownValue("data.iothub_query.twins", tfjsonpath.New("result_count"), knownvalue.Int64Exact(1)),
 				},
 				Check: func(s *terraform.State) error {
 					rs := s.RootModule().Resources["data.iothub_query.test"]
@@ -138,19 +136,19 @@ resource "iothub_module" "test" {
   device_id = iothub_device.test.device_id
   module_id = "m1"
 }
-ephemeral "iothub_device_sas_token" "dev" {
+ephemeral "iothub_sas_token" "dev" {
   device_id = iothub_device.test.device_id
   ttl       = "30m"
 }
-ephemeral "iothub_device_sas_token" "mod" {
+ephemeral "iothub_sas_token" "mod" {
   device_id = iothub_module.test.device_id
   module_id = iothub_module.test.module_id
   key       = "secondary"
 }
 provider "echo" {
   data = {
-    dev = ephemeral.iothub_device_sas_token.dev
-    mod = ephemeral.iothub_device_sas_token.mod
+    dev = ephemeral.iothub_sas_token.dev
+    mod = ephemeral.iothub_sas_token.mod
   }
 }
 resource "echo" "tokens" {}
@@ -197,11 +195,11 @@ resource "iothub_device" "x509" {
   device_id = "%s-x509"
   authentication = { type = "certificateAuthority" }
 }
-ephemeral "iothub_device_sas_token" "x509" {
+ephemeral "iothub_sas_token" "x509" {
   device_id = iothub_device.x509.device_id
 }
 provider "echo" {
-  data = ephemeral.iothub_device_sas_token.x509
+  data = ephemeral.iothub_sas_token.x509
 }
 resource "echo" "x509" {}
 `, dev),
@@ -224,12 +222,12 @@ func TestAccDeviceSASToken_configValidation(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: `
-ephemeral "iothub_device_sas_token" "bad" {
+ephemeral "iothub_sas_token" "bad" {
   device_id = "x"
   ttl       = "soon"
 }
 provider "echo" {
-  data = ephemeral.iothub_device_sas_token.bad
+  data = ephemeral.iothub_sas_token.bad
 }
 resource "echo" "bad" {}
 `,
@@ -237,12 +235,12 @@ resource "echo" "bad" {}
 			},
 			{
 				Config: `
-ephemeral "iothub_device_sas_token" "bad" {
+ephemeral "iothub_sas_token" "bad" {
   device_id = "x"
   key       = "tertiary"
 }
 provider "echo" {
-  data = ephemeral.iothub_device_sas_token.bad
+  data = ephemeral.iothub_sas_token.bad
 }
 resource "echo" "bad" {}
 `,

@@ -5,7 +5,7 @@ resource "iothub_device" "gateway" {
 }
 
 # Push a manifest to a single lab gateway right away (like `az iot edge set-modules`).
-action "iothub_apply_configuration" "lab" {
+action "iothub_set_edge_modules" "lab" {
   config {
     device_id       = iothub_device.gateway.device_id
     modules_content = jsonencode(jsondecode(file("${path.module}/deployment.json")).modulesContent)
@@ -18,7 +18,7 @@ resource "terraform_data" "lab_release" {
   lifecycle {
     action_trigger {
       events  = [after_create, after_update]
-      actions = [action.iothub_apply_configuration.lab]
+      actions = [action.iothub_set_edge_modules.lab]
     }
   }
 }

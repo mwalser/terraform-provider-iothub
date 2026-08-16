@@ -53,12 +53,13 @@ resource "iothub_device_twin" "sensor" {
 ### Required
 
 - `device_id` (String) Device ID.
-- `method_name` (String) Method name as registered by the device code.
+- `method_name` (String) Method name as registered by the device code. For an IoT Plug and Play command use the command name, or `<component>*<command>` for a component command.
 
 ### Optional
 
 - `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0).
-- `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.
+- `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`).
 - `module_id` (String) Module ID, to call a module's method.
 - `payload` (String) JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.
 - `response_timeout_seconds` (Number) How long the hub waits for the device's response, 5 to 300 seconds (default 30).
+- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `10m`). It covers retries of throttled requests and the device's response time.

@@ -185,7 +185,6 @@ resource "iothub_device" "child" {
 					statecheck.ExpectKnownValue("iothub_device.leaf", tfjsonpath.New("edge_enabled"), knownvalue.Bool(false)),
 					statecheck.ExpectKnownValue("iothub_device.leaf", tfjsonpath.New("parent_scope"), knownvalue.StringRegexp(regexp.MustCompile(`^ms-azure-iot-edge://`+edge))),
 					statecheck.ExpectKnownValue("iothub_device.leaf", tfjsonpath.New("device_scope"), knownvalue.StringRegexp(regexp.MustCompile(`^ms-azure-iot-edge://`+edge))),
-					statecheck.ExpectKnownValue("iothub_device.leaf", tfjsonpath.New("parent_scopes"), knownvalue.ListSizeExact(1)),
 					// nested edge child: own generated scope, parent in parentScopes
 					statecheck.ExpectKnownValue("iothub_device.child", tfjsonpath.New("device_scope"), knownvalue.StringRegexp(regexp.MustCompile(`^ms-azure-iot-edge://`+child))),
 					statecheck.ExpectKnownValue("iothub_device.child", tfjsonpath.New("parent_scope"), knownvalue.StringRegexp(regexp.MustCompile(`^ms-azure-iot-edge://`+edge))),
@@ -215,7 +214,6 @@ resource "iothub_device" "child" {
 					statecheck.ExpectKnownValue("iothub_device.leaf", tfjsonpath.New("edge_enabled"), knownvalue.Bool(true)),
 					statecheck.ExpectKnownValue("iothub_device.leaf", tfjsonpath.New("parent_scope"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("iothub_device.child", tfjsonpath.New("parent_scope"), knownvalue.Null()),
-					statecheck.ExpectKnownValue("iothub_device.child", tfjsonpath.New("parent_scopes"), knownvalue.ListSizeExact(0)),
 				},
 			},
 		},
@@ -227,12 +225,15 @@ func TestAccDevice_writeOnlyKeysAndCredentials(t *testing.T) {
 	res := "iothub_device.test"
 	k1 := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	k2 := "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA="
+	ks := "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA="
 	config := func(key string, version int) string {
 		return iotacc.ProviderConfig() + fmt.Sprintf(`
 resource "iothub_device" "test" {
-  device_id              = %q
-  primary_key_wo         = %q
-  primary_key_wo_version = %d
+  device_id                = %q
+  primary_key_wo           = %q
+  primary_key_wo_version   = %d
+  secondary_key_wo         = %q
+  secondary_key_wo_version = 1
 }
 
 ephemeral "iothub_device_credentials" "test" {
@@ -244,7 +245,7 @@ provider "echo" {
 }
 
 resource "echo" "creds" {}
-`, id, key, version)
+`, id, key, version, ks)
 	}
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { iotacc.PreCheck(t) },
@@ -254,13 +255,14 @@ resource "echo" "creds" {}
 			{
 				Config: config(k1, 1),
 				ConfigStateChecks: []statecheck.StateCheck{
-					// write-only: the primary key is neither in the wo attribute nor in authentication.primary_key
+					// write-only: neither key is in the wo attributes nor in authentication
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("primary_key_wo"), knownvalue.Null()),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("secondary_key_wo"), knownvalue.Null()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("primary_key"), knownvalue.Null()),
-					// the secondary was hub-generated/provider-generated and is stored as usual
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("secondary_key"), knownvalue.NotNull()),
-					// the ephemeral resource sees the real key
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("secondary_key"), knownvalue.Null()),
+					// the ephemeral resource sees the real keys
 					statecheck.ExpectKnownValue("echo.creds", tfjsonpath.New("data").AtMapKey("primary_key"), knownvalue.StringExact(k1)),
+					statecheck.ExpectKnownValue("echo.creds", tfjsonpath.New("data").AtMapKey("secondary_key"), knownvalue.StringExact(ks)),
 					statecheck.ExpectKnownValue("echo.creds", tfjsonpath.New("data").AtMapKey("authentication_type"), knownvalue.StringExact("sas")),
 					statecheck.ExpectKnownValue("echo.creds", tfjsonpath.New("data").AtMapKey("primary_connection_string"),
 						knownvalue.StringExact("HostName="+iotacc.Hostname()+";DeviceId="+id+";SharedAccessKey="+k1)),
@@ -270,14 +272,14 @@ resource "echo" "creds" {}
 				Config:           config(k1, 1),
 				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionNoop)}},
 			},
-			{ // rotate: bump the version with a new key; secondary is kept.
+			{ // rotate: bump the primary version with a new key; the secondary is kept.
 				// (Verified against the API rather than through the echo provider,
 				// whose provider block may be configured before the update applies.)
 				Config:           config(k2, 2),
 				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionUpdate)}},
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("primary_key"), knownvalue.Null()),
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("secondary_key"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("secondary_key"), knownvalue.Null()),
 				},
 				Check: func(_ *terraform.State) error {
 					dev, err := iotacc.Client(t).GetDevice(context.Background(), id)
@@ -286,6 +288,9 @@ resource "echo" "creds" {}
 					}
 					if got := dev.Authentication.SymmetricKey.PrimaryKey; got != k2 {
 						return fmt.Errorf("primary key after rotation = %q, want %q", got, k2)
+					}
+					if got := dev.Authentication.SymmetricKey.SecondaryKey; got != ks {
+						return fmt.Errorf("secondary key after rotation = %q, want %q", got, ks)
 					}
 					return nil
 				},
@@ -315,7 +320,7 @@ data "iothub_device" "test" {
 					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("id"), knownvalue.StringExact(id)),
 					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("status"), knownvalue.StringExact("disabled")),
 					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("status_reason"), knownvalue.StringExact("for the data source")),
-					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("authentication_type"), knownvalue.StringExact("sas")),
+					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("authentication").AtMapKey("type"), knownvalue.StringExact("sas")),
 					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("edge_enabled"), knownvalue.Bool(false)),
 				},
 			},
@@ -391,6 +396,14 @@ func TestAccDevice_configValidation(t *testing.T) {
   primary_key_wo = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 }`,
 				ExpectError: regexp.MustCompile(`primary_key_wo_version`),
+			},
+			{ // one write-only key alone would leave the other key in state
+				Config: `resource "iothub_device" "bad" {
+  device_id              = "x"
+  primary_key_wo         = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  primary_key_wo_version = 1
+}`,
+				ExpectError: regexp.MustCompile(`secondary_key_wo`),
 			},
 			{
 				Config: `resource "iothub_device" "bad" {

@@ -31,7 +31,7 @@ data "iothub_query" "stale_firmware" {
 }
 
 output "stale_firmware_count" {
-  value = data.iothub_query.stale_firmware.result_count
+  value = length(data.iothub_query.stale_firmware.results)
 }
 ```
 
@@ -46,5 +46,4 @@ output "stale_firmware_count" {
 
 - `id` (String) A short hash of the query.
 - `item_type` (String) The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT * FROM devices` or `devices.modules`, `DeviceJob` for `FROM devices.jobs`.
-- `result_count` (Number) Number of results.
 - `results` (List of String) One JSON string per result row, in the order the hub returns them.

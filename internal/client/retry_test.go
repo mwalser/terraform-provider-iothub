@@ -10,6 +10,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
 // newTestClient builds a bearer-mode client against srv with a fake sleeper
@@ -159,6 +163,36 @@ func TestRetry_TransportErrorThenSuccess(t *testing.T) {
 	}
 	if len(*delays) != 1 || (*delays)[0] != time.Second {
 		t.Fatalf("delays = %v", *delays)
+	}
+}
+
+// failingCred is a credential that cannot get a token, as an expired login or
+// a wrong secret would be. azidentity wraps such failures as non-retriable.
+type failingCred struct{ calls int32 }
+
+func (f *failingCred) GetToken(context.Context, policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	atomic.AddInt32(&f.calls, 1)
+	return azcore.AccessToken{}, &azidentity.AuthenticationFailedError{}
+}
+
+func TestRetry_CredentialFailureIsNotRetried(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	cred := &failingCred{}
+	var delays []time.Duration
+	c, err := New(Config{Hostname: "hub.azure-devices.net", Credential: cred, Transport: redirectTo(srv), Retry: RetryOptions{
+		Sleep: func(ctx context.Context, d time.Duration) error { delays = append(delays, d); return ctx.Err() },
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.GetServiceStatistics(context.Background()); err == nil {
+		t.Fatal("expected the credential error")
+	}
+	if n := atomic.LoadInt32(&cred.calls); n != 1 || len(delays) != 0 {
+		t.Fatalf("a credential failure must surface immediately: %d token requests, delays %v", n, delays)
 	}
 }
 

@@ -29,6 +29,9 @@ type Error struct {
 	// Operation is the throttled operation type ("ConfigurationWrite") when
 	// the service names one in a throttling message.
 	Operation string
+	// SASAuth is true when the client that saw the error authenticates with
+	// a shared access policy rather than Entra ID; hints depend on it.
+	SASAuth bool
 	// Method and URL identify the request.
 	Method string
 	URL    string

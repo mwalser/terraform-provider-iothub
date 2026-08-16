@@ -16,7 +16,7 @@ description: |-
 
 | Mode | Selected when | Notes |
 |---|---|---|
-| Microsoft Entra ID (default) | no `connection_string` | Unless a method is chosen explicitly, the provider tries the environment, workload identity, managed identity and the Azure CLI, in that order. The identity needs an IoT Hub **data-plane** role at hub scope. `Owner` and `Contributor` are not enough. |
+| Microsoft Entra ID (default) | no `connection_string` | The first configured method is used, in this order: client certificate, client secret, OIDC federated token (`use_oidc`), managed identity (`use_msi`), Azure CLI login (`use_cli`, on by default). Arguments and `ARM_*` environment variables are the same as in the `azurerm` provider. The identity needs an IoT Hub **data-plane** role at hub scope. `Owner` and `Contributor` are not enough. |
 | Shared access policy (SAS) | `connection_string` set | Uses the hub shared access policy in the connection string. |
 
 ### Permissions
@@ -26,20 +26,16 @@ policy (SAS). Narrower permissions work for subsets:
 
 | To use | Entra ID role | SAS policy permissions |
 |---|---|---|
-| `iothub_device`, `iothub_module`, their data sources, `iothub_device_credentials`, `iothub_module_credentials` and `iothub_device_sas_token` | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
+| `iothub_device`, `iothub_module`, their data sources, `iothub_device_credentials`, `iothub_module_credentials` and `iothub_sas_token` | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
 | Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, the `iothub_device` and `iothub_module` list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
 | Configurations and deployments (resources, data sources, list resources), jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
-| `iothub_digital_twin_command` | not possible, SAS only (see below) | ServiceConnect |
 
 The identity that runs `terraform plan` needs the read permissions too:
 refresh reads every managed object, and ephemeral resources open during plan.
 
-Two service restrictions depend on the authentication mode:
-
-- Plug and Play commands (`iothub_digital_twin_command`) are only accepted
-  with SAS authentication. Under Entra ID, use `iothub_direct_method` instead.
-- With SAS authentication the hub refuses to create, change or delete
-  modules of a *disabled* device. Enable the device first, or use Entra ID.
+One service restriction depends on the authentication mode: with SAS
+authentication the hub refuses to create, change or delete modules of a
+*disabled* device. Enable the device first, or use Entra ID.
 
 ## Hubs
 

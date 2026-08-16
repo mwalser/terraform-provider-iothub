@@ -1,5 +1,5 @@
 data "iothub_digital_twin" "controller" {
-  digital_twin_id = "controller-0001"
+  device_id = "controller-0001"
 }
 
 # The DTDL model the device announced when it connected (null for non-PnP devices).

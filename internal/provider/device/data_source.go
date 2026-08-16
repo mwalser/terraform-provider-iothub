@@ -3,7 +3,6 @@ package device
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -32,13 +31,10 @@ type dataSourceModel struct {
 	StatusReason               types.String `tfsdk:"status_reason"`
 	EdgeEnabled                types.Bool   `tfsdk:"edge_enabled"`
 	ParentScope                types.String `tfsdk:"parent_scope"`
-	AuthenticationType         types.String `tfsdk:"authentication_type"`
-	PrimaryThumbprint          types.String `tfsdk:"primary_thumbprint"`
-	SecondaryThumbprint        types.String `tfsdk:"secondary_thumbprint"`
+	Authentication             types.Object `tfsdk:"authentication"`
 	ETag                       types.String `tfsdk:"etag"`
 	GenerationID               types.String `tfsdk:"generation_id"`
 	DeviceScope                types.String `tfsdk:"device_scope"`
-	ParentScopes               types.List   `tfsdk:"parent_scopes"`
 	ConnectionState            types.String `tfsdk:"connection_state"`
 	ConnectionStateUpdatedTime types.String `tfsdk:"connection_state_updated_time"`
 	LastActivityTime           types.String `tfsdk:"last_activity_time"`
@@ -67,9 +63,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"status_reason":                 c("Free-text reason for the status, if any."),
 			"edge_enabled":                  schema.BoolAttribute{MarkdownDescription: "Whether the device is an IoT Edge device.", Computed: true},
 			"parent_scope":                  c("Scope of the parent edge device, if the device is a child."),
-			"authentication_type":           c("`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules."),
-			"primary_thumbprint":            c("Primary X.509 thumbprint, for `selfSigned` authentication."),
-			"secondary_thumbprint":          c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
+			"authentication":                identity.AuthInfoAttribute("device"),
 			"etag":                          c("ETag of the identity."),
 			"generation_id":                 c("Hub-generated ID that changes when a device with the same `device_id` is re-created."),
 			"device_scope":                  c("The device's own scope. Hub-generated for edge devices, the parent's scope for child leaf devices, otherwise empty."),
@@ -78,7 +72,6 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"last_activity_time":            c("Last time the device connected, sent or received a message."),
 			"status_updated_time":           c("When the status last changed."),
 			"cloud_to_device_message_count": schema.Int64Attribute{MarkdownDescription: "Queued cloud-to-device messages.", Computed: true},
-			"parent_scopes":                 schema.ListAttribute{MarkdownDescription: "The parent's scope as a one-element list, as the hub reports it. Empty for a device without a parent.", ElementType: types.StringType, Computed: true},
 		},
 	}
 }
@@ -117,20 +110,10 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	}
 	data.EdgeEnabled = types.BoolValue(dev.Capabilities != nil && dev.Capabilities.IotEdge)
 	data.ParentScope = identity.StringOrNull(parentScopeOf(dev))
-	auth := identity.AuthFromHub(dev.Authentication, false)
-	data.AuthenticationType = auth.Type
-	data.PrimaryThumbprint = auth.PrimaryThumbprint
-	data.SecondaryThumbprint = auth.SecondaryThumbprint
+	data.Authentication = identity.AuthInfoFromHub(dev.Authentication)
 	data.ETag = types.StringValue(dev.ETag)
 	data.GenerationID = types.StringValue(dev.GenerationID)
 	data.DeviceScope = identity.StringOrNull(dev.DeviceScope)
-	scopes := make([]attr.Value, 0, len(dev.ParentScopes))
-	for _, s := range dev.ParentScopes {
-		scopes = append(scopes, types.StringValue(s))
-	}
-	list, diags := types.ListValue(types.StringType, scopes)
-	resp.Diagnostics.Append(diags...)
-	data.ParentScopes = list
 	data.ConnectionState = identity.StringOrNull(dev.ConnectionState)
 	data.ConnectionStateUpdatedTime = identity.TimeOrNull(dev.ConnectionStateUpdatedTime)
 	data.LastActivityTime = identity.TimeOrNull(dev.LastActivityTime)

@@ -11,7 +11,6 @@ variable "release" {
 action "iothub_scheduled_job" "fw_channel" {
   config {
     job_id                     = "fw-channel-${replace(var.release, ".", "-")}"
-    type                       = "scheduleUpdateTwin"
     query_condition            = "tags.fleet.region = 'eu'"
     max_execution_time_seconds = 3600
     twin_patch = {
@@ -35,7 +34,6 @@ resource "terraform_data" "release" {
 action "iothub_scheduled_job" "reboot_gateways" {
   config {
     job_id          = "reboot-gateways-${formatdate("YYYY-MM-DD", plantimestamp())}"
-    type            = "scheduleDeviceMethod"
     query_condition = "tags.site = 'munich' AND capabilities.iotEdge = true"
     start_time      = timeadd(plantimestamp(), "8h") # at most 7 days ahead
     method = {

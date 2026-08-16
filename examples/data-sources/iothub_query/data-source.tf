@@ -13,5 +13,5 @@ data "iothub_query" "stale_firmware" {
 }
 
 output "stale_firmware_count" {
-  value = data.iothub_query.stale_firmware.result_count
+  value = length(data.iothub_query.stale_firmware.results)
 }

@@ -29,9 +29,7 @@ type dataSourceModel struct {
 	DeviceID                   types.String `tfsdk:"device_id"`
 	ModuleID                   types.String `tfsdk:"module_id"`
 	ManagedBy                  types.String `tfsdk:"managed_by"`
-	AuthenticationType         types.String `tfsdk:"authentication_type"`
-	PrimaryThumbprint          types.String `tfsdk:"primary_thumbprint"`
-	SecondaryThumbprint        types.String `tfsdk:"secondary_thumbprint"`
+	Authentication             types.Object `tfsdk:"authentication"`
 	ETag                       types.String `tfsdk:"etag"`
 	GenerationID               types.String `tfsdk:"generation_id"`
 	ConnectionState            types.String `tfsdk:"connection_state"`
@@ -87,9 +85,7 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	data.DeviceID = types.StringValue(mod.DeviceID)
 	data.ModuleID = info.ModuleID
 	data.ManagedBy = info.ManagedBy
-	data.AuthenticationType = info.AuthenticationType
-	data.PrimaryThumbprint = info.PrimaryThumbprint
-	data.SecondaryThumbprint = info.SecondaryThumbprint
+	data.Authentication = info.Authentication
 	data.ETag = info.ETag
 	data.GenerationID = info.GenerationID
 	data.ConnectionState = info.ConnectionState

@@ -14,12 +14,13 @@ import (
 )
 
 const (
-	defaultJobTimeout = time.Hour
-	pollInterval      = 5 * time.Second
+	defaultJobTimeout    = time.Hour
+	defaultActionTimeout = 10 * time.Minute
+	pollInterval         = 5 * time.Second
 )
 
-// timeoutAttribute is the explicit deadline of a job action (actions have
-// no timeouts block); covers says what the deadline spans for this action.
+// timeoutAttribute is the explicit deadline of an action (actions have no
+// timeouts block); covers says what the deadline spans for this action.
 func timeoutAttribute(def, covers string) schema.StringAttribute {
 	return schema.StringAttribute{
 		MarkdownDescription: "Overall deadline for the invocation, for example `30m` (default `" + def + "`). " + covers,

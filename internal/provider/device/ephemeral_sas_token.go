@@ -23,7 +23,7 @@ var (
 	_ ephemeral.EphemeralResourceWithValidateConfig = &sasTokenEphemeral{}
 )
 
-// NewSASTokenEphemeral returns the iothub_device_sas_token ephemeral resource.
+// NewSASTokenEphemeral returns the iothub_sas_token ephemeral resource.
 func NewSASTokenEphemeral() ephemeral.EphemeralResource { return &sasTokenEphemeral{} }
 
 type sasTokenEphemeral struct {
@@ -48,7 +48,7 @@ const (
 )
 
 func (e *sasTokenEphemeral) Metadata(_ context.Context, req ephemeral.MetadataRequest, resp *ephemeral.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_device_sas_token"
+	resp.TypeName = req.ProviderTypeName + "_sas_token"
 }
 
 func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {

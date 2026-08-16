@@ -24,17 +24,23 @@ func (m AuthMode) String() string {
 	return "entra-id"
 }
 
-// EntraSettings are the inputs for the Entra ID credential chain. Empty
-// fields fall back to the azidentity defaults (environment, workload
-// identity, managed identity, Azure CLI).
+// EntraSettings are the inputs for Entra ID authentication. The provider
+// picks the first configured method, in azurerm's order: client certificate,
+// client secret, OIDC (UseOIDC), managed identity (UseMSI), Azure CLI
+// (UseCLI, on by default).
 type EntraSettings struct {
 	TenantID                  string
 	ClientID                  string
 	ClientSecret              string
 	ClientCertificatePath     string
+	ClientCertificate         string // base64 PKCS#12 or PEM
 	ClientCertificatePassword string
 	UseOIDC                   bool
+	OIDCToken                 string
 	OIDCTokenFilePath         string
+	OIDCRequestURL            string
+	OIDCRequestToken          string
+	ADOPipelineServiceConnID  string
 	UseMSI                    bool
 	UseCLI                    bool
 }

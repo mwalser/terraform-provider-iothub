@@ -114,57 +114,57 @@ func sortedKeys(m map[string]any) []string {
 
 // model is the kind-independent view of both resource schemas.
 type model struct {
-	ID                 types.String
-	ConfigurationID    types.String // configuration_id / deployment_id
-	TargetCondition    types.String
-	Priority           types.Int64
-	Labels             types.Map
-	DeviceContent      jsondoc.Value // configuration only
-	ModuleContent      jsondoc.Value // configuration only
-	ModulesContent     jsondoc.Value // edge deployment only
-	Metrics            types.Map
-	SchemaVersion      types.String
-	ETag               types.String
-	CreatedTimeUTC     types.String
-	LastUpdatedTimeUTC types.String
-	SystemMetrics      types.Map
-	MetricResults      types.Map
-	Timeouts           timeouts.Value
+	ID              types.String
+	ConfigurationID types.String // configuration_id / deployment_id
+	TargetCondition types.String
+	Priority        types.Int64
+	Labels          types.Map
+	DeviceContent   jsondoc.Value // configuration only
+	ModuleContent   jsondoc.Value // configuration only
+	ModulesContent  jsondoc.Value // edge deployment only
+	Metrics         types.Map
+	SchemaVersion   types.String
+	ETag            types.String
+	CreatedTime     types.String
+	LastUpdatedTime types.String
+	SystemMetrics   types.Map
+	MetricResults   types.Map
+	Timeouts        timeouts.Value
 }
 
 type configurationModel struct {
-	ID                 types.String   `tfsdk:"id"`
-	ConfigurationID    types.String   `tfsdk:"configuration_id"`
-	TargetCondition    types.String   `tfsdk:"target_condition"`
-	Priority           types.Int64    `tfsdk:"priority"`
-	Labels             types.Map      `tfsdk:"labels"`
-	DeviceContent      jsondoc.Value  `tfsdk:"device_content"`
-	ModuleContent      jsondoc.Value  `tfsdk:"module_content"`
-	Metrics            types.Map      `tfsdk:"metrics"`
-	SchemaVersion      types.String   `tfsdk:"schema_version"`
-	ETag               types.String   `tfsdk:"etag"`
-	CreatedTimeUTC     types.String   `tfsdk:"created_time_utc"`
-	LastUpdatedTimeUTC types.String   `tfsdk:"last_updated_time_utc"`
-	SystemMetrics      types.Map      `tfsdk:"system_metrics"`
-	MetricResults      types.Map      `tfsdk:"metric_results"`
-	Timeouts           timeouts.Value `tfsdk:"timeouts"`
+	ID              types.String   `tfsdk:"id"`
+	ConfigurationID types.String   `tfsdk:"configuration_id"`
+	TargetCondition types.String   `tfsdk:"target_condition"`
+	Priority        types.Int64    `tfsdk:"priority"`
+	Labels          types.Map      `tfsdk:"labels"`
+	DeviceContent   jsondoc.Value  `tfsdk:"device_content"`
+	ModuleContent   jsondoc.Value  `tfsdk:"module_content"`
+	Metrics         types.Map      `tfsdk:"metrics"`
+	SchemaVersion   types.String   `tfsdk:"schema_version"`
+	ETag            types.String   `tfsdk:"etag"`
+	CreatedTime     types.String   `tfsdk:"created_time"`
+	LastUpdatedTime types.String   `tfsdk:"last_updated_time"`
+	SystemMetrics   types.Map      `tfsdk:"system_metrics"`
+	MetricResults   types.Map      `tfsdk:"metric_results"`
+	Timeouts        timeouts.Value `tfsdk:"timeouts"`
 }
 
 type edgeDeploymentModel struct {
-	ID                 types.String   `tfsdk:"id"`
-	DeploymentID       types.String   `tfsdk:"deployment_id"`
-	TargetCondition    types.String   `tfsdk:"target_condition"`
-	Priority           types.Int64    `tfsdk:"priority"`
-	Labels             types.Map      `tfsdk:"labels"`
-	ModulesContent     jsondoc.Value  `tfsdk:"modules_content"`
-	Metrics            types.Map      `tfsdk:"metrics"`
-	SchemaVersion      types.String   `tfsdk:"schema_version"`
-	ETag               types.String   `tfsdk:"etag"`
-	CreatedTimeUTC     types.String   `tfsdk:"created_time_utc"`
-	LastUpdatedTimeUTC types.String   `tfsdk:"last_updated_time_utc"`
-	SystemMetrics      types.Map      `tfsdk:"system_metrics"`
-	MetricResults      types.Map      `tfsdk:"metric_results"`
-	Timeouts           timeouts.Value `tfsdk:"timeouts"`
+	ID              types.String   `tfsdk:"id"`
+	DeploymentID    types.String   `tfsdk:"deployment_id"`
+	TargetCondition types.String   `tfsdk:"target_condition"`
+	Priority        types.Int64    `tfsdk:"priority"`
+	Labels          types.Map      `tfsdk:"labels"`
+	ModulesContent  jsondoc.Value  `tfsdk:"modules_content"`
+	Metrics         types.Map      `tfsdk:"metrics"`
+	SchemaVersion   types.String   `tfsdk:"schema_version"`
+	ETag            types.String   `tfsdk:"etag"`
+	CreatedTime     types.String   `tfsdk:"created_time"`
+	LastUpdatedTime types.String   `tfsdk:"last_updated_time"`
+	SystemMetrics   types.Map      `tfsdk:"system_metrics"`
+	MetricResults   types.Map      `tfsdk:"metric_results"`
+	Timeouts        timeouts.Value `tfsdk:"timeouts"`
 }
 
 type getter interface {
@@ -181,14 +181,14 @@ func (k kind) get(ctx context.Context, src getter) (model, diag.Diagnostics) {
 		diags := src.Get(ctx, &e)
 		return model{ID: e.ID, ConfigurationID: e.DeploymentID, TargetCondition: e.TargetCondition, Priority: e.Priority,
 			Labels: e.Labels, DeviceContent: jsondoc.NewNull(ContentType), ModuleContent: jsondoc.NewNull(ContentType), ModulesContent: e.ModulesContent,
-			Metrics: e.Metrics, SchemaVersion: e.SchemaVersion, ETag: e.ETag, CreatedTimeUTC: e.CreatedTimeUTC, LastUpdatedTimeUTC: e.LastUpdatedTimeUTC,
+			Metrics: e.Metrics, SchemaVersion: e.SchemaVersion, ETag: e.ETag, CreatedTime: e.CreatedTime, LastUpdatedTime: e.LastUpdatedTime,
 			SystemMetrics: e.SystemMetrics, MetricResults: e.MetricResults, Timeouts: e.Timeouts}, diags
 	}
 	var c configurationModel
 	diags := src.Get(ctx, &c)
 	return model{ID: c.ID, ConfigurationID: c.ConfigurationID, TargetCondition: c.TargetCondition, Priority: c.Priority,
 		Labels: c.Labels, DeviceContent: c.DeviceContent, ModuleContent: c.ModuleContent, ModulesContent: jsondoc.NewNull(ModulesContentType),
-		Metrics: c.Metrics, SchemaVersion: c.SchemaVersion, ETag: c.ETag, CreatedTimeUTC: c.CreatedTimeUTC, LastUpdatedTimeUTC: c.LastUpdatedTimeUTC,
+		Metrics: c.Metrics, SchemaVersion: c.SchemaVersion, ETag: c.ETag, CreatedTime: c.CreatedTime, LastUpdatedTime: c.LastUpdatedTime,
 		SystemMetrics: c.SystemMetrics, MetricResults: c.MetricResults, Timeouts: c.Timeouts}, diags
 }
 
@@ -196,12 +196,12 @@ func (k kind) set(ctx context.Context, dst setter, m model) diag.Diagnostics {
 	if k.isEdge() {
 		return dst.Set(ctx, &edgeDeploymentModel{ID: m.ID, DeploymentID: m.ConfigurationID, TargetCondition: m.TargetCondition,
 			Priority: m.Priority, Labels: m.Labels, ModulesContent: m.ModulesContent, Metrics: m.Metrics, SchemaVersion: m.SchemaVersion, ETag: m.ETag,
-			CreatedTimeUTC: m.CreatedTimeUTC, LastUpdatedTimeUTC: m.LastUpdatedTimeUTC, SystemMetrics: m.SystemMetrics, MetricResults: m.MetricResults,
+			CreatedTime: m.CreatedTime, LastUpdatedTime: m.LastUpdatedTime, SystemMetrics: m.SystemMetrics, MetricResults: m.MetricResults,
 			Timeouts: m.Timeouts})
 	}
 	return dst.Set(ctx, &configurationModel{ID: m.ID, ConfigurationID: m.ConfigurationID, TargetCondition: m.TargetCondition,
 		Priority: m.Priority, Labels: m.Labels, DeviceContent: m.DeviceContent, ModuleContent: m.ModuleContent, Metrics: m.Metrics,
-		SchemaVersion: m.SchemaVersion, ETag: m.ETag, CreatedTimeUTC: m.CreatedTimeUTC, LastUpdatedTimeUTC: m.LastUpdatedTimeUTC,
+		SchemaVersion: m.SchemaVersion, ETag: m.ETag, CreatedTime: m.CreatedTime, LastUpdatedTime: m.LastUpdatedTime,
 		SystemMetrics: m.SystemMetrics, MetricResults: m.MetricResults, Timeouts: m.Timeouts})
 }
 
@@ -290,8 +290,8 @@ func (k kind) fromHub(m *model, c *client.Configuration, owner model) {
 		m.SchemaVersion = types.StringValue(c.SchemaVersion)
 	}
 	m.ETag = types.StringValue(c.ETag)
-	m.CreatedTimeUTC = types.StringValue(c.CreatedTimeUTC)
-	m.LastUpdatedTimeUTC = types.StringValue(c.LastUpdatedTimeUTC)
+	m.CreatedTime = types.StringValue(c.CreatedTimeUTC)
+	m.LastUpdatedTime = types.StringValue(c.LastUpdatedTimeUTC)
 	var sys, res map[string]int64
 	if c.SystemMetrics != nil {
 		sys = c.SystemMetrics.Results

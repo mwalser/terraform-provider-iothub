@@ -43,6 +43,7 @@ type directMethodModel struct {
 	ResponseTimeoutSeconds types.Int64  `tfsdk:"response_timeout_seconds"`
 	ConnectTimeoutSeconds  types.Int64  `tfsdk:"connect_timeout_seconds"`
 	ExpectedStatusCodes    types.List   `tfsdk:"expected_status_codes"`
+	Timeout                types.String `tfsdk:"timeout"`
 }
 
 const (
@@ -68,7 +69,7 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 		Attributes: map[string]schema.Attribute{
 			"device_id":   schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"module_id":   schema.StringAttribute{MarkdownDescription: "Module ID, to call a module's method.", Optional: true, Validators: []validator.String{identity.IDValidator()}},
-			"method_name": schema.StringAttribute{MarkdownDescription: "Method name as registered by the device code.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
+			"method_name": schema.StringAttribute{MarkdownDescription: "Method name as registered by the device code. For an IoT Plug and Play command use the command name, or `<component>*<command>` for a component command.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
 			"payload": schema.StringAttribute{
 				MarkdownDescription: "JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.",
 				Optional:            true,
@@ -84,11 +85,12 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Validators:          []validator.Int64{int64validator.Between(0, 300)},
 			},
 			"expected_status_codes": schema.ListAttribute{
-				MarkdownDescription: "Device-defined response statuses that count as success (default `[200]`). An empty list accepts any status.",
+				MarkdownDescription: "Device-defined response statuses that count as success (default `[200]`).",
 				ElementType:         types.Int64Type,
 				Optional:            true,
-				Validators:          []validator.List{listvalidator.ValueInt64sAre(int64validator.Between(0, 999))},
+				Validators:          []validator.List{listvalidator.SizeAtLeast(1), listvalidator.ValueInt64sAre(int64validator.Between(0, 999))},
 			},
+			"timeout": timeoutAttribute("10m", "It covers retries of throttled requests and the device's response time."),
 		},
 	}
 }
@@ -110,11 +112,15 @@ func (a *directMethodAction) Invoke(ctx context.Context, req action.InvokeReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, diags := hubClient(a.pd)
+	timeout, diags := parseTimeout(data.Timeout, defaultActionTimeout)
 	resp.Diagnostics.Append(diags...)
+	c, d := hubClient(a.pd)
+	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	mreq := client.MethodRequest{
 		MethodName:             data.MethodName.ValueString(),
 		ResponseTimeoutSeconds: defaultResponseTimeout,
@@ -167,7 +173,7 @@ func (a *directMethodAction) Invoke(ctx context.Context, req action.InvokeReques
 		return
 	}
 	payload := compactJSON(res.Payload, 2000)
-	ok := len(expected) == 0
+	ok := false
 	for _, s := range expected {
 		if s == res.Status {
 			ok = true

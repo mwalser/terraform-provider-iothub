@@ -48,7 +48,6 @@ resource "iothub_device_twin" "d" {
 action "iothub_scheduled_job" "twin" {
   config {
     job_id                     = %q
-    type                       = "scheduleUpdateTwin"
     query_condition            = "tags.tfacc = '%s'"
     max_execution_time_seconds = 300
     twin_patch = {
@@ -95,7 +94,6 @@ data "iothub_scheduled_job" "twin" {
 action "iothub_scheduled_job" "method" {
   config {
     job_id                     = %q
-    type                       = "scheduleDeviceMethod"
     query_condition            = "tags.tfacc = '%s'"
     max_execution_time_seconds = 60
     method = {
@@ -120,7 +118,6 @@ resource "terraform_data" "method_job" {
 action "iothub_scheduled_job" "future" {
   config {
     job_id          = %q
-    type            = "scheduleUpdateTwin"
     query_condition = "tags.tfacc = '%s'"
     start_time      = %q
     twin_patch      = { tags = jsonencode({ later = true }) }
@@ -320,8 +317,8 @@ func TestAccActions_jobConfigValidation(t *testing.T) {
 				Config: `
 action "iothub_scheduled_job" "bad" {
   config {
-    type            = "scheduleUpdateTwin"
     query_condition = "*"
+    twin_patch      = { tags = jsonencode({ a = 1 }) }
     method          = { name = "x" }
   }
 }
@@ -333,13 +330,50 @@ resource "terraform_data" "t" {
     }
   }
 }`,
-				ExpectError: regexp.MustCompile(`twin_patch is required`),
+				ExpectError: regexp.MustCompile(`Only one of twin_patch and method`),
 			},
 			{
 				Config: `
 action "iothub_scheduled_job" "bad" {
   config {
-    type            = "scheduleUpdateTwin"
+    query_condition = "*"
+  }
+}
+resource "terraform_data" "t" {
+  lifecycle {
+    action_trigger {
+      events  = [after_create]
+      actions = [action.iothub_scheduled_job.bad]
+    }
+  }
+}`,
+				ExpectError: regexp.MustCompile(`Missing job content`),
+			},
+			{ // waiting for a job that starts after the timeout is rejected up front
+				// (start_time is only known at plan time, so a provider block is needed)
+				Config: iotacc.ProviderConfig() + `
+action "iothub_scheduled_job" "bad" {
+  config {
+    query_condition = "*"
+    twin_patch      = { tags = jsonencode({ a = 1 }) }
+    start_time      = timeadd(plantimestamp(), "8h")
+    timeout         = "1h"
+  }
+}
+resource "terraform_data" "t" {
+  lifecycle {
+    action_trigger {
+      events  = [after_create]
+      actions = [action.iothub_scheduled_job.bad]
+    }
+  }
+}`,
+				ExpectError: regexp.MustCompile(`wait would time out before the job starts`),
+			},
+			{
+				Config: `
+action "iothub_scheduled_job" "bad" {
+  config {
     query_condition = "*"
     start_time      = "tomorrow"
     twin_patch      = { tags = jsonencode({ a = 1 }) }

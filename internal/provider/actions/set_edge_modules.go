@@ -20,33 +20,33 @@ import (
 )
 
 var (
-	_ action.Action              = &applyConfigurationAction{}
-	_ action.ActionWithConfigure = &applyConfigurationAction{}
+	_ action.Action              = &setEdgeModulesAction{}
+	_ action.ActionWithConfigure = &setEdgeModulesAction{}
 )
 
-// NewApplyConfigurationAction returns the iothub_apply_configuration action.
-func NewApplyConfigurationAction() action.Action { return &applyConfigurationAction{} }
+// NewSetEdgeModulesAction returns the iothub_set_edge_modules action.
+func NewSetEdgeModulesAction() action.Action { return &setEdgeModulesAction{} }
 
-type applyConfigurationAction struct {
+type setEdgeModulesAction struct {
 	configured
 }
 
-type applyConfigurationModel struct {
+type setEdgeModulesModel struct {
 	DeviceID       types.String  `tfsdk:"device_id"`
 	ModulesContent jsondoc.Value `tfsdk:"modules_content"`
+	Timeout        types.String  `tfsdk:"timeout"`
 }
 
-func (a *applyConfigurationAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_apply_configuration"
+func (a *setEdgeModulesAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_set_edge_modules"
 }
 
-func (a *applyConfigurationAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
+func (a *setEdgeModulesAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Applies a deployment manifest's `modulesContent` to one IoT Edge device immediately. This bypasses " +
-			"`iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. Fails for a device that is not " +
-			"an IoT Edge device.\n\n" +
-			"Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`. It is unrelated to " +
-			"`iothub_configuration`.\n\n" +
+		MarkdownDescription: "Sets the modules of one IoT Edge device immediately from a deployment manifest's `modulesContent`. " +
+			"This bypasses `iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. Fails for a " +
+			"device that is not an IoT Edge device.\n\n" +
+			"Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`.\n\n" +
 			"~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for " +
 			"example when the deployment is changed.",
 		Attributes: map[string]schema.Attribute{
@@ -56,23 +56,28 @@ func (a *applyConfigurationAction) Schema(_ context.Context, _ action.SchemaRequ
 				MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON. It must contain `$edgeAgent`.",
 				Required:            true,
 			},
+			"timeout": timeoutAttribute("10m", "It covers retries of throttled requests."),
 		},
 	}
 }
 
-func (a *applyConfigurationAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
-	var data applyConfigurationModel
+func (a *setEdgeModulesAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
+	var data setEdgeModulesModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, diags := hubClient(a.pd)
+	timeout, diags := parseTimeout(data.Timeout, defaultActionTimeout)
 	resp.Diagnostics.Append(diags...)
+	c, d := hubClient(a.pd)
+	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	deviceID := data.DeviceID.ValueString()
-	progress(resp, "Applying modules content to edge device %q…", deviceID)
+	progress(resp, "Setting the modules of edge device %q…", deviceID)
 	tflog.Info(ctx, "applying configuration content", map[string]any{"device_id": deviceID})
 	if err := c.ApplyConfigurationContent(ctx, deviceID, json.RawMessage(data.ModulesContent.ValueString())); err != nil {
 		switch {

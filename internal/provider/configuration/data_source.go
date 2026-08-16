@@ -35,36 +35,36 @@ type configDataSource struct {
 }
 
 type dsModel struct {
-	ID                 types.String `tfsdk:"id"`
-	ConfigurationID    types.String `tfsdk:"configuration_id"`
-	TargetCondition    types.String `tfsdk:"target_condition"`
-	Priority           types.Int64  `tfsdk:"priority"`
-	Labels             types.Map    `tfsdk:"labels"`
-	DeviceContent      types.String `tfsdk:"device_content"`
-	ModuleContent      types.String `tfsdk:"module_content"`
-	Metrics            types.Map    `tfsdk:"metrics"`
-	SchemaVersion      types.String `tfsdk:"schema_version"`
-	ETag               types.String `tfsdk:"etag"`
-	CreatedTimeUTC     types.String `tfsdk:"created_time_utc"`
-	LastUpdatedTimeUTC types.String `tfsdk:"last_updated_time_utc"`
-	SystemMetrics      types.Map    `tfsdk:"system_metrics"`
-	MetricResults      types.Map    `tfsdk:"metric_results"`
+	ID              types.String `tfsdk:"id"`
+	ConfigurationID types.String `tfsdk:"configuration_id"`
+	TargetCondition types.String `tfsdk:"target_condition"`
+	Priority        types.Int64  `tfsdk:"priority"`
+	Labels          types.Map    `tfsdk:"labels"`
+	DeviceContent   types.String `tfsdk:"device_content"`
+	ModuleContent   types.String `tfsdk:"module_content"`
+	Metrics         types.Map    `tfsdk:"metrics"`
+	SchemaVersion   types.String `tfsdk:"schema_version"`
+	ETag            types.String `tfsdk:"etag"`
+	CreatedTime     types.String `tfsdk:"created_time"`
+	LastUpdatedTime types.String `tfsdk:"last_updated_time"`
+	SystemMetrics   types.Map    `tfsdk:"system_metrics"`
+	MetricResults   types.Map    `tfsdk:"metric_results"`
 }
 
 type edgeDSModel struct {
-	ID                 types.String `tfsdk:"id"`
-	DeploymentID       types.String `tfsdk:"deployment_id"`
-	TargetCondition    types.String `tfsdk:"target_condition"`
-	Priority           types.Int64  `tfsdk:"priority"`
-	Labels             types.Map    `tfsdk:"labels"`
-	ModulesContent     types.String `tfsdk:"modules_content"`
-	Metrics            types.Map    `tfsdk:"metrics"`
-	SchemaVersion      types.String `tfsdk:"schema_version"`
-	ETag               types.String `tfsdk:"etag"`
-	CreatedTimeUTC     types.String `tfsdk:"created_time_utc"`
-	LastUpdatedTimeUTC types.String `tfsdk:"last_updated_time_utc"`
-	SystemMetrics      types.Map    `tfsdk:"system_metrics"`
-	MetricResults      types.Map    `tfsdk:"metric_results"`
+	ID              types.String `tfsdk:"id"`
+	DeploymentID    types.String `tfsdk:"deployment_id"`
+	TargetCondition types.String `tfsdk:"target_condition"`
+	Priority        types.Int64  `tfsdk:"priority"`
+	Labels          types.Map    `tfsdk:"labels"`
+	ModulesContent  types.String `tfsdk:"modules_content"`
+	Metrics         types.Map    `tfsdk:"metrics"`
+	SchemaVersion   types.String `tfsdk:"schema_version"`
+	ETag            types.String `tfsdk:"etag"`
+	CreatedTime     types.String `tfsdk:"created_time"`
+	LastUpdatedTime types.String `tfsdk:"last_updated_time"`
+	SystemMetrics   types.Map    `tfsdk:"system_metrics"`
+	MetricResults   types.Map    `tfsdk:"metric_results"`
 }
 
 func (d *configDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -76,18 +76,18 @@ func (d *configDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	attrs := map[string]schema.Attribute{
-		"id":                    c("The `" + d.kind.idAttr() + "`."),
-		d.kind.idAttr():         schema.StringAttribute{MarkdownDescription: "ID of the " + d.kind.noun() + ".", Required: true},
-		"target_condition":      c(targetConditionSummary(d.kind)),
-		"priority":              schema.Int64Attribute{MarkdownDescription: "Priority. Higher wins when several " + d.kind.noun() + "s target the same device.", Computed: true},
-		"labels":                schema.MapAttribute{MarkdownDescription: "Free-form labels.", ElementType: types.StringType, Computed: true},
-		"metrics":               schema.MapAttribute{MarkdownDescription: "Custom metrics: a map from metric name to an IoT Hub query.", ElementType: types.StringType, Computed: true},
-		"schema_version":        c("Version string of the " + d.kind.noun() + " document, if set."),
-		"etag":                  c("ETag of the " + d.kind.noun() + "."),
-		"created_time_utc":      c("Creation time."),
-		"last_updated_time_utc": c("Last update time."),
-		"system_metrics":        schema.MapAttribute{MarkdownDescription: systemMetricsDescription(d.kind), ElementType: types.Int64Type, Computed: true},
-		"metric_results":        schema.MapAttribute{MarkdownDescription: "Latest results of the custom `metrics`, by name.", ElementType: types.Int64Type, Computed: true},
+		"id":                c("The `" + d.kind.idAttr() + "`."),
+		d.kind.idAttr():     schema.StringAttribute{MarkdownDescription: "ID of the " + d.kind.noun() + ".", Required: true},
+		"target_condition":  c(targetConditionSummary(d.kind)),
+		"priority":          schema.Int64Attribute{MarkdownDescription: "Priority. Higher wins when several " + d.kind.noun() + "s target the same device.", Computed: true},
+		"labels":            schema.MapAttribute{MarkdownDescription: "Free-form labels.", ElementType: types.StringType, Computed: true},
+		"metrics":           schema.MapAttribute{MarkdownDescription: "Custom metrics: a map from metric name to an IoT Hub query.", ElementType: types.StringType, Computed: true},
+		"schema_version":    c("Version string of the " + d.kind.noun() + " document, if set."),
+		"etag":              c("ETag of the " + d.kind.noun() + "."),
+		"created_time":      c("Creation time."),
+		"last_updated_time": c("Last update time."),
+		"system_metrics":    schema.MapAttribute{MarkdownDescription: systemMetricsDescription(d.kind), ElementType: types.Int64Type, Computed: true},
+		"metric_results":    schema.MapAttribute{MarkdownDescription: "Latest results of the custom `metrics`, by name.", ElementType: types.Int64Type, Computed: true},
 	}
 	if d.kind.isEdge() {
 		attrs["modules_content"] = c("The deployment's `modulesContent` as a JSON string.")
@@ -154,18 +154,18 @@ func (d *configDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		sys = cfg.SystemMetrics.Results
 	}
 	base := dsModel{
-		ID:                 types.StringValue(cfg.ID),
-		ConfigurationID:    types.StringValue(cfg.ID),
-		TargetCondition:    types.StringValue(cfg.TargetCondition),
-		Priority:           types.Int64Value(cfg.Priority),
-		Labels:             labels,
-		Metrics:            stringMap(queries, types.MapValueMust(types.StringType, nil)),
-		SchemaVersion:      types.StringNull(),
-		ETag:               types.StringValue(cfg.ETag),
-		CreatedTimeUTC:     types.StringValue(cfg.CreatedTimeUTC),
-		LastUpdatedTimeUTC: types.StringValue(cfg.LastUpdatedTimeUTC),
-		SystemMetrics:      int64Map(sys),
-		MetricResults:      int64Map(res),
+		ID:              types.StringValue(cfg.ID),
+		ConfigurationID: types.StringValue(cfg.ID),
+		TargetCondition: types.StringValue(cfg.TargetCondition),
+		Priority:        types.Int64Value(cfg.Priority),
+		Labels:          labels,
+		Metrics:         stringMap(queries, types.MapValueMust(types.StringType, nil)),
+		SchemaVersion:   types.StringNull(),
+		ETag:            types.StringValue(cfg.ETag),
+		CreatedTime:     types.StringValue(cfg.CreatedTimeUTC),
+		LastUpdatedTime: types.StringValue(cfg.LastUpdatedTimeUTC),
+		SystemMetrics:   int64Map(sys),
+		MetricResults:   int64Map(res),
 	}
 	if cfg.SchemaVersion != "" {
 		base.SchemaVersion = types.StringValue(cfg.SchemaVersion)
@@ -174,7 +174,7 @@ func (d *configDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		resp.Diagnostics.Append(resp.State.Set(ctx, &edgeDSModel{
 			ID: base.ID, DeploymentID: base.ConfigurationID, TargetCondition: base.TargetCondition, Priority: base.Priority,
 			Labels: base.Labels, ModulesContent: rawString(cfg.Content.ModulesContent), Metrics: base.Metrics, SchemaVersion: base.SchemaVersion,
-			ETag: base.ETag, CreatedTimeUTC: base.CreatedTimeUTC, LastUpdatedTimeUTC: base.LastUpdatedTimeUTC, SystemMetrics: base.SystemMetrics,
+			ETag: base.ETag, CreatedTime: base.CreatedTime, LastUpdatedTime: base.LastUpdatedTime, SystemMetrics: base.SystemMetrics,
 			MetricResults: base.MetricResults,
 		})...)
 		return

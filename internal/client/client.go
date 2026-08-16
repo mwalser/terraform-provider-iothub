@@ -99,7 +99,7 @@ func New(cfg Config) (*Client, error) {
 		Telemetry: policy.TelemetryOptions{ApplicationID: moduleName + "/" + version},
 		Transport: cfg.Transport,
 	}
-	return &Client{hostname: host, pipeline: runtime.NewPipeline(moduleName, version, plOpts, clOpts), log: cfg.Logger}, nil
+	return &Client{hostname: host, pipeline: runtime.NewPipeline(moduleName, version, plOpts, clOpts), log: cfg.Logger, sasAuth: cfg.SharedAccessKey != nil}, nil
 }
 
 // Client talks to one IoT Hub.
@@ -107,6 +107,7 @@ type Client struct {
 	hostname string
 	pipeline runtime.Pipeline
 	log      Logger
+	sasAuth  bool // shared access policy rather than Entra ID
 }
 
 // Hostname returns the hub this client addresses.
@@ -185,7 +186,9 @@ func (c *Client) do(ctx context.Context, r request, out any) (*result, error) {
 	}
 	if !ok {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		return nil, newError(resp, body)
+		e := newError(resp, body)
+		e.SASAuth = c.sasAuth
+		return nil, e
 	}
 	res := &result{Status: resp.StatusCode, Headers: resp.Header}
 	if out != nil && resp.StatusCode != http.StatusNoContent {

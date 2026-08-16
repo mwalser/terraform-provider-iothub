@@ -23,10 +23,15 @@ func DescribeError(err error) string {
 		if client.IsModuleOnDisabledDevice(err) {
 			break // the message already explains the service quirk; the RBAC hint would mislead
 		}
-		b.WriteString("\n\nThe identity has no data-plane permission on this hub. Assign an IoT Hub data role at hub scope " +
-			"(IoT Hub Data Contributor, or the narrower Registry/Twin Contributor or Data Reader roles); " +
-			"Owner and Contributor do not include data-plane actions. With connection_string, check that the " +
-			"shared access policy exists and its key is current.")
+		if e.SASAuth {
+			b.WriteString("\n\nThe shared access policy in connection_string is not accepted for this operation. Check that the " +
+				"policy still exists, that its key is current, and that it grants the needed permissions (RegistryRead/RegistryWrite " +
+				"for identities, ServiceConnect for twins, methods, jobs and configurations).")
+		} else {
+			b.WriteString("\n\nThe identity has no data-plane permission on this hub. Assign an IoT Hub data role at hub scope " +
+				"(IoT Hub Data Contributor, or the narrower Registry/Twin Contributor or Data Reader roles); " +
+				"Owner and Contributor do not include data-plane actions.")
+		}
 	case http.StatusTooManyRequests:
 		b.WriteString("\n\nThe hub throttled the request for the whole operation timeout. Throttling limits scale with the " +
 			"hub's tier and unit count; consider more units, spreading applies, or -parallelism.")
