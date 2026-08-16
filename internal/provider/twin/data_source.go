@@ -96,7 +96,7 @@ func (d *twinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 		"version":             schema.Int64Attribute{MarkdownDescription: "Version of the twin.", Computed: true},
 		"device_etag":         c("ETag of the underlying identity."),
 		"model_id":            c("IoT Plug and Play model ID announced by the " + subject + ", if any."),
-		"status":              c("`enabled` or `disabled`, as set on the identity."),
+		"status":              c("`enabled` or `disabled`, as set on the device identity" + map[bool]string{true: " (modules have no status of their own)", false: ""}[d.kind.isModule()] + "."),
 		"connection_state":    c("`Connected` or `Disconnected`. Approximate."),
 		"last_activity_time":  c("Last time the " + subject + " connected, sent or received a message."),
 	}

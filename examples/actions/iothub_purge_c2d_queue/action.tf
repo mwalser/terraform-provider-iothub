@@ -2,7 +2,8 @@ resource "iothub_device" "sensor" {
   device_id = "sensor-0001"
 }
 
-# Drop stale cloud-to-device messages before a device is re-commissioned.
+# Drop stale cloud-to-device messages before a device is re-commissioned:
+#   terraform apply -invoke=action.iothub_purge_c2d_queue.sensor
 action "iothub_purge_c2d_queue" "sensor" {
   config {
     device_id = iothub_device.sensor.device_id

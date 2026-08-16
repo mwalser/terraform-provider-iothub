@@ -58,12 +58,15 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally " +
 			"with configurations and deployments. An **import** reads a file in the same " +
-			"[format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) from a container.\n\n" +
+			"[format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) from a container and applies each " +
+			"line's `importMode` (create, update or delete) on its own. There is no rollback.\n\n" +
 			"Blob access is `keyBased` with container SAS URIs, or `identityBased` with the hub's system-assigned or a " +
 			"user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container. A role assignment " +
-			"granted moments ago can take a few minutes to become effective. The action retries during that window.\n\n" +
+			"granted moments ago can take a few minutes to become effective. The action retries during that window. SAS URIs " +
+			"appear in the plan output unless they come from a sensitive variable.\n\n" +
 			"~> **An import that finishes with per-line errors still counts as completed.** The hub writes them to " +
-			"`importErrors.log` in the output container. The action reports where the log is but does not read it.\n\n" +
+			"`importErrors.log` in the output container. The action reports where the log is but does not read it, so check " +
+			"it after every import.\n\n" +
 			"Only one import or export job runs per hub at a time, so the action waits for its turn within `timeout`.",
 		Attributes: map[string]schema.Attribute{
 			"type": schema.StringAttribute{
@@ -89,7 +92,7 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 				Optional:            true,
 			},
 			"exclude_keys_in_export": schema.BoolAttribute{
-				MarkdownDescription: "Export without symmetric keys (default `false`). The hub then writes a plain-text warning as the first line of the export file.",
+				MarkdownDescription: "Export without symmetric keys (default `false`). Recommended unless the export is meant to re-create the identities elsewhere. The hub then writes a plain-text warning as the first line of the export file.",
 				Optional:            true,
 			},
 			"include_configurations": schema.BoolAttribute{
@@ -100,7 +103,7 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 			"output_blob_name":         schema.StringAttribute{MarkdownDescription: "Export file name (default `devices.txt`).", Optional: true},
 			"configurations_blob_name": schema.StringAttribute{MarkdownDescription: "Configurations file name (default `configurations.txt`).", Optional: true},
 			"wait":                     waitAttribute(),
-			"timeout":                  timeoutAttribute("1h", "It covers waiting for a free job slot and, when `wait` is true, the job's execution."),
+			"timeout":                  timeoutAttribute("1h", "It covers waiting for a free job slot and, when `wait` is true, the job's execution. A job that outlives the deadline keeps running on the hub; cancel it with `iothub_cancel_job`."),
 		},
 	}
 }

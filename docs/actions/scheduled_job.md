@@ -74,7 +74,7 @@ action "iothub_scheduled_job" "reboot_gateways" {
 - `max_execution_time_seconds` (Number) How long the hub may run the job, in seconds. Devices not reached in time count as failed. When omitted, the hub applies its own default; set it explicitly if devices may be offline for long.
 - `method` (Attributes) The direct method to invoke on every targeted device. Exactly one of `twin_patch` and `method` must be set. (see [below for nested schema](#nestedatt--method))
 - `start_time` (String) Start time in RFC 3339 format, at most 7 days ahead. The job runs immediately when omitted. A scheduled job occupies one of the hub's job slots until it runs.
-- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `1h`). It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true.
+- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `1h`). It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true. A job that outlives the deadline keeps running on the hub; cancel it with `iothub_cancel_job`.
 - `twin_patch` (Attributes) The tags and desired properties merged into every targeted twin. Same JSON documents as `iothub_device_twin`. Exactly one of `twin_patch` and `method` must be set. (see [below for nested schema](#nestedatt--twin_patch))
 - `wait` (Boolean) Wait for the job to finish and fail if it failed or was cancelled (default `true`). With `false` the action returns as soon as the job is created.
 

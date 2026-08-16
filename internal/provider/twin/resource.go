@@ -131,7 +131,8 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 			"The twin exists as long as the " + subject + " does. This resource neither creates nor deletes it. Terraform " +
 			"manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key, and leaves " +
 			"everything else in the twin alone: a backend can write `desired.firmware.lastCheck` beside your " +
-			"`desired.firmware.channel`. Several resources and systems can share one twin as long as they declare different " +
+			"`desired.firmware.channel`. Arrays and empty objects count as one value, and `null` is not a value: omit a key to " +
+			"remove it. Several resources and systems can share one twin as long as they declare different " +
 			"keys. Two writers of the same key, including `iothub_configuration` and `iothub_scheduled_job` twin patches, " +
 			"overwrite each other on every apply.\n\n" +
 			"Removing a key from the configuration removes it from the twin, and destroying the resource removes every " +

@@ -1,4 +1,5 @@
-# Nightly export with the hub's managed identity, keys excluded.
+# Registry export with the hub's managed identity, keys excluded:
+#   terraform apply -invoke=action.iothub_import_export_job.export
 action "iothub_import_export_job" "export" {
   config {
     type                        = "export"
@@ -10,7 +11,8 @@ action "iothub_import_export_job" "export" {
   }
 }
 
-# Import with a container SAS: the container URL followed by the SAS query string.
+# Import with a container SAS (the container URL followed by the SAS query string):
+#   terraform apply -invoke=action.iothub_import_export_job.import
 locals {
   migration_container_sas_uri = "${azurerm_storage_account.migration.primary_blob_endpoint}${azurerm_storage_container.migration.name}${data.azurerm_storage_account_blob_container_sas.migration.sas}"
 }

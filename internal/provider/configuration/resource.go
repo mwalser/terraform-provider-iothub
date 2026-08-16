@@ -129,7 +129,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"**Changing `modules_content` replaces the deployment.** The content is compared by value, so reformatting it is " +
 			"not a change. To avoid a window without a deployment, put a version in `deployment_id` and use " +
 			"`lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against " +
-			"the hub at plan time.\n\n" +
+			"the hub at plan time where possible.\n\n" +
 			"Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment " +
 			"targets them."
 	} else {
@@ -155,7 +155,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, " +
 			"so reformatting it is not a change. To avoid a window without a configuration, put a version in " +
 			"`configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` " +
-			"queries are checked against the hub at plan time.\n\n" +
+			"queries are checked against the hub at plan time where possible.\n\n" +
 			"Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until " +
 			"another configuration or a twin resource changes them."
 	}

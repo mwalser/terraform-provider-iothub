@@ -127,7 +127,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				MarkdownDescription: "With `wait`, fail the apply when the job completed but some devices failed (default `true`).",
 				Optional:            true,
 			},
-			"timeout": timeoutAttribute("1h", "It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true."),
+			"timeout": timeoutAttribute("1h", "It covers waiting for a free job slot, waiting for the scheduled start, and the job's execution when `wait` is true. A job that outlives the deadline keeps running on the hub; cancel it with `iothub_cancel_job`."),
 		},
 	}
 }

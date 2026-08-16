@@ -1,4 +1,5 @@
-# A scheduled job that has not run yet (the iothub_scheduled_job example's reboot job).
+# A scheduled job that has not run yet (the iothub_scheduled_job example's reboot job):
+#   terraform apply -invoke=action.iothub_cancel_job.reboot_gateways
 action "iothub_cancel_job" "reboot_gateways" {
   config {
     job_id = "reboot-gateways-${formatdate("YYYY-MM-DD", plantimestamp())}"

@@ -55,7 +55,7 @@ func (a *cancelJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp
 				Required:            true,
 				Validators:          []validator.String{stringvalidator.OneOf(kindScheduled, kindImportExport)},
 			},
-			"timeout": schema.StringAttribute{MarkdownDescription: "How long to wait for the hub to report the job cancelled, for example `5m` (default).", Optional: true},
+			"timeout": schema.StringAttribute{MarkdownDescription: "How long to wait for the hub to report the job cancelled (default `5m`).", Optional: true},
 		},
 	}
 }
@@ -86,8 +86,28 @@ func (a *cancelJobAction) Invoke(ctx context.Context, req action.InvokeRequest, 
 			resp.Diagnostics.AddError("Cannot cancel import/export job", common.DescribeError(err))
 			return
 		}
-		progress(resp, "Import/export job %q cancelled.", id)
-		return
+		// The cancel is normally instant; confirm it from the job record so
+		// that both kinds keep the same contract (a job that vanished counts
+		// as cancelled).
+		for {
+			job, err := c.GetImportExportJob(ctx, id)
+			if err != nil {
+				if client.IsNotFound(err) {
+					progress(resp, "Import/export job %q cancelled.", id)
+					return
+				}
+				resp.Diagnostics.AddError("Cannot read import/export job", common.DescribeError(err))
+				return
+			}
+			if job.IsTerminal() {
+				progress(resp, "Import/export job %q is %s.", id, job.Status)
+				return
+			}
+			if err := sleepCtx(ctx, pollInterval); err != nil {
+				resp.Diagnostics.AddError("Timed out waiting for the cancellation", fmt.Sprintf("Job %q is still %s.", id, job.Status))
+				return
+			}
+		}
 	}
 
 	job, err := c.CancelScheduledJob(ctx, id)

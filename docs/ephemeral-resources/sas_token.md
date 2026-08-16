@@ -3,12 +3,12 @@
 page_title: "iothub_sas_token Ephemeral Resource - iothub"
 subcategory: ""
 description: |-
-  A shared access signature for a device or module (SharedAccessSignature sr=…&sig=…&se=…), signed with the identity's symmetric key: a short-lived credential that does not expose the key itself. A new token is minted on every run. Fails for X.509 identities, which have no key.
+  A shared access signature for a device or module (SharedAccessSignature sr=…&sig=…&se=…), signed with the identity's symmetric key: a short-lived credential that does not expose the key itself. A new token is minted on every run. Fails for identities without a symmetric key (X.509 or none).
 ---
 
 # iothub_sas_token (Ephemeral Resource)
 
-A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), signed with the identity's symmetric key: a short-lived credential that does not expose the key itself. A new token is minted on every run. Fails for X.509 identities, which have no key.
+A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), signed with the identity's symmetric key: a short-lived credential that does not expose the key itself. A new token is minted on every run. Fails for identities without a symmetric key (X.509 or `none`).
 
 ## Example Usage
 
@@ -31,10 +31,15 @@ resource "azurerm_key_vault_secret" "sensor_token" {
   value_wo_version = tonumber(formatdate("YYYYMMDDhh", plantimestamp()))
 }
 
-# A module token, signed with the secondary key.
-ephemeral "iothub_sas_token" "telemetry" {
+resource "iothub_module" "telemetry" {
   device_id = iothub_device.sensor.device_id
   module_id = "telemetry"
+}
+
+# A module token, signed with the secondary key.
+ephemeral "iothub_sas_token" "telemetry" {
+  device_id = iothub_module.telemetry.device_id
+  module_id = iothub_module.telemetry.module_id
   key       = "secondary"
 }
 ```

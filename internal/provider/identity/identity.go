@@ -149,7 +149,7 @@ func AuthAttribute(subject string) schema.SingleNestedAttribute {
 		Computed: true,
 		Attributes: map[string]schema.Attribute{
 			"type": schema.StringAttribute{
-				MarkdownDescription: "`sas` for symmetric keys, `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates.",
+				MarkdownDescription: "`sas` for symmetric keys, `selfSigned` for X.509 thumbprints (`primary_thumbprint` required), or `certificateAuthority` for CA-signed X.509 certificates (neither keys nor thumbprints).",
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(client.AuthTypeSAS),
@@ -175,7 +175,7 @@ func AuthAttribute(subject string) schema.SingleNestedAttribute {
 				Validators:          []validator.String{stringvalidator.RegexMatches(ThumbprintPattern, "must be 40 or 64 hex characters without separators")},
 			},
 			"secondary_thumbprint": schema.StringAttribute{
-				MarkdownDescription: "Secondary X.509 thumbprint for `selfSigned`.",
+				MarkdownDescription: "Secondary X.509 thumbprint for `selfSigned`: 40 or 64 hex characters without separators.",
 				Optional:            true,
 				Validators:          []validator.String{stringvalidator.RegexMatches(ThumbprintPattern, "must be 40 or 64 hex characters without separators")},
 			},
@@ -205,7 +205,7 @@ func WriteOnlyKeyAttributes() map[string]schema.Attribute {
 			Validators:          []validator.Int64{int64validator.AlsoRequires(path.MatchRoot("primary_key_wo"))},
 		},
 		"secondary_key_wo": schema.StringAttribute{
-			MarkdownDescription: "Write-only secondary key. Requires `secondary_key_wo_version` and `primary_key_wo`. Cannot be combined with `authentication.secondary_key`.",
+			MarkdownDescription: "Write-only secondary key, base64 encoded (16 to 64 bytes). Requires `secondary_key_wo_version` and `primary_key_wo`. Cannot be combined with `authentication.secondary_key`.",
 			Optional:            true,
 			WriteOnly:           true,
 			Sensitive:           true,

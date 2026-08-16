@@ -3,26 +3,27 @@
 page_title: "iothub_import_export_job Action - iothub"
 subcategory: ""
 description: |-
-  Runs a bulk identity registry job. An export writes the registry to a blob container, optionally with configurations and deployments. An import reads a file in the same format https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt from a container.
-  Blob access is keyBased with container SAS URIs, or identityBased with the hub's system-assigned or a user-assigned managed identity, which needs Storage Blob Data Contributor on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window.
-  ~> An import that finishes with per-line errors still counts as completed. The hub writes them to importErrors.log in the output container. The action reports where the log is but does not read it.
+  Runs a bulk identity registry job. An export writes the registry to a blob container, optionally with configurations and deployments. An import reads a file in the same format https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt from a container and applies each line's importMode (create, update or delete) on its own. There is no rollback.
+  Blob access is keyBased with container SAS URIs, or identityBased with the hub's system-assigned or a user-assigned managed identity, which needs Storage Blob Data Contributor on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window. SAS URIs appear in the plan output unless they come from a sensitive variable.
+  ~> An import that finishes with per-line errors still counts as completed. The hub writes them to importErrors.log in the output container. The action reports where the log is but does not read it, so check it after every import.
   Only one import or export job runs per hub at a time, so the action waits for its turn within timeout.
 ---
 
 # iothub_import_export_job (Action)
 
-Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally with configurations and deployments. An **import** reads a file in the same [format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) from a container.
+Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally with configurations and deployments. An **import** reads a file in the same [format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) from a container and applies each line's `importMode` (create, update or delete) on its own. There is no rollback.
 
-Blob access is `keyBased` with container SAS URIs, or `identityBased` with the hub's system-assigned or a user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window.
+Blob access is `keyBased` with container SAS URIs, or `identityBased` with the hub's system-assigned or a user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window. SAS URIs appear in the plan output unless they come from a sensitive variable.
 
-~> **An import that finishes with per-line errors still counts as completed.** The hub writes them to `importErrors.log` in the output container. The action reports where the log is but does not read it.
+~> **An import that finishes with per-line errors still counts as completed.** The hub writes them to `importErrors.log` in the output container. The action reports where the log is but does not read it, so check it after every import.
 
 Only one import or export job runs per hub at a time, so the action waits for its turn within `timeout`.
 
 ## Example Usage
 
 ```terraform
-# Nightly export with the hub's managed identity, keys excluded.
+# Registry export with the hub's managed identity, keys excluded:
+#   terraform apply -invoke=action.iothub_import_export_job.export
 action "iothub_import_export_job" "export" {
   config {
     type                        = "export"
@@ -34,7 +35,8 @@ action "iothub_import_export_job" "export" {
   }
 }
 
-# Import with a container SAS: the container URL followed by the SAS query string.
+# Import with a container SAS (the container URL followed by the SAS query string):
+#   terraform apply -invoke=action.iothub_import_export_job.import
 locals {
   migration_container_sas_uri = "${azurerm_storage_account.migration.primary_blob_endpoint}${azurerm_storage_container.migration.name}${data.azurerm_storage_account_blob_container_sas.migration.sas}"
 }
@@ -61,12 +63,12 @@ action "iothub_import_export_job" "import" {
 ### Optional
 
 - `configurations_blob_name` (String) Configurations file name (default `configurations.txt`).
-- `exclude_keys_in_export` (Boolean) Export without symmetric keys (default `false`). The hub then writes a plain-text warning as the first line of the export file.
+- `exclude_keys_in_export` (Boolean) Export without symmetric keys (default `false`). Recommended unless the export is meant to re-create the identities elsewhere. The hub then writes a plain-text warning as the first line of the export file.
 - `include_configurations` (Boolean) Also export or import configurations and deployments, in the file named by `configurations_blob_name` (default `false`).
 - `input_blob_container_uri` (String) Container holding the import file. Required for `import`, ignored for `export`. With `keyBased`, the container URL followed by a SAS query string with at least read and list permissions. With `identityBased`, the plain container URL.
 - `input_blob_name` (String) Import file name (default `devices.txt`).
 - `output_blob_name` (String) Export file name (default `devices.txt`).
 - `storage_authentication_type` (String) `keyBased` for SAS URIs (default), or `identityBased` for the hub's managed identity.
-- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `1h`). It covers waiting for a free job slot and, when `wait` is true, the job's execution.
+- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `1h`). It covers waiting for a free job slot and, when `wait` is true, the job's execution. A job that outlives the deadline keeps running on the hub; cancel it with `iothub_cancel_job`.
 - `user_assigned_identity` (String) Resource ID of a user-assigned managed identity of the hub, for `identityBased`. The system-assigned identity is used when omitted.
 - `wait` (Boolean) Wait for the job to finish and fail if it failed or was cancelled (default `true`). With `false` the action returns as soon as the job is created.

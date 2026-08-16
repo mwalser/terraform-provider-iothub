@@ -37,4 +37,8 @@ resource "iothub_edge_deployment" "temp_sensor" {
       }
     }
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }

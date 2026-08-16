@@ -5,7 +5,7 @@ subcategory: ""
 description: |-
   Manages part of a module twin: the tags and desired properties you declare. Reported properties are read-only, in the iothub_module_twin data source.
   Ownership
-  The twin exists as long as the module does. This resource neither creates nor deletes it. Terraform manages only the keys you declare in tags and desired_properties, down to the innermost key, and leaves everything else in the twin alone: a backend can write desired.firmware.lastCheck beside your desired.firmware.channel. Several resources and systems can share one twin as long as they declare different keys. Two writers of the same key, including iothub_configuration and iothub_scheduled_job twin patches, overwrite each other on every apply.
+  The twin exists as long as the module does. This resource neither creates nor deletes it. Terraform manages only the keys you declare in tags and desired_properties, down to the innermost key, and leaves everything else in the twin alone: a backend can write desired.firmware.lastCheck beside your desired.firmware.channel. Arrays and empty objects count as one value, and null is not a value: omit a key to remove it. Several resources and systems can share one twin as long as they declare different keys. Two writers of the same key, including iothub_configuration and iothub_scheduled_job twin patches, overwrite each other on every apply.
   Removing a key from the configuration removes it from the twin, and destroying the resource removes every managed key. An imported twin starts without managed keys. The first apply adopts the declared ones and deletes nothing.
   Keys and values must follow the twin format rules https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format. Values are compared by content: key order, whitespace and 2 versus 2.0 are equal and never show as drift.
 ---
@@ -16,7 +16,7 @@ Manages part of a module twin: the tags and desired properties you declare. Repo
 
 ## Ownership
 
-The twin exists as long as the module does. This resource neither creates nor deletes it. Terraform manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key, and leaves everything else in the twin alone: a backend can write `desired.firmware.lastCheck` beside your `desired.firmware.channel`. Several resources and systems can share one twin as long as they declare different keys. Two writers of the same key, including `iothub_configuration` and `iothub_scheduled_job` twin patches, overwrite each other on every apply.
+The twin exists as long as the module does. This resource neither creates nor deletes it. Terraform manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key, and leaves everything else in the twin alone: a backend can write `desired.firmware.lastCheck` beside your `desired.firmware.channel`. Arrays and empty objects count as one value, and `null` is not a value: omit a key to remove it. Several resources and systems can share one twin as long as they declare different keys. Two writers of the same key, including `iothub_configuration` and `iothub_scheduled_job` twin patches, overwrite each other on every apply.
 
 Removing a key from the configuration removes it from the twin, and destroying the resource removes every managed key. An imported twin starts without managed keys. The first apply adopts the declared ones and deletes nothing.
 

@@ -16,9 +16,14 @@ resource "azurerm_key_vault_secret" "sensor_token" {
   value_wo_version = tonumber(formatdate("YYYYMMDDhh", plantimestamp()))
 }
 
-# A module token, signed with the secondary key.
-ephemeral "iothub_sas_token" "telemetry" {
+resource "iothub_module" "telemetry" {
   device_id = iothub_device.sensor.device_id
   module_id = "telemetry"
+}
+
+# A module token, signed with the secondary key.
+ephemeral "iothub_sas_token" "telemetry" {
+  device_id = iothub_module.telemetry.device_id
+  module_id = iothub_module.telemetry.module_id
   key       = "secondary"
 }

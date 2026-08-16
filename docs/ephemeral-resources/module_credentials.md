@@ -23,6 +23,7 @@ ephemeral "iothub_module_credentials" "telemetry" {
   module_id = iothub_module.telemetry.module_id
 }
 
+# Bump the version whenever the keys change (rotation, re-created identity).
 resource "azurerm_key_vault_secret" "telemetry" {
   name             = "sensor-0001-telemetry-connection-string"
   key_vault_id     = azurerm_key_vault.devices.id

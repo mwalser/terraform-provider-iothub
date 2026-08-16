@@ -76,7 +76,8 @@ policy (SAS). Narrower permissions work for subsets:
 | To use | Entra ID role | SAS policy permissions |
 |---|---|---|
 | `iothub_device`, `iothub_module`, their data sources, `iothub_device_credentials`, `iothub_module_credentials` and `iothub_sas_token` | *IoT Hub Registry Contributor*, or *Data Reader* for read-only use | RegistryRead, RegistryWrite |
-| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, the `iothub_device` and `iothub_module` list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
+| Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query` | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
+| The `iothub_device` and `iothub_module` list resources (they query twins, then read the identities) | *IoT Hub Data Reader* | RegistryRead, ServiceConnect |
 | Configurations and deployments (resources, data sources, list resources), jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
 
 ## Hubs

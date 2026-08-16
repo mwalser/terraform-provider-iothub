@@ -37,7 +37,7 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Lists every " + l.kind.noun() + " of the hub for `terraform query`. " + listSibling(l.kind),
+		MarkdownDescription: "Lists every " + l.kind.noun() + " of the hub for `terraform query`, without arguments. " + listSibling(l.kind),
 		Attributes:          map[string]schema.Attribute{},
 	}
 }

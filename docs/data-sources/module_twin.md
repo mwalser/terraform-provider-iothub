@@ -43,6 +43,6 @@ output "edge_agent_platform" {
 - `model_id` (String) IoT Plug and Play model ID announced by the module, if any.
 - `reported_properties` (String) All reported properties as a JSON string, without `$metadata` and `$version`.
 - `reported_version` (Number) `$version` of the reported properties.
-- `status` (String) `enabled` or `disabled`, as set on the identity.
+- `status` (String) `enabled` or `disabled`, as set on the device identity (modules have no status of their own).
 - `tags` (String) All tags of the twin as a JSON string.
 - `version` (Number) Version of the twin.

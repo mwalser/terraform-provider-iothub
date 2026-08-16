@@ -4,7 +4,7 @@ page_title: "iothub_configuration Resource - iothub"
 subcategory: ""
 description: |-
   An automatic device management configuration. The hub applies its desired properties to every device or module that matches target_condition, in order of priority.
-  Changing device_content or module_content replaces the configuration. The content is compared by value, so reformatting it is not a change. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time.
+  Changing device_content or module_content replaces the configuration. The content is compared by value, so reformatting it is not a change. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time where possible.
   Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 ---
 
@@ -12,7 +12,7 @@ description: |-
 
 An automatic device management configuration. The hub applies its desired properties to every device or module that matches `target_condition`, in order of `priority`.
 
-**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, so reformatting it is not a change. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time.
+**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, so reformatting it is not a change. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time where possible.
 
 Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 
