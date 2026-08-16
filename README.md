@@ -4,12 +4,14 @@ A Terraform provider for the **Azure IoT Hub data plane**: the identity
 registry, device and module twins, automatic device management
 configurations, IoT Edge deployments, jobs, direct methods and Plug and Play.
 The hub itself, its routing, endpoints, certificates and shared access
-policies are Azure Resource Manager resources. They stay with the
+policies are Azure Resource Manager resources. They can be managed with the
 [`azurerm`](https://registry.terraform.io/providers/hashicorp/azurerm)
-provider. This provider starts where `azurerm` stops.
+provider.
 
-> **Status: alpha, not yet published to the Terraform Registry.** Feature
-> complete for the scope below, but not yet released.
+> [!NOTE]
+> This provider was created with an LLM.
+> I shaped the design, set the feature scope and steered the project until I was happy with the result.
+> My hope is that you find this provider useful.
 
 What it manages:
 
