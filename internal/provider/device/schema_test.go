@@ -23,7 +23,7 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 	if diags := rs.Schema.ValidateImplementation(ctx); diags.HasError() {
 		t.Fatalf("resource schema implementation: %v", diags)
 	}
-	for _, name := range []string{"id", "hostname", "device_id", "status", "status_reason", "edge_enabled", "parent_scope", "authentication",
+	for _, name := range []string{"id", "device_id", "status", "status_reason", "edge_enabled", "parent_scope", "authentication",
 		"primary_key_wo", "primary_key_wo_version", "secondary_key_wo", "secondary_key_wo_version", "etag", "generation_id", "device_scope",
 		"parent_scopes", "connection_state", "connection_state_updated_time", "last_activity_time", "status_updated_time", "cloud_to_device_message_count"} {
 		if _, ok := rs.Schema.Attributes[name]; !ok {

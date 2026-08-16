@@ -36,7 +36,6 @@ type directMethodAction struct {
 }
 
 type directMethodModel struct {
-	Hostname               types.String `tfsdk:"hostname"`
 	DeviceID               types.String `tfsdk:"device_id"`
 	ModuleID               types.String `tfsdk:"module_id"`
 	MethodName             types.String `tfsdk:"method_name"`
@@ -67,7 +66,6 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 			"device after its twin changed. Or run it ad hoc with `terraform apply -invoke=action.iothub_direct_method.<name>`. " +
 			"If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the method may already have run on the device.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":    hostnameAttribute(),
 			"device_id":   schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"module_id":   schema.StringAttribute{MarkdownDescription: "Module ID, to call a module's method.", Optional: true, Validators: []validator.String{identity.IDValidator()}},
 			"method_name": schema.StringAttribute{MarkdownDescription: "Method name as registered by the device code.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
@@ -112,7 +110,7 @@ func (a *directMethodAction) Invoke(ctx context.Context, req action.InvokeReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, diags := clientFor(ctx, a.pd, data.Hostname)
+	c, diags := hubClient(a.pd)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

@@ -34,17 +34,13 @@ output "fw_channel_rollout" {
 
 - `job_id` (String) Job ID.
 
-### Optional
-
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-
 ### Read-Only
 
 - `created_time` (String) Creation time.
 - `device_job_statistics` (Attributes) Per-device counters. Null until the hub reports them. (see [below for nested schema](#nestedatt--device_job_statistics))
 - `end_time` (String) End time. A far-future placeholder while the job is running.
 - `failure_reason` (String) Failure reason, if any.
-- `id` (String) `<hostname>/jobs/v2/<job_id>`.
+- `id` (String) The job ID.
 - `max_execution_time_seconds` (Number) Maximum execution time.
 - `method` (String) The method of a `scheduleDeviceMethod` job as JSON. Null for other job types.
 - `query_condition` (String) Target condition.

@@ -36,7 +36,6 @@ type configDataSource struct {
 
 type dsModel struct {
 	ID                 types.String `tfsdk:"id"`
-	Hostname           types.String `tfsdk:"hostname"`
 	ConfigurationID    types.String `tfsdk:"configuration_id"`
 	TargetCondition    types.String `tfsdk:"target_condition"`
 	Priority           types.Int64  `tfsdk:"priority"`
@@ -54,7 +53,6 @@ type dsModel struct {
 
 type edgeDSModel struct {
 	ID                 types.String `tfsdk:"id"`
-	Hostname           types.String `tfsdk:"hostname"`
 	DeploymentID       types.String `tfsdk:"deployment_id"`
 	TargetCondition    types.String `tfsdk:"target_condition"`
 	Priority           types.Int64  `tfsdk:"priority"`
@@ -78,8 +76,7 @@ func (d *configDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	attrs := map[string]schema.Attribute{
-		"id":                    c("`<hostname>/configurations/<" + d.kind.idAttr() + ">`."),
-		"hostname":              schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
+		"id":                    c("The `" + d.kind.idAttr() + "`."),
 		d.kind.idAttr():         schema.StringAttribute{MarkdownDescription: "ID of the " + d.kind.noun() + ".", Required: true},
 		"target_condition":      c(targetConditionSummary(d.kind)),
 		"priority":              schema.Int64Attribute{MarkdownDescription: "Priority. Higher wins when several " + d.kind.noun() + "s target the same device.", Computed: true},
@@ -111,33 +108,21 @@ func (d *configDataSource) Configure(_ context.Context, req datasource.Configure
 }
 
 func (d *configDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var hostnameCfg, id types.String
+	var id types.String
 	if d.kind.isEdge() {
 		var m edgeDSModel
 		resp.Diagnostics.Append(req.Config.Get(ctx, &m)...)
-		hostnameCfg, id = m.Hostname, m.DeploymentID
+		id = m.DeploymentID
 	} else {
 		var m dsModel
 		resp.Diagnostics.Append(req.Config.Get(ctx, &m)...)
-		hostnameCfg, id = m.Hostname, m.ConfigurationID
+		id = m.ConfigurationID
 	}
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(hostnameCfg, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return
-	}
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	cfg, err := c.GetConfiguration(ctx, id.ValueString())
@@ -169,8 +154,7 @@ func (d *configDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		sys = cfg.SystemMetrics.Results
 	}
 	base := dsModel{
-		ID:                 types.StringValue(resourceID(c.Hostname(), cfg.ID)),
-		Hostname:           types.StringValue(c.Hostname()),
+		ID:                 types.StringValue(cfg.ID),
 		ConfigurationID:    types.StringValue(cfg.ID),
 		TargetCondition:    types.StringValue(cfg.TargetCondition),
 		Priority:           types.Int64Value(cfg.Priority),
@@ -188,7 +172,7 @@ func (d *configDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	}
 	if d.kind.isEdge() {
 		resp.Diagnostics.Append(resp.State.Set(ctx, &edgeDSModel{
-			ID: base.ID, Hostname: base.Hostname, DeploymentID: base.ConfigurationID, TargetCondition: base.TargetCondition, Priority: base.Priority,
+			ID: base.ID, DeploymentID: base.ConfigurationID, TargetCondition: base.TargetCondition, Priority: base.Priority,
 			Labels: base.Labels, ModulesContent: rawString(cfg.Content.ModulesContent), Metrics: base.Metrics, SchemaVersion: base.SchemaVersion,
 			ETag: base.ETag, CreatedTimeUTC: base.CreatedTimeUTC, LastUpdatedTimeUTC: base.LastUpdatedTimeUTC, SystemMetrics: base.SystemMetrics,
 			MetricResults: base.MetricResults,

@@ -106,10 +106,10 @@ resource "azurerm_key_vault_secret" "sensor" {
 }
 ```
 
-Every resource, data source, ephemeral resource and action accepts its own
-`hostname` (lowercase), so one provider block can manage several hubs, and a
-hub created in the same configuration (`azurerm_iothub.x.hostname`) can be
-referenced before it exists.
+One provider block manages one hub. Use provider aliases for several hubs.
+The hub can be created in the same configuration: `hostname =
+azurerm_iothub.x.hostname` works, and the provider addresses the hub once it
+exists.
 
 ## Using a local build
 

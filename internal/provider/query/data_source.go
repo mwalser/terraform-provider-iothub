@@ -31,7 +31,6 @@ type dataSource struct {
 
 type model struct {
 	ID          types.String `tfsdk:"id"`
-	Hostname    types.String `tfsdk:"hostname"`
 	Query       types.String `tfsdk:"query"`
 	Results     types.List   `tfsdk:"results"`
 	ResultCount types.Int64  `tfsdk:"result_count"`
@@ -51,8 +50,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 			"a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. " +
 			"For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.",
 		Attributes: map[string]schema.Attribute{
-			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/query/<short hash of the query>`.", Computed: true},
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
+			"id": schema.StringAttribute{MarkdownDescription: "A short hash of the query.", Computed: true},
 			"query": schema.StringAttribute{
 				MarkdownDescription: "The statement, for example `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.",
 				Required:            true,
@@ -81,20 +79,8 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return
-	}
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	query := data.Query.ValueString()
@@ -112,8 +98,7 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	list, diags := types.ListValue(types.StringType, elems)
 	resp.Diagnostics.Append(diags...)
 	sum := sha256.Sum256([]byte(query))
-	data.ID = types.StringValue(common.ResourceID(c.Hostname(), "query", hex.EncodeToString(sum[:8])))
-	data.Hostname = types.StringValue(c.Hostname())
+	data.ID = types.StringValue(hex.EncodeToString(sum[:8]))
 	data.Results = list
 	data.ResultCount = types.Int64Value(int64(len(items)))
 	data.ItemType = types.StringValue(itemType)

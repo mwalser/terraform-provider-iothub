@@ -26,7 +26,6 @@ type dataSource struct {
 
 type dataSourceModel struct {
 	ID                         types.String `tfsdk:"id"`
-	Hostname                   types.String `tfsdk:"hostname"`
 	DeviceID                   types.String `tfsdk:"device_id"`
 	ModuleID                   types.String `tfsdk:"module_id"`
 	ManagedBy                  types.String `tfsdk:"managed_by"`
@@ -47,8 +46,7 @@ func (d *dataSource) Metadata(_ context.Context, req datasource.MetadataRequest,
 
 func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	attrs := infoAttributes()
-	attrs["id"] = schema.StringAttribute{MarkdownDescription: "`<hostname>/devices/<device_id>/modules/<module_id>`.", Computed: true}
-	attrs["hostname"] = schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()}
+	attrs["id"] = schema.StringAttribute{MarkdownDescription: "`<device_id>/<module_id>`.", Computed: true}
 	attrs["device_id"] = schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true}
 	attrs["module_id"] = schema.StringAttribute{MarkdownDescription: "Module ID. System modules such as `$edgeAgent` can be read too.", Required: true}
 	resp.Schema = schema.Schema{
@@ -70,20 +68,8 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return
-	}
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	mod, err := c.GetModule(ctx, data.DeviceID.ValueString(), data.ModuleID.ValueString())
@@ -97,8 +83,7 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 		return
 	}
 	info := infoFromHub(mod)
-	data.ID = types.StringValue(resourceID(c.Hostname(), mod.DeviceID, mod.ModuleID))
-	data.Hostname = types.StringValue(c.Hostname())
+	data.ID = types.StringValue(common.ModuleID(mod.DeviceID, mod.ModuleID))
 	data.DeviceID = types.StringValue(mod.DeviceID)
 	data.ModuleID = info.ModuleID
 	data.ManagedBy = info.ManagedBy

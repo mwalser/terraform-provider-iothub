@@ -30,13 +30,9 @@ output "custom_modules" {
 
 - `device_id` (String) Device ID.
 
-### Optional
-
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-
 ### Read-Only
 
-- `id` (String) `<hostname>/devices/<device_id>/modules`.
+- `id` (String) The device ID.
 - `modules` (Attributes List) The device's modules, in the order the hub returns them. (see [below for nested schema](#nestedatt--modules))
 
 <a id="nestedatt--modules"></a>

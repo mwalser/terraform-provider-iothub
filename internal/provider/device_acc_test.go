@@ -34,8 +34,7 @@ resource "iothub_device" "test" {
   device_id = %q
 }`, id),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/devices/"+id)),
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("hostname"), knownvalue.StringExact(iotacc.Hostname())),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(id)),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("status"), knownvalue.StringExact("enabled")),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("status_reason"), knownvalue.Null()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("edge_enabled"), knownvalue.Bool(false)),
@@ -313,7 +312,7 @@ data "iothub_device" "test" {
   device_id = iothub_device.test.device_id
 }`, id),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/devices/"+id)),
+					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("id"), knownvalue.StringExact(id)),
 					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("status"), knownvalue.StringExact("disabled")),
 					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("status_reason"), knownvalue.StringExact("for the data source")),
 					statecheck.ExpectKnownValue("data.iothub_device.test", tfjsonpath.New("authentication_type"), knownvalue.StringExact("sas")),

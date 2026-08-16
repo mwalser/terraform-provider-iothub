@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | Concept / RFC — v0.15, 2026-08-15 (decisions resolved, §15; verified against a live hub, Appendix D; Phases 0–4 implemented — everything defined for this provider) |
+| Status | Concept / RFC — v0.16, 2026-08-16 (decisions resolved, §15; verified against a live hub, Appendix D; Phases 0–4 implemented — everything defined for this provider) |
 | Scope | IoT Hub **Service REST API** (`https://<hub>.azure-devices.net`, `api-version=2021-04-12`) |
 | Out of scope | Everything under Azure Resource Manager (`Microsoft.Devices/*`), the device-side Messaging API, AMQP-only operations, sovereign clouds |
 | Name | `terraform-provider-iothub`, registry `<namespace>/iothub`, resource prefix `iothub_` |
@@ -111,7 +111,7 @@ Operation groups of the Service API (api-version 2021-04-12): **Bulk Registry, C
 
 ```hcl
 provider "iothub" {
-  # Default hub for all resources; may be overridden per resource.
+  # The hub this provider block manages (one hub per block; aliases for more).
   hostname = "contoso-prod.azure-devices.net"      # env IOTHUB_HOSTNAME
 
   # --- Authentication: Entra ID (default) ------------------------------
@@ -132,7 +132,7 @@ provider "iothub" {
 }
 ```
 
-Auth mode is inferred: `connection_string` present → SAS, otherwise Entra ID. Provider *configuration* never depends on the hub itself when Entra ID is used, which is what makes single-root-module bootstrapping possible (§4.4).
+Auth mode is inferred: `connection_string` present → SAS, otherwise Entra ID. `hostname` and `connection_string` may be unknown during a plan (§4.4); everything needed to authenticate with Entra ID must be known.
 
 **Token scope:** `https://iothubs.azure.net/.default` (public cloud; sovereign clouds are out of scope).
 
@@ -140,20 +140,18 @@ Auth mode is inferred: `connection_string` present → SAS, otherwise Entra ID. 
 
 ### 4.4 Hub addressing, IDs and import
 
-- Every resource/data source/action has an optional `hostname` attribute overriding the provider default (precedent: AWS provider ≥ 6.0 per-resource `region`).
-  This matters for bootstrapping: `hostname = azurerm_iothub.hub.hostname` is *unknown* during the first plan of a fresh root module. Unknown **resource** attributes are fine; unknown **provider** attributes are not. With Entra ID auth the provider block needs no hub-specific value at all, so hub and hub content can live in one module.
-- `hostname` is validated everywhere (provider block, resources, data sources, ephemerals, actions, list resources) to the canonical form: a bare, **lowercase**, fully-qualified public-cloud name (`contoso.azure-devices.net`). Hostnames are case-insensitive DNS names, but Terraform compares strings exactly and a provider may neither normalise a configured value in the plan (core: "planned value does not match config value") nor store something else than it planned ("inconsistent result after apply"); demanding the canonical spelling up front is simpler and safer than plan-time juggling (review finding, 2026-08-15). A hub created with capitals in its name would need `lower(azurerm_iothub.x.hostname)`; the error message says so. The `HostName` inside a connection string is Azure-generated and only checked for shape.
-- Resource IDs mirror REST paths and are the import format:
+- **One provider block manages one hub.** The hub is named on the provider block only (`hostname`, or the `HostName` of `connection_string`); several hubs are managed with provider aliases, as with every other endpoint-bound provider (kubernetes, helm, postgresql). Resources, data sources, ephemerals, actions and list resources have no `hostname` of their own. (v0.16, 2026-08-16: this replaces the per-construct `hostname` of v0.15. That attribute existed for bootstrapping and for "several hubs from one block"; both are covered — see the next bullets — and it only worked with Entra ID, since a SAS policy is bound to one hub. It cost 21 identical attributes, hostname-prefixed IDs and import IDs, per-hub clients and refresh gates, and made it possible to point sibling resources at different hubs by accident.)
+- **Bootstrapping** — the hub created in the same configuration: `hostname = azurerm_iothub.hub.hostname` (or `connection_string = azurerm_iothub_shared_access_policy.x.primary_connection_string`) is *unknown* during the first plan. The provider is then configured without a client; managed resources are planned without contacting the hub (their `id` derives from the config), refresh keeps the prior state, ephemeral resources return unknown values with a warning, and data sources report an error, because a data-source read cannot wait for apply (Terraform rejects unknown data-source results and does not read them again at apply — verified, Appendix D). Terraform configures the provider again at apply time with the real value. With `DeferralAllowed` (not on by default in Terraform 1.15) all constructs defer instead.
+- `hostname` is validated to the canonical form: a bare, **lowercase**, fully-qualified public-cloud name (`contoso.azure-devices.net`). Hostnames are case-insensitive DNS names, but Terraform compares strings exactly and a provider may neither normalise a configured value in the plan (core: "planned value does not match config value") nor store something else than it planned ("inconsistent result after apply"); demanding the canonical spelling up front is simpler and safer than plan-time juggling (review finding, 2026-08-15). A hub created with capitals in its name would need `lower(azurerm_iothub.x.hostname)`; the error message says so. The `HostName` inside a connection string is Azure-generated and only checked for shape.
+- Resource IDs are the object's own ID and the import format; the hub is implied by the provider configuration (like the kubernetes provider's `namespace/name`):
 
-| Resource | ID / import string |
-|---|---|
-| `iothub_device` | `<hostname>/devices/<deviceId>` |
-| `iothub_module` | `<hostname>/devices/<deviceId>/modules/<moduleId>` |
-| `iothub_device_twin` | `<hostname>/twins/<deviceId>` |
-| `iothub_module_twin` | `<hostname>/twins/<deviceId>/modules/<moduleId>` |
-| `iothub_configuration`, `iothub_edge_deployment` | `<hostname>/configurations/<id>` |
-
-Multiple hubs: either per-resource `hostname` or provider aliases — both work.
+| Resource | ID / import string | Identity attributes |
+|---|---|---|
+| `iothub_device` | `<deviceId>` | `device_id` |
+| `iothub_module` | `<deviceId>/<moduleId>` (device IDs cannot contain `/`) | `device_id`, `module_id` |
+| `iothub_device_twin` | `<deviceId>` | — |
+| `iothub_module_twin` | `<deviceId>/<moduleId>` | — |
+| `iothub_configuration`, `iothub_edge_deployment` | `<id>` | `configuration_id` / `deployment_id` |
 
 ---
 
@@ -298,7 +296,7 @@ resource "iothub_configuration" "fw_channel" {
 ```
 Computed: `etag`, `schema_version`, `created_time_utc`, `last_updated_time_utc`, `system_metrics` (targeted/applied counts).
 `id` and `content` are immutable per API ("Configuration identifier and Content cannot be updated") → RequiresReplace. **Verified: a `PUT` with changed content returns 200 and silently keeps the old content** — so the provider *must* enforce replacement itself; the API gives no signal. `priority`, `target_condition`, `labels`, `metrics` (and `schema_version`) update in place with a **quoted** `If-Match: "<etag>"` (an unquoted value yields a misleading 409 `ConfigurationAlreadyExists`); the body must include `content` on every update (400 `InvalidConfigurationContent` otherwise). Target conditions may only reference `deviceId`, `tags` and `properties.reported`.
-Plan-time validation (fixed behaviour, no knob): when `target_condition` or `metrics` change in the plan, `ModifyPlan` calls `POST /configurations/testQueries` so a typo surfaces before apply — one call per *changed* configuration, skipped while the hostname is unknown, and degraded to a warning (not a failed plan) on 429/network errors. Unchanged configurations cost nothing at plan time. (`testQueries` answers 200 with `targetConditionError` / `customMetricQueryErrors` fields — validation errors are in the body, not the status.)
+Plan-time validation (fixed behaviour, no knob): when `target_condition` or `metrics` change in the plan, `ModifyPlan` calls `POST /configurations/testQueries` so a typo surfaces before apply — one call per *changed* configuration, skipped while the hub is unknown, and degraded to a warning (not a failed plan) on 429/network errors. Unchanged configurations cost nothing at plan time. (`testQueries` answers 200 with `targetConditionError` / `customMetricQueryErrors` fields — validation errors are in the body, not the status.)
 
 ### 6.5 `iothub_edge_deployment` — IoT Edge deployment (incl. layered)
 
@@ -344,7 +342,7 @@ resource "azurerm_key_vault_secret" "sensor_cs" {
   value_wo_version = 1
 }
 ```
-- `iothub_device_credentials` / `iothub_module_credentials`: `primary_key`, `secondary_key`, `primary_connection_string`, `secondary_connection_string`, `hostname` — never written to state or plan. Terraform opens ephemeral resources during **plan** as well (unless an input is unknown) and does not tell the provider which phase it is in; `DeferralAllowed` is off by default in Terraform 1.15. When the device does not exist yet — the normal same-run creation case — the provider returns the values as **unknown** with a "Device not found (yet)" warning, Terraform re-opens at apply and gets the real values, and later plans are clean; a device that is truly missing keeps the warning and fails at apply through its consumer. (Verified; see Appendix D.)
+- `iothub_device_credentials` / `iothub_module_credentials`: `primary_key`, `secondary_key`, `primary_connection_string`, `secondary_connection_string` — never written to state or plan. Terraform opens ephemeral resources during **plan** as well (unless an input is unknown) and does not tell the provider which phase it is in; `DeferralAllowed` is off by default in Terraform 1.15. When the device does not exist yet — the normal same-run creation case — the provider returns the values as **unknown** with a "Device not found (yet)" warning, Terraform re-opens at apply and gets the real values, and later plans are clean; a device that is truly missing keeps the warning and fails at apply through its consumer. (Verified; see Appendix D.)
 - `iothub_device_sas_token`: `device_id`, `module_id?`, `ttl`, `key = primary|secondary` → `token`, `expires_at` (HMAC-SHA256 computed locally after one registry read).
 
 ---
@@ -504,7 +502,7 @@ The reliable discriminator is the **`iothub-errorcode` response header**; bodies
 |---|---|
 | 401 `IotHubUnauthorizedAccess` / 403 | Error naming the required data action / role (Appendix C), the auth mode in use, and the fact that `Owner`/`Contributor` carry no data actions. |
 | 404 `DeviceNotFound` (also for module twins), `ModuleNotFound`, `ConfigurationNotFound` | Read: remove from state. Delete: success. |
-| 409 `DeviceAlreadyExists`, `ModuleAlreadyExistsOnDevice`, `ConfigurationAlreadyExists` on create | "exists — import with `terraform import iothub_device.x <hostname>/devices/<id>`". |
+| 409 `DeviceAlreadyExists`, `ModuleAlreadyExistsOnDevice`, `ConfigurationAlreadyExists` on create | "exists — import with `terraform import iothub_device.x <id>`". |
 | 412 `PreconditionFailed` ("Etag missing" / "ETag mismatch") on update | Conflict inspection (§11.1); if the written fields differ: field-level message and "run `terraform plan` again". |
 | 429 `ThrottlingBacklogTimeout`, 503 | Retried within the operation timeout (10 s base, jitter); if the budget is exhausted the error names the operation type from the service message, the tier limit and the time spent waiting. |
 | 400 `ArgumentInvalid` (`StringIsNotThumbprint`, `Invalid device key length`, `Either no keys or both keys can be set`, twin key/depth/size messages), `InvalidConfigurationTargetCondition`, `InvalidConfigurationContent`, `IotHubFormatError`, `GenericBadRequest` | Pass the service message through with the offending attribute path; the most common ones are also caught by validators before any call. |
@@ -602,6 +600,7 @@ Resolved 2026-08-15:
 | 16 | Provider functions | **Dropped** | Trivial interpolation; ephemeral credentials already return connection strings. |
 | 17 | Key material in identity data sources; `shared_access_key_name`/`shared_access_key` provider inputs | **Dropped** — data sources carry no keys; `connection_string` is the only SAS input | Data-source state is state; one way to do each thing. |
 | 18 | `fail_on_import_errors` on the import/export action (reading `importErrors.log` from blob storage) | **Dropped** — the action reports what the IoT Hub API reports and names the log's location | Reading the blob needs a storage token scope, a storage role for the Terraform principal and blob parsing — another service's data plane, outside the provider boundary (§2). |
+| 19 | Per-construct `hostname` (v0.15) | **Dropped** (2026-08-16) — the hub lives on the provider block only; aliases for several hubs; IDs and import IDs without hostname prefix | Non-standard for an endpoint-bound provider, only worked with Entra ID (a SAS policy is bound to one hub), and bootstrapping does not need it: an unknown provider `hostname` is tolerated during plan and the provider is configured again at apply (§4.4). Removes 21 attributes, per-hub client and refresh-gate plumbing, and the risk of sibling resources on different hubs. |
 
 ---
 
@@ -631,12 +630,11 @@ resource "azurerm_role_assignment" "tf_data" {
 }
 
 # ---- Data plane (iothub) ----------------------------------------------
-provider "iothub" {}                       # Entra ID via the same ARM_* env as azurerm
-
-locals { hub = azurerm_iothub.hub.hostname }   # unknown at first plan — fine for resource attrs
+provider "iothub" {                        # Entra ID via the same ARM_* env as azurerm
+  hostname = azurerm_iothub.hub.hostname   # unknown at first plan — the provider addresses the hub at apply
+}
 
 resource "iothub_device" "gateway" {
-  hostname     = local.hub
   device_id    = "gw-munich-01"
   edge_enabled = true
   authentication { type = "certificateAuthority" }
@@ -645,7 +643,6 @@ resource "iothub_device" "gateway" {
 
 resource "iothub_device" "sensor" {
   for_each     = toset(["s-0001", "s-0002"])
-  hostname     = local.hub
   device_id    = each.key
   parent_scope = iothub_device.gateway.device_scope
   authentication { type = "sas" }
@@ -653,7 +650,6 @@ resource "iothub_device" "sensor" {
 
 resource "iothub_device_twin" "sensor" {
   for_each  = iothub_device.sensor
-  hostname  = local.hub
   device_id = each.value.device_id
   tags               = jsonencode({ site = "munich", fleet = { region = "eu" } })
   desired_properties = jsonencode({ telemetryIntervalSec = 60 })
@@ -668,7 +664,6 @@ resource "iothub_device_twin" "sensor" {
 action "iothub_direct_method" "reboot" {
   for_each = iothub_device.sensor
   config {
-    hostname    = local.hub
     device_id   = each.value.device_id
     method_name = "reboot"
     payload     = jsonencode({})
@@ -676,7 +671,6 @@ action "iothub_direct_method" "reboot" {
 }
 
 resource "iothub_edge_deployment" "base" {
-  hostname         = local.hub
   deployment_id    = "base-${var.release}"
   target_condition = "tags.site='munich'"
   priority         = 10
@@ -684,7 +678,6 @@ resource "iothub_edge_deployment" "base" {
 }
 
 ephemeral "iothub_device_credentials" "s0001" {
-  hostname  = local.hub
   device_id = iothub_device.sensor["s-0001"].device_id
 }
 resource "azurerm_key_vault_secret" "s0001" {
@@ -749,6 +742,7 @@ Verified against an F1 hub in West Europe with `api-version=2021-04-12`, using r
 | Area | Finding | Consequence |
 |---|---|---|
 | Auth | Entra ID works with scope `https://iothubs.azure.net`; `Owner` has no data actions; SAS token `SharedAccessSignature sr=<host>&sig=…&se=…&skn=<policy>` works; bad key → 401 `IotHubUnauthorizedAccess` | Document role assignment prominently; both auth policies as designed |
+| Unknown provider `hostname` (Terraform 1.15.8, 2026-08-16) | With `hostname = terraform_data.hub.output` (unknown at first plan): resources plan normally with `id` from the config, the ephemeral credentials open with unknown values plus a warning, `apply` configures the provider again with the known value and creates device and twin, and the next plan is clean. A data source read at plan time under the unknown hub must return known values: an all-unknown result fails with core's "Provider produced invalid object … not wholly known" | Bootstrapping works without a per-construct hostname; data sources report an explicit error while the hub is unknown (§4.4) |
 | Identity `PUT` | Without `If-Match` = create-only (409 `DeviceAlreadyExists`, even if the body carries the current etag); with `If-Match` = update-only (404 on missing); `If-None-Match` unsupported | Create sends no precondition; update always sends `If-Match` |
 | Identity `PUT` body | Omitting `authentication` on update mints **new keys**; minimal create body yields hub-generated SAS keys; returns 200 (not 201) | Always send the full identity |
 | Identity `DELETE` | Requires `If-Match` (412 "Etag missing"); `*` on missing device → 404 | Send `*`, treat 404 as success |

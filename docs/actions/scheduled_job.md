@@ -82,7 +82,6 @@ action "iothub_scheduled_job" "reboot_gateways" {
 ### Optional
 
 - `fail_on_device_failures` (Boolean) With `wait`, fail the apply when the job completed but some devices failed (default `true`).
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `job_id` (String) Job ID, unique per hub: 1 to 64 lowercase letters, digits and hyphens. Generated as `tf-<random>` when omitted and shown in the apply output, so you can read or cancel the job later.
 - `max_execution_time_seconds` (Number) How long the hub may run the job, in seconds. Devices not reached in time count as failed. When omitted, the hub applies its own default; set it explicitly if devices may be offline for long.
 - `method` (Attributes) For `scheduleDeviceMethod`: the direct method to invoke on every targeted device. (see [below for nested schema](#nestedatt--method))

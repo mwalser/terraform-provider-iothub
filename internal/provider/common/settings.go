@@ -1,6 +1,6 @@
 // Package common holds what every resource, data source, ephemeral resource
-// and action of the provider shares: the resolved provider settings, the
-// client factory and hostname resolution.
+// and action of the provider shares: the resolved provider settings and the
+// hub client.
 package common
 
 // AuthMode selects how the provider authenticates against the IoT Hub
@@ -50,8 +50,8 @@ type SASCredential struct {
 // Settings is the fully resolved provider configuration: explicit
 // configuration merged with environment variables and validated.
 type Settings struct {
-	// Hostname is the default hub (e.g. contoso.azure-devices.net); may be
-	// empty when every resource sets its own hostname.
+	// Hostname is the hub (e.g. contoso.azure-devices.net). Empty only while
+	// the provider's hostname is unknown during a plan.
 	Hostname string
 	Mode     AuthMode
 	Entra    EntraSettings

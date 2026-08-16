@@ -42,13 +42,9 @@ output "stale_firmware_count" {
 
 - `query` (String) The statement, for example `SELECT deviceId, tags.site FROM devices WHERE tags.fleet.region = 'eu'`.
 
-### Optional
-
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-
 ### Read-Only
 
-- `id` (String) `<hostname>/query/<short hash of the query>`.
+- `id` (String) A short hash of the query.
 - `item_type` (String) The kind of result rows as reported by the hub: `Raw` for a projection, `Twin` for `SELECT * FROM devices` or `devices.modules`, `DeviceJob` for `FROM devices.jobs`.
 - `result_count` (Number) Number of results.
 - `results` (List of String) One JSON string per result row, in the order the hub returns them.

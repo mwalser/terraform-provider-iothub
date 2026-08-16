@@ -69,7 +69,6 @@ resource "iothub_configuration" "telemetry_interval" {
 ### Optional
 
 - `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys, for example `jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration**, and the hub re-evaluates every targeted device.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the configuration.
 - `labels` (Map of String) Free-form labels (string map).
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.
 - `module_content` (String) Module twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys. Use it with a module target condition such as `FROM devices.modules WHERE moduleId = '…'`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
@@ -81,7 +80,7 @@ resource "iothub_configuration" "telemetry_interval" {
 
 - `created_time_utc` (String) Creation time.
 - `etag` (String) ETag of the configuration.
-- `id` (String) `<hostname>/configurations/<configuration_id>`. Also the import ID.
+- `id` (String) The `configuration_id`. Also the import ID.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration.
@@ -103,6 +102,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Import ID: <hostname>/configurations/<configuration_id>
-terraform import iothub_configuration.fw_channel contoso.azure-devices.net/configurations/fw-channel-stable
+# Import ID: the configuration ID.
+terraform import iothub_configuration.fw_channel fw-channel-stable
 ```

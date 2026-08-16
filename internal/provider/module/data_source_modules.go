@@ -27,7 +27,6 @@ type modulesDataSource struct {
 
 type modulesModel struct {
 	ID       types.String `tfsdk:"id"`
-	Hostname types.String `tfsdk:"hostname"`
 	DeviceID types.String `tfsdk:"device_id"`
 	Modules  types.List   `tfsdk:"modules"`
 }
@@ -41,8 +40,7 @@ func (d *modulesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 		MarkdownDescription: "All module identities of a device, including the hub-managed `$edgeAgent` and `$edgeHub` on IoT " +
 			"Edge devices. Symmetric keys are not exposed. Use `iothub_module_credentials` for those.",
 		Attributes: map[string]schema.Attribute{
-			"id":        schema.StringAttribute{MarkdownDescription: "`<hostname>/devices/<device_id>/modules`.", Computed: true},
-			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
+			"id":        schema.StringAttribute{MarkdownDescription: "The device ID.", Computed: true},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"modules": schema.ListNestedAttribute{
 				MarkdownDescription: "The device's modules, in the order the hub returns them.",
@@ -65,20 +63,8 @@ func (d *modulesDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return
-	}
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	mods, err := c.ListModules(ctx, data.DeviceID.ValueString())
@@ -96,8 +82,7 @@ func (d *modulesDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	}
 	list, diags := types.ListValue(types.ObjectType{AttrTypes: infoAttrTypes}, elems)
 	resp.Diagnostics.Append(diags...)
-	data.ID = types.StringValue(common.ResourceID(c.Hostname(), "devices", data.DeviceID.ValueString(), "modules"))
-	data.Hostname = types.StringValue(c.Hostname())
+	data.ID = data.DeviceID
 	data.Modules = list
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

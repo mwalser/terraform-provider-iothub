@@ -32,7 +32,6 @@ type sasTokenEphemeral struct {
 }
 
 type sasTokenModel struct {
-	Hostname    types.String `tfsdk:"hostname"`
 	DeviceID    types.String `tfsdk:"device_id"`
 	ModuleID    types.String `tfsdk:"module_id"`
 	TTL         types.String `tfsdk:"ttl"`
@@ -63,7 +62,6 @@ func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest,
 			"As with `iothub_device_credentials`, an identity that is created in the same run yields unknown values at plan " +
 			"time and the real token at apply.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"module_id": schema.StringAttribute{MarkdownDescription: "Module ID, for a module token.", Optional: true},
 			"ttl": schema.StringAttribute{
@@ -124,20 +122,12 @@ func (e *sasTokenEphemeral) Open(ctx context.Context, req ephemeral.OpenRequest,
 		resp.Diagnostics.AddAttributeError(path.Root("ttl"), "Invalid ttl", errs[0].Error()+" — use a Go duration such as \"30m\" or \"24h\".")
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, e.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.EphemeralHub(e.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &ephemeral.Deferred{Reason: ephemeral.DeferredReasonProviderConfigUnknown}
+		if resp.Deferred == nil && !resp.Diagnostics.HasError() {
+			data.ResourceURI, data.Token, data.ExpiresAt = types.StringUnknown(), types.StringUnknown(), types.StringUnknown()
+			resp.Diagnostics.Append(resp.Result.Set(ctx, &data)...)
 		}
-		return
-	}
-	c, diags := e.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -167,7 +157,6 @@ func (e *sasTokenEphemeral) Open(ctx context.Context, req ephemeral.OpenRequest,
 			}
 			resp.Diagnostics.AddWarning("Identity not found (yet)",
 				fmt.Sprintf("No %s exists in %s at the moment. If it is created in this run, the token becomes available at apply time; otherwise check the IDs.", what, c.Hostname()))
-			data.Hostname = types.StringValue(c.Hostname())
 			data.ResourceURI = types.StringValue(resourceURI)
 			data.Token, data.ExpiresAt = types.StringUnknown(), types.StringUnknown()
 			resp.Diagnostics.Append(resp.Result.Set(ctx, &data)...)
@@ -204,7 +193,6 @@ func (e *sasTokenEphemeral) Open(ctx context.Context, req ephemeral.OpenRequest,
 		return
 	}
 	tflog.Debug(ctx, "minted device SAS token", map[string]any{"resource_uri": resourceURI, "expires_at": expiry.Format(time.RFC3339)})
-	data.Hostname = types.StringValue(c.Hostname())
 	data.ResourceURI = types.StringValue(resourceURI)
 	data.Token = types.StringValue(token)
 	data.ExpiresAt = types.StringValue(expiry.Format(time.RFC3339))

@@ -80,11 +80,12 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 			"such change.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
-				MarkdownDescription: "Default IoT Hub hostname, for example `contoso.azure-devices.net`. Every resource, data source, " +
-					"ephemeral resource, action and list resource can override it with its own `hostname`. Falls back to " +
+				MarkdownDescription: "Hostname of the IoT Hub, in lowercase, for example `contoso.azure-devices.net`. Falls back to " +
 					"`IOTHUB_HOSTNAME`. When `connection_string` is set you can omit `hostname`, which is then taken from the " +
-					"connection string. If you set both, they must name the same hub.",
-				Optional: true,
+					"connection string. If you set both, they must name the same hub. To manage several hubs, declare one " +
+					"provider block per hub with an `alias`.",
+				Optional:   true,
+				Validators: common.HostnameValidators(),
 			},
 			"tenant_id": schema.StringAttribute{
 				MarkdownDescription: "Entra ID tenant. Falls back to `ARM_TENANT_ID` or `AZURE_TENANT_ID`.",
@@ -144,10 +145,12 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	// Values may be unknown during plan when they reference resources that
-	// do not exist yet (typically hostname = azurerm_iothub.x.hostname).
-	// Resources tolerate an unknown provider-level hostname as long as they
-	// set their own; everything else must be known to authenticate.
+	// hostname and connection_string may be unknown during the first plan of
+	// a configuration that also creates the hub (azurerm_iothub.x.hostname,
+	// azurerm_iothub_shared_access_policy.x.primary_connection_string). The
+	// provider is configured again with the real values at apply time; until
+	// then constructs defer or return unknown values. Everything else must be
+	// known to authenticate.
 	mustBeKnown := []struct {
 		name string
 		v    interface{ IsUnknown() bool }
@@ -155,16 +158,29 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		{"tenant_id", data.TenantID}, {"client_id", data.ClientID}, {"client_secret", data.ClientSecret},
 		{"client_certificate_path", data.ClientCertificatePath}, {"client_certificate_password", data.ClientCertificatePassword},
 		{"use_oidc", data.UseOIDC}, {"oidc_token_file_path", data.OIDCTokenFilePath}, {"use_msi", data.UseMSI},
-		{"use_cli", data.UseCLI}, {"connection_string", data.ConnectionString},
+		{"use_cli", data.UseCLI},
 	}
 	for _, a := range mustBeKnown {
 		if a.v.IsUnknown() {
 			resp.Diagnostics.AddAttributeError(pathRoot(a.name), "Unknown provider configuration value",
 				"The provider cannot authenticate while \""+a.name+"\" is unknown. Give it a value that is known at plan "+
-					"time (a literal, variable or output of an already-applied resource); only \"hostname\" may be unknown.")
+					"time (a literal, variable or output of an already-applied resource); only \"hostname\" and "+
+					"\"connection_string\" may be unknown.")
 		}
 	}
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	pd := &common.ProviderData{}
+	resp.ResourceData = pd
+	resp.DataSourceData = pd
+	resp.EphemeralResourceData = pd
+	resp.ActionData = pd
+	resp.ListResourceData = pd
+
+	if data.ConnectionString.IsUnknown() {
+		tflog.Info(ctx, "iothub provider: connection_string is not known yet; the hub is addressed at apply time")
 		return
 	}
 
@@ -198,32 +214,37 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		resp.Diagnostics.AddError("Invalid provider configuration", err.Error())
 		return
 	}
+	pd.Settings = settings
 
-	factory, err := newClientFactory(settings, p.version)
+	if data.Hostname.IsUnknown() {
+		tflog.Info(ctx, "iothub provider: hostname is not known yet; the hub is addressed at apply time")
+		return
+	}
+	if settings.Hostname == "" {
+		resp.Diagnostics.AddError("No IoT Hub hostname configured",
+			"Set `hostname` or `connection_string` on the provider block, or the IOTHUB_HOSTNAME or IOTHUB_CONNECTION_STRING environment variable.")
+		return
+	}
+
+	c, err := newClient(settings, p.version)
 	if err != nil {
 		resp.Diagnostics.AddError("Cannot initialise IoT Hub client", err.Error())
 		return
 	}
-
-	pd := &common.ProviderData{Settings: settings, HostnameUnknown: data.Hostname.IsUnknown(), Clients: factory}
+	pd.Client = c
 	tflog.Info(ctx, "configured iothub provider", map[string]any{
-		"auth_mode":        settings.Mode.String(),
-		"default_hostname": settings.Hostname,
+		"auth_mode": settings.Mode.String(),
+		"hostname":  settings.Hostname,
 	})
-
-	resp.ResourceData = pd
-	resp.DataSourceData = pd
-	resp.EphemeralResourceData = pd
-	resp.ActionData = pd
-	resp.ListResourceData = pd
 }
 
-// newClientFactory wires the resolved settings into the service client:
-// Entra ID credential or SAS key, provider version for the User-Agent, and
-// tflog as the client's debug logger.
-func newClientFactory(s common.Settings, version string) (*client.Factory, error) {
+// newClient wires the resolved settings into the service client: Entra ID
+// credential or SAS key, provider version for the User-Agent, and tflog as
+// the client's debug logger.
+func newClient(s common.Settings, version string) (*client.Client, error) {
 	cfg := client.Config{
-		Version: version,
+		Hostname: s.Hostname,
+		Version:  version,
 		Logger: func(ctx context.Context, msg string, fields map[string]any) {
 			tflog.Debug(ctx, msg, fields)
 		},
@@ -239,7 +260,7 @@ func newClientFactory(s common.Settings, version string) (*client.Factory, error
 		}
 		cfg.Credential = cred
 	}
-	return client.NewFactory(cfg)
+	return client.New(cfg)
 }
 
 func (p *IoTHubProvider) Resources(_ context.Context) []func() resource.Resource {

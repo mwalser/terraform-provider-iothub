@@ -31,24 +31,6 @@ func NewScheduledJobDataSource() datasource.DataSource { return &scheduledJobDat
 // NewImportExportJobDataSource returns the iothub_import_export_job data source.
 func NewImportExportJobDataSource() datasource.DataSource { return &importExportJobDataSource{} }
 
-// resolve resolves the hub for a data source read; ok=false when deferred.
-func resolve(ctx context.Context, pd *common.ProviderData, hostname types.String, req datasource.ReadRequest, resp *datasource.ReadResponse) (*client.Client, bool) {
-	host, ok, diags := common.ResolveHostname(hostname, pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return nil, false
-	}
-	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return nil, false
-	}
-	c, diags := pd.ClientFor(ctx, host)
-	resp.Diagnostics.Append(diags...)
-	return c, !resp.Diagnostics.HasError()
-}
-
 // ---- scheduled job ----------------------------------------------------------------
 
 type scheduledJobDataSource struct {
@@ -57,7 +39,6 @@ type scheduledJobDataSource struct {
 
 type scheduledJobModel struct {
 	ID                      types.String `tfsdk:"id"`
-	Hostname                types.String `tfsdk:"hostname"`
 	JobID                   types.String `tfsdk:"job_id"`
 	Type                    types.String `tfsdk:"type"`
 	Status                  types.String `tfsdk:"status"`
@@ -90,8 +71,7 @@ func (d *scheduledJobDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 		MarkdownDescription: "A scheduled twin-update or device-method job, for example one started by the `iothub_scheduled_job` " +
 			"action. The hub keeps job history for a limited time. Reading an unknown job is an error.",
 		Attributes: map[string]schema.Attribute{
-			"id":                         c("`<hostname>/jobs/v2/<job_id>`."),
-			"hostname":                   schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
+			"id":                         c("The job ID."),
 			"job_id":                     schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true},
 			"type":                       c("`scheduleUpdateTwin` or `scheduleDeviceMethod`."),
 			"status":                     c("`queued`, `scheduled`, `running`, `completed`, `failed` or `cancelled`."),
@@ -131,7 +111,7 @@ func (d *scheduledJobDataSource) Read(ctx context.Context, req datasource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, ok := resolve(ctx, d.pd, data.Hostname, req, resp)
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
 		return
 	}
@@ -144,8 +124,7 @@ func (d *scheduledJobDataSource) Read(ctx context.Context, req datasource.ReadRe
 		resp.Diagnostics.AddError("Scheduled job not found", fmt.Sprintf("No scheduled job %q is known to %s (history is kept for 30 days).", data.JobID.ValueString(), c.Hostname()))
 		return
 	}
-	data.ID = types.StringValue(common.ResourceID(c.Hostname(), "jobs", "v2", job.JobID))
-	data.Hostname = types.StringValue(c.Hostname())
+	data.ID = types.StringValue(job.JobID)
 	data.Type = types.StringValue(job.Type)
 	data.Status = types.StringValue(job.Status)
 	data.QueryCondition = identity.StringOrNull(job.QueryCondition)
@@ -185,7 +164,6 @@ type importExportJobDataSource struct {
 
 type importExportJobModel struct {
 	ID                        types.String `tfsdk:"id"`
-	Hostname                  types.String `tfsdk:"hostname"`
 	JobID                     types.String `tfsdk:"job_id"`
 	Type                      types.String `tfsdk:"type"`
 	Status                    types.String `tfsdk:"status"`
@@ -210,8 +188,7 @@ func (d *importExportJobDataSource) Schema(_ context.Context, _ datasource.Schem
 		MarkdownDescription: "A bulk import or export job, for example one started by the `iothub_import_export_job` action. " +
 			"The job record does not include the container URIs.",
 		Attributes: map[string]schema.Attribute{
-			"id":                          c("`<hostname>/jobs/<job_id>`."),
-			"hostname":                    schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
+			"id":                          c("The job ID."),
 			"job_id":                      schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true},
 			"type":                        c("`export` or `import`."),
 			"status":                      c("`enqueued`, `running`, `completed`, `failed` or `cancelled`."),
@@ -238,7 +215,7 @@ func (d *importExportJobDataSource) Read(ctx context.Context, req datasource.Rea
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, ok := resolve(ctx, d.pd, data.Hostname, req, resp)
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
 		return
 	}
@@ -251,8 +228,7 @@ func (d *importExportJobDataSource) Read(ctx context.Context, req datasource.Rea
 		resp.Diagnostics.AddError("Cannot read import/export job", common.DescribeError(err))
 		return
 	}
-	data.ID = types.StringValue(common.ResourceID(c.Hostname(), "jobs", job.JobID))
-	data.Hostname = types.StringValue(c.Hostname())
+	data.ID = types.StringValue(job.JobID)
 	data.Type = types.StringValue(job.Type)
 	data.Status = types.StringValue(job.Status)
 	data.Progress = types.Int64Value(job.Progress)

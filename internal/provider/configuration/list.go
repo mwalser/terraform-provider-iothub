@@ -2,7 +2,6 @@ package configuration
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -34,10 +33,6 @@ type listResource struct {
 	pd   *common.ProviderData
 }
 
-type listModel struct {
-	Hostname types.String `tfsdk:"hostname"`
-}
-
 func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + l.kind.typeSuffix()
 }
@@ -45,9 +40,7 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Lists every " + l.kind.noun() + " of the hub for `terraform query`. " + listSibling(l.kind),
-		Attributes: map[string]schema.Attribute{
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
-		},
+		Attributes:          map[string]schema.Attribute{},
 	}
 }
 
@@ -58,22 +51,7 @@ func (l *listResource) Configure(_ context.Context, req resource.ConfigureReques
 }
 
 func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *list.ListResultsStream) {
-	var cfg listModel
-	if diags := req.Config.Get(ctx, &cfg); diags.HasError() {
-		stream.Results = list.ListResultsStreamDiagnostics(diags)
-		return
-	}
-	hostname, ok, diags := common.ResolveHostname(cfg.Hostname, l.pd)
-	if diags.HasError() {
-		stream.Results = list.ListResultsStreamDiagnostics(diags)
-		return
-	}
-	if !ok {
-		diags.AddError("IoT Hub hostname unknown", "Set `hostname` in the list block or on the provider block.")
-		stream.Results = list.ListResultsStreamDiagnostics(diags)
-		return
-	}
-	c, diags := l.pd.ClientFor(ctx, hostname)
+	c, diags := l.pd.HubOrError()
 	if diags.HasError() {
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
 		return
@@ -97,8 +75,8 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				return
 			}
 			result := req.NewListResult(ctx)
-			result.DisplayName = fmt.Sprintf("%s (%s)", cfg.ID, c.Hostname())
-			result.Diagnostics.Append(l.kind.setIdentity(ctx, result.Identity, c.Hostname(), cfg.ID)...)
+			result.DisplayName = cfg.ID
+			result.Diagnostics.Append(l.kind.setIdentity(ctx, result.Identity, cfg.ID)...)
 			if req.IncludeResource {
 				m := model{
 					Labels: types.MapNull(types.StringType), Metrics: types.MapNull(types.StringType),
@@ -107,7 +85,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 						"create": types.StringType, "read": types.StringType, "update": types.StringType, "delete": types.StringType,
 					})},
 				}
-				l.kind.fromHub(&m, c.Hostname(), cfg, m)
+				l.kind.fromHub(&m, cfg, m)
 				result.Diagnostics.Append(l.kind.set(ctx, result.Resource, m)...)
 			}
 			n++

@@ -74,8 +74,11 @@ func TestConfigure_EntraDefault(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
 	}
 	pd := providerData(t, resp)
-	if pd.Settings.Mode != common.AuthEntraID || pd.Settings.Hostname != "contoso.azure-devices.net" || pd.HostnameUnknown {
+	if pd.Settings.Mode != common.AuthEntraID || pd.Settings.Hostname != "contoso.azure-devices.net" || pd.Client == nil {
 		t.Errorf("unexpected settings: %+v", pd)
+	}
+	if pd.Client.Hostname() != "contoso.azure-devices.net" {
+		t.Errorf("client hostname = %q", pd.Client.Hostname())
 	}
 	if resp.DataSourceData == nil || resp.EphemeralResourceData == nil || resp.ActionData == nil {
 		t.Errorf("provider data must be handed to every construct kind")
@@ -93,6 +96,17 @@ func TestConfigure_SAS(t *testing.T) {
 	pd := providerData(t, resp)
 	if pd.Settings.Mode != common.AuthSAS || pd.Settings.Hostname != "x.azure-devices.net" || pd.Settings.SAS.SharedAccessKeyName != "iothubowner" {
 		t.Errorf("unexpected settings: %+v", pd.Settings)
+	}
+	if pd.Client == nil || pd.Client.Hostname() != "x.azure-devices.net" {
+		t.Errorf("expected a client for the connection string's hub, got %+v", pd.Client)
+	}
+}
+
+func TestConfigure_NoHostname(t *testing.T) {
+	isolateEnv(t)
+	resp := configure(t, nil)
+	if !resp.Diagnostics.HasError() || !strings.Contains(resp.Diagnostics.Errors()[0].Summary(), "No IoT Hub hostname") {
+		t.Fatalf("expected an error about the missing hostname, got %v", resp.Diagnostics)
 	}
 }
 
@@ -114,8 +128,19 @@ func TestConfigure_UnknownValues(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("unknown hostname must be tolerated: %v", resp.Diagnostics)
 	}
-	if pd := providerData(t, resp); !pd.HostnameUnknown || pd.Settings.Hostname != "" {
-		t.Errorf("expected HostnameUnknown with empty hostname, got %+v", pd)
+	if pd := providerData(t, resp); pd.Client != nil || pd.Settings.Hostname != "" {
+		t.Errorf("expected no client while the hostname is unknown, got %+v", pd)
+	}
+	if _, ok, diags := providerData(t, resp).Hub(); ok || diags.HasError() {
+		t.Errorf("Hub() must report ok=false without diagnostics while the hostname is unknown")
+	}
+	// connection_string may be unknown too (azurerm_iothub_shared_access_policy.x.primary_connection_string).
+	resp = configure(t, map[string]tftypes.Value{"connection_string": tftypes.NewValue(tftypes.String, tftypes.UnknownValue)})
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unknown connection_string must be tolerated: %v", resp.Diagnostics)
+	}
+	if pd := providerData(t, resp); pd.Client != nil {
+		t.Errorf("expected no client while the connection string is unknown, got %+v", pd)
 	}
 	// anything needed for authentication may not be unknown.
 	resp = configure(t, map[string]tftypes.Value{"client_secret": tftypes.NewValue(tftypes.String, tftypes.UnknownValue)})

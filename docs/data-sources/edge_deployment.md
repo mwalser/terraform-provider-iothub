@@ -33,15 +33,11 @@ output "base_deployment_health" {
 
 - `deployment_id` (String) ID of the IoT Edge deployment.
 
-### Optional
-
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-
 ### Read-Only
 
 - `created_time_utc` (String) Creation time.
 - `etag` (String) ETag of the IoT Edge deployment.
-- `id` (String) `<hostname>/configurations/<deployment_id>`.
+- `id` (String) The `deployment_id`.
 - `labels` (Map of String) Free-form labels.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.

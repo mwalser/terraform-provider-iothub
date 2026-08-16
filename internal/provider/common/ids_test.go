@@ -2,21 +2,17 @@ package common
 
 import "testing"
 
-func TestResourceID_RoundTrip(t *testing.T) {
-	id := ResourceID("Hub.azure-devices.net", "devices", "dev-1")
-	if id != "hub.azure-devices.net/devices/dev-1" {
+func TestModuleID_RoundTrip(t *testing.T) {
+	id := ModuleID("dev-1", "m1")
+	if id != "dev-1/m1" {
 		t.Fatalf("id = %q", id)
 	}
-	host, parts, err := ParseResourceID(id, "devices")
-	if err != nil || host != "hub.azure-devices.net" || len(parts) != 1 || parts[0] != "dev-1" {
-		t.Fatalf("parse: %q %v %v", host, parts, err)
+	dev, mod, err := ParseModuleID(" dev-1/m1 ")
+	if err != nil || dev != "dev-1" || mod != "m1" {
+		t.Fatalf("parse: %q %q %v", dev, mod, err)
 	}
-	host, parts, err = ParseResourceID("hub.azure-devices.net/devices/d/modules/m", "devices")
-	if err != nil || host != "hub.azure-devices.net" || len(parts) != 3 || parts[2] != "m" {
-		t.Fatalf("parse module: %q %v %v", host, parts, err)
-	}
-	for _, bad := range []string{"", "hub", "hub/", "hub/twins/x", "hub/devices/", "/devices/x"} {
-		if _, _, err := ParseResourceID(bad, "devices"); err == nil {
+	for _, bad := range []string{"", "dev-1", "dev-1/", "/m1", "dev-1/m1/x"} {
+		if _, _, err := ParseModuleID(bad); err == nil {
 			t.Errorf("expected error for %q", bad)
 		}
 	}

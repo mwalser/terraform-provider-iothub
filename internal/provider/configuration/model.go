@@ -115,7 +115,6 @@ func sortedKeys(m map[string]any) []string {
 // model is the kind-independent view of both resource schemas.
 type model struct {
 	ID                 types.String
-	Hostname           types.String
 	ConfigurationID    types.String // configuration_id / deployment_id
 	TargetCondition    types.String
 	Priority           types.Int64
@@ -135,7 +134,6 @@ type model struct {
 
 type configurationModel struct {
 	ID                 types.String   `tfsdk:"id"`
-	Hostname           types.String   `tfsdk:"hostname"`
 	ConfigurationID    types.String   `tfsdk:"configuration_id"`
 	TargetCondition    types.String   `tfsdk:"target_condition"`
 	Priority           types.Int64    `tfsdk:"priority"`
@@ -154,7 +152,6 @@ type configurationModel struct {
 
 type edgeDeploymentModel struct {
 	ID                 types.String   `tfsdk:"id"`
-	Hostname           types.String   `tfsdk:"hostname"`
 	DeploymentID       types.String   `tfsdk:"deployment_id"`
 	TargetCondition    types.String   `tfsdk:"target_condition"`
 	Priority           types.Int64    `tfsdk:"priority"`
@@ -182,14 +179,14 @@ func (k kind) get(ctx context.Context, src getter) (model, diag.Diagnostics) {
 	if k.isEdge() {
 		var e edgeDeploymentModel
 		diags := src.Get(ctx, &e)
-		return model{ID: e.ID, Hostname: e.Hostname, ConfigurationID: e.DeploymentID, TargetCondition: e.TargetCondition, Priority: e.Priority,
+		return model{ID: e.ID, ConfigurationID: e.DeploymentID, TargetCondition: e.TargetCondition, Priority: e.Priority,
 			Labels: e.Labels, DeviceContent: jsondoc.NewNull(ContentType), ModuleContent: jsondoc.NewNull(ContentType), ModulesContent: e.ModulesContent,
 			Metrics: e.Metrics, SchemaVersion: e.SchemaVersion, ETag: e.ETag, CreatedTimeUTC: e.CreatedTimeUTC, LastUpdatedTimeUTC: e.LastUpdatedTimeUTC,
 			SystemMetrics: e.SystemMetrics, MetricResults: e.MetricResults, Timeouts: e.Timeouts}, diags
 	}
 	var c configurationModel
 	diags := src.Get(ctx, &c)
-	return model{ID: c.ID, Hostname: c.Hostname, ConfigurationID: c.ConfigurationID, TargetCondition: c.TargetCondition, Priority: c.Priority,
+	return model{ID: c.ID, ConfigurationID: c.ConfigurationID, TargetCondition: c.TargetCondition, Priority: c.Priority,
 		Labels: c.Labels, DeviceContent: c.DeviceContent, ModuleContent: c.ModuleContent, ModulesContent: jsondoc.NewNull(ModulesContentType),
 		Metrics: c.Metrics, SchemaVersion: c.SchemaVersion, ETag: c.ETag, CreatedTimeUTC: c.CreatedTimeUTC, LastUpdatedTimeUTC: c.LastUpdatedTimeUTC,
 		SystemMetrics: c.SystemMetrics, MetricResults: c.MetricResults, Timeouts: c.Timeouts}, diags
@@ -197,12 +194,12 @@ func (k kind) get(ctx context.Context, src getter) (model, diag.Diagnostics) {
 
 func (k kind) set(ctx context.Context, dst setter, m model) diag.Diagnostics {
 	if k.isEdge() {
-		return dst.Set(ctx, &edgeDeploymentModel{ID: m.ID, Hostname: m.Hostname, DeploymentID: m.ConfigurationID, TargetCondition: m.TargetCondition,
+		return dst.Set(ctx, &edgeDeploymentModel{ID: m.ID, DeploymentID: m.ConfigurationID, TargetCondition: m.TargetCondition,
 			Priority: m.Priority, Labels: m.Labels, ModulesContent: m.ModulesContent, Metrics: m.Metrics, SchemaVersion: m.SchemaVersion, ETag: m.ETag,
 			CreatedTimeUTC: m.CreatedTimeUTC, LastUpdatedTimeUTC: m.LastUpdatedTimeUTC, SystemMetrics: m.SystemMetrics, MetricResults: m.MetricResults,
 			Timeouts: m.Timeouts})
 	}
-	return dst.Set(ctx, &configurationModel{ID: m.ID, Hostname: m.Hostname, ConfigurationID: m.ConfigurationID, TargetCondition: m.TargetCondition,
+	return dst.Set(ctx, &configurationModel{ID: m.ID, ConfigurationID: m.ConfigurationID, TargetCondition: m.TargetCondition,
 		Priority: m.Priority, Labels: m.Labels, DeviceContent: m.DeviceContent, ModuleContent: m.ModuleContent, Metrics: m.Metrics,
 		SchemaVersion: m.SchemaVersion, ETag: m.ETag, CreatedTimeUTC: m.CreatedTimeUTC, LastUpdatedTimeUTC: m.LastUpdatedTimeUTC,
 		SystemMetrics: m.SystemMetrics, MetricResults: m.MetricResults, Timeouts: m.Timeouts})
@@ -277,9 +274,8 @@ func content(t jsondoc.Type, raw json.RawMessage, owner jsondoc.Value) jsondoc.V
 
 // fromHub maps a hub configuration onto the model. owner supplies the prior
 // (plan or state) values that decide null-vs-empty and verbatim strings.
-func (k kind) fromHub(m *model, hostname string, c *client.Configuration, owner model) {
-	m.ID = types.StringValue(resourceID(hostname, c.ID))
-	m.Hostname = types.StringValue(hostname)
+func (k kind) fromHub(m *model, c *client.Configuration, owner model) {
+	m.ID = types.StringValue(c.ID)
 	m.ConfigurationID = types.StringValue(c.ID)
 	m.TargetCondition = types.StringValue(c.TargetCondition)
 	m.Priority = types.Int64Value(c.Priority)

@@ -38,5 +38,4 @@ list "iothub_device" "gateways" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `query_condition` (String) `WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, for example `tags.site = 'munich'` or `capabilities.iotEdge = true`. All devices when omitted.

@@ -31,7 +31,6 @@ type importExportJobAction struct {
 }
 
 type importExportJobModel struct {
-	Hostname                  types.String `tfsdk:"hostname"`
 	Type                      types.String `tfsdk:"type"`
 	InputBlobContainerURI     types.String `tfsdk:"input_blob_container_uri"`
 	OutputBlobContainerURI    types.String `tfsdk:"output_blob_container_uri"`
@@ -72,7 +71,6 @@ func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest
 			"`identityBased`, a role assignment that has just been granted can take a few minutes to become effective. The action " +
 			"retries during that window.",
 		Attributes: map[string]schema.Attribute{
-			"hostname": hostnameAttribute(),
 			"type": schema.StringAttribute{
 				MarkdownDescription: "`export` or `import`.",
 				Required:            true,
@@ -140,7 +138,7 @@ func (a *importExportJobAction) Invoke(ctx context.Context, req action.InvokeReq
 	}
 	timeout, diags := parseTimeout(data.Timeout, defaultJobTimeout)
 	resp.Diagnostics.Append(diags...)
-	c, d := clientFor(ctx, a.pd, data.Hostname)
+	c, d := hubClient(a.pd)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return

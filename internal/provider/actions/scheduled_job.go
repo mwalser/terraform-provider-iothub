@@ -36,7 +36,6 @@ type scheduledJobAction struct {
 }
 
 type scheduledJobModel struct {
-	Hostname                types.String `tfsdk:"hostname"`
 	JobID                   types.String `tfsdk:"job_id"`
 	Type                    types.String `tfsdk:"type"`
 	QueryCondition          types.String `tfsdk:"query_condition"`
@@ -81,7 +80,6 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 			"at a time. While all slots are taken, the action waits for a free one within `timeout`. Re-running with the same " +
 			"`job_id` fails while the hub still remembers the earlier job. Use a new ID per run, or omit `job_id`.",
 		Attributes: map[string]schema.Attribute{
-			"hostname": hostnameAttribute(),
 			"job_id": schema.StringAttribute{
 				MarkdownDescription: "Job ID, unique per hub: 1 to 64 lowercase letters, digits and hyphens. Generated as `tf-<random>` " +
 					"when omitted and shown in the apply output, so you can read or cancel the job later.",
@@ -195,7 +193,7 @@ func (a *scheduledJobAction) Invoke(ctx context.Context, req action.InvokeReques
 	}
 	timeout, diags := parseTimeout(data.Timeout, defaultJobTimeout)
 	resp.Diagnostics.Append(diags...)
-	c, d := clientFor(ctx, a.pd, data.Hostname)
+	c, d := hubClient(a.pd)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return

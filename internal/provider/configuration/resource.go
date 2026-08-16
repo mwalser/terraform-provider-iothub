@@ -59,19 +59,9 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 	attrs := map[string]schema.Attribute{
 		"id": schema.StringAttribute{
-			MarkdownDescription: "`<hostname>/configurations/<" + r.kind.idAttr() + ">`. Also the import ID.",
+			MarkdownDescription: "The `" + r.kind.idAttr() + "`. Also the import ID.",
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-		},
-		"hostname": schema.StringAttribute{
-			MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the " + r.kind.noun() + ".",
-			Optional:            true,
-			Computed:            true,
-			Validators:          common.HostnameValidators(),
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-				stringplanmodifier.RequiresReplace(),
-			},
 		},
 		r.kind.idAttr(): schema.StringAttribute{
 			MarkdownDescription: strings.ToUpper(r.kind.noun()[:1]) + r.kind.noun()[1:] + " ID: " + idDescription + ". It must be unique among all " +
@@ -183,24 +173,20 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 }
 
-// IdentitySchema: hub + configuration_id / deployment_id.
+// IdentitySchema: configuration_id / deployment_id.
 func (r *configResource) IdentitySchema(_ context.Context, _ resource.IdentitySchemaRequest, resp *resource.IdentitySchemaResponse) {
 	resp.IdentitySchema = identityschema.Schema{
 		Attributes: map[string]identityschema.Attribute{
-			"hostname":      identityschema.StringAttribute{RequiredForImport: true, Description: "IoT Hub hostname."},
 			r.kind.idAttr(): identityschema.StringAttribute{RequiredForImport: true, Description: "ID of the " + r.kind.noun() + "."},
 		},
 	}
 }
 
-func (k kind) setIdentity(ctx context.Context, id *tfsdk.ResourceIdentity, hostname, configID string) diag.Diagnostics {
+func (k kind) setIdentity(ctx context.Context, id *tfsdk.ResourceIdentity, configID string) diag.Diagnostics {
 	if id == nil {
 		return nil
 	}
-	var diags diag.Diagnostics
-	diags.Append(id.SetAttribute(ctx, path.Root("hostname"), types.StringValue(hostname))...)
-	diags.Append(id.SetAttribute(ctx, path.Root(k.idAttr()), types.StringValue(configID))...)
-	return diags
+	return id.SetAttribute(ctx, path.Root(k.idAttr()), types.StringValue(configID))
 }
 
 func (r *configResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -209,15 +195,14 @@ func (r *configResource) Configure(_ context.Context, req resource.ConfigureRequ
 	r.pd = pd
 }
 
-// ModifyPlan resolves the hostname and validates target_condition / metrics
-// against the hub when they change (fixed behaviour, CONCEPT.md §15 row 11).
+// ModifyPlan defers when the hub is not known yet, sets the ID, and validates
+// target_condition / metrics against the hub when they change (fixed
+// behaviour, CONCEPT.md §15 row 11).
 func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	if req.Plan.Raw.IsNull() { // destroy
 		return
 	}
 	plan, diags := r.kind.get(ctx, req.Plan)
-	resp.Diagnostics.Append(diags...)
-	config, diags := r.kind.get(ctx, req.Config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -231,20 +216,13 @@ func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 		}
 		state = &s
 	}
-	if plan.Hostname.IsUnknown() && r.pd != nil {
-		hostname, ok, diags := common.ResolveHostname(config.Hostname, r.pd)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		if ok {
-			plan.Hostname = types.StringValue(strings.ToLower(hostname))
-		} else if req.ClientCapabilities.DeferralAllowed {
+	if r.pd != nil {
+		if _, ok, diags := r.pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
 			resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
 		}
 	}
-	if !plan.Hostname.IsUnknown() && !plan.ConfigurationID.IsUnknown() {
-		plan.ID = types.StringValue(resourceID(plan.Hostname.ValueString(), plan.ConfigurationID.ValueString()))
+	if !plan.ConfigurationID.IsUnknown() {
+		plan.ID = plan.ConfigurationID
 	}
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.Plan, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -255,11 +233,16 @@ func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 
 // validateQueries calls testQueries when the planned target condition or
 // metric queries differ from state (always on create). Unknown values, an
-// unknown hostname and the `*` target (accepted by PUT, rejected by
-// testQueries — verified) skip the check; transient failures become warnings.
+// unknown hub and the `*` target (accepted by PUT, rejected by testQueries —
+// verified) skip the check; transient failures become warnings.
 func (r *configResource) validateQueries(ctx context.Context, plan model, state *model) diag.Diagnostics {
 	var diags diag.Diagnostics
-	if r.pd == nil || plan.Hostname.IsUnknown() || plan.Hostname.IsNull() || plan.TargetCondition.IsUnknown() || plan.Metrics.IsUnknown() {
+	if r.pd == nil || plan.TargetCondition.IsUnknown() || plan.Metrics.IsUnknown() {
+		return diags
+	}
+	c, ok, d := r.pd.Hub()
+	diags.Append(d...)
+	if diags.HasError() || !ok {
 		return diags
 	}
 	target := plan.TargetCondition.ValueString()
@@ -286,11 +269,6 @@ func (r *configResource) validateQueries(ctx context.Context, plan model, state 
 			return diags
 		}
 		target = "deviceId != ''" // any valid condition: only the metric queries are checked
-	}
-	c, d := r.pd.ClientFor(ctx, plan.Hostname.ValueString())
-	diags.Append(d...)
-	if diags.HasError() {
-		return diags
 	}
 	res, err := c.TestConfigurationQueries(ctx, target, metrics)
 	if err != nil {
@@ -321,7 +299,7 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client(ctx, plan.Hostname)
+	c, hostname, diags := r.client()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -337,15 +315,15 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 		if client.IsConflict(err) {
 			resp.Diagnostics.AddAttributeError(path.Root(r.kind.idAttr()), strings.ToUpper(r.kind.noun()[:1])+r.kind.noun()[1:]+" already exists",
 				fmt.Sprintf("A configuration or deployment with ID %q already exists in %s. To manage it with Terraform, import it:\n\n  terraform import <address> %s\n\n%s",
-					spec.ID, hostname, resourceID(hostname, spec.ID), common.DescribeError(err)))
+					spec.ID, hostname, spec.ID, common.DescribeError(err)))
 			return
 		}
 		resp.Diagnostics.AddError("Cannot create IoT Hub "+r.kind.noun(), common.DescribeError(err))
 		return
 	}
-	r.kind.fromHub(&plan, hostname, created, plan)
+	r.kind.fromHub(&plan, created, plan)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, plan)...)
-	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, created.ID)...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, created.ID)...)
 }
 
 func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -362,9 +340,15 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client(ctx, state.Hostname)
+	c, ok, diags := r.pd.Hub()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if !ok {
+		// The hub is not known yet (first plan of a configuration that also
+		// creates it); the prior state stands until apply.
+		resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, state.ConfigurationID.ValueString())...)
 		return
 	}
 	cfg, err := c.GetConfiguration(ctx, state.ConfigurationID.ValueString())
@@ -381,9 +365,9 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	r.kind.fromHub(&state, hostname, cfg, state)
+	r.kind.fromHub(&state, cfg, state)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, state)...)
-	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, cfg.ID)...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, cfg.ID)...)
 }
 
 // checkKind refuses to manage a deployment as a configuration or vice versa.
@@ -416,7 +400,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client(ctx, plan.Hostname)
+	c, _, diags := r.client()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -460,9 +444,9 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 		tflog.Debug(ctx, "412 without a change to written fields; retrying with the fresh ETag", map[string]any{"id": id, "attempt": attempt})
 		etag = fresh.ETag
 	}
-	r.kind.fromHub(&plan, hostname, updated, plan)
+	r.kind.fromHub(&plan, updated, plan)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, plan)...)
-	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, updated.ID)...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, updated.ID)...)
 }
 
 func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -479,7 +463,7 @@ func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client(ctx, state.Hostname)
+	c, _, diags := r.client()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -490,46 +474,29 @@ func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *configResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	var hostname, id string
-	if req.ID != "" {
-		host, parts, err := common.ParseResourceID(req.ID, "configurations")
-		if err != nil || len(parts) != 1 {
-			resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/configurations/<id>`, e.g. contoso.azure-devices.net/configurations/fw-channel-stable.")
-			return
-		}
-		hostname, id = host, parts[0]
-	} else if req.Identity != nil {
-		var h, i types.String
-		resp.Diagnostics.Append(req.Identity.GetAttribute(ctx, path.Root("hostname"), &h)...)
+	id := strings.TrimSpace(req.ID)
+	if id == "" && req.Identity != nil {
+		var i types.String
 		resp.Diagnostics.Append(req.Identity.GetAttribute(ctx, path.Root(r.kind.idAttr()), &i)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		hostname, id = h.ValueString(), i.ValueString()
+		id = i.ValueString()
 	}
-	if hostname == "" || id == "" {
-		resp.Diagnostics.AddError("Invalid import", "Provide the import ID `<hostname>/configurations/<id>` or the identity attributes `hostname` and `"+r.kind.idAttr()+"`.")
+	if id == "" {
+		resp.Diagnostics.AddError("Invalid import", "Provide the "+r.kind.noun()+" ID as the import ID (for example fw-channel-stable) or as the identity attribute `"+r.kind.idAttr()+"`.")
 		return
 	}
-	hostname = strings.ToLower(hostname)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(hostname))...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root(r.kind.idAttr()), types.StringValue(id))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(resourceID(hostname, id)))...)
-	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, hostname, id)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(id))...)
+	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, id)...)
 }
 
 // ---- helpers ------------------------------------------------------------------
 
-func resourceID(hostname, id string) string { return common.ResourceID(hostname, "configurations", id) }
-
-func (r *configResource) client(ctx context.Context, hostname types.String) (*client.Client, string, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	if hostname.IsUnknown() || hostname.IsNull() || hostname.ValueString() == "" {
-		diags.AddAttributeError(path.Root("hostname"), "IoT Hub hostname unknown at apply time", "Set `hostname` on the resource or on the provider block.")
-		return nil, "", diags
-	}
-	c, d := r.pd.ClientFor(ctx, hostname.ValueString())
-	diags.Append(d...)
+// client returns the hub client and hostname for an apply-time operation.
+func (r *configResource) client() (*client.Client, string, diag.Diagnostics) {
+	c, diags := r.pd.HubOrError()
 	if diags.HasError() {
 		return nil, "", diags
 	}

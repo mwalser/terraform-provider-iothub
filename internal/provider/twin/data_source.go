@@ -34,7 +34,6 @@ type twinDataSource struct {
 
 type dataSourceModel struct {
 	ID                 types.String `tfsdk:"id"`
-	Hostname           types.String `tfsdk:"hostname"`
 	DeviceID           types.String `tfsdk:"device_id"`
 	ModuleID           types.String `tfsdk:"module_id"`
 	Tags               types.String `tfsdk:"tags"`
@@ -54,7 +53,6 @@ type dataSourceModel struct {
 // deviceDataSourceModel is dataSourceModel without module_id.
 type deviceDataSourceModel struct {
 	ID                 types.String `tfsdk:"id"`
-	Hostname           types.String `tfsdk:"hostname"`
 	DeviceID           types.String `tfsdk:"device_id"`
 	Tags               types.String `tfsdk:"tags"`
 	DesiredProperties  types.String `tfsdk:"desired_properties"`
@@ -82,13 +80,12 @@ func (d *twinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 	c := func(desc string) schema.StringAttribute {
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
-	subject, idFormat := "device", "`<hostname>/twins/<device_id>`"
+	subject, idFormat := "device", "The device ID"
 	if d.kind.isModule() {
-		subject, idFormat = "module", "`<hostname>/twins/<device_id>/modules/<module_id>`"
+		subject, idFormat = "module", "`<device_id>/<module_id>`"
 	}
 	attrs := map[string]schema.Attribute{
 		"id":                  c(idFormat + "."),
-		"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 		"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 		"tags":                c("All tags of the twin as a JSON string."),
 		"desired_properties":  c("All desired properties as a JSON string, without `$metadata` and `$version`."),
@@ -126,25 +123,13 @@ func (d *twinDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	} else {
 		var dm deviceDataSourceModel
 		resp.Diagnostics.Append(req.Config.Get(ctx, &dm)...)
-		data = dataSourceModel{Hostname: dm.Hostname, DeviceID: dm.DeviceID, ModuleID: types.StringNull()}
+		data = dataSourceModel{DeviceID: dm.DeviceID, ModuleID: types.StringNull()}
 	}
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return
-	}
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	var tw *client.Twin
@@ -168,11 +153,10 @@ func (d *twinDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	if d.kind.isModule() {
-		data.ID = types.StringValue(common.ResourceID(c.Hostname(), "twins", tw.DeviceID, "modules", tw.ModuleID))
+		data.ID = types.StringValue(common.ModuleID(tw.DeviceID, tw.ModuleID))
 	} else {
-		data.ID = types.StringValue(common.ResourceID(c.Hostname(), "twins", tw.DeviceID))
+		data.ID = types.StringValue(tw.DeviceID)
 	}
-	data.Hostname = types.StringValue(c.Hostname())
 	var dg diag.Diagnostics
 	data.Tags, _, dg = sectionString(tw.Tags, "tags")
 	resp.Diagnostics.Append(dg...)
@@ -196,7 +180,7 @@ func (d *twinDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &deviceDataSourceModel{
-		ID: data.ID, Hostname: data.Hostname, DeviceID: data.DeviceID, Tags: data.Tags, DesiredProperties: data.DesiredProperties,
+		ID: data.ID, DeviceID: data.DeviceID, Tags: data.Tags, DesiredProperties: data.DesiredProperties,
 		ReportedProperties: data.ReportedProperties, DesiredVersion: data.DesiredVersion, ReportedVersion: data.ReportedVersion,
 		ETag: data.ETag, Version: data.Version, DeviceETag: data.DeviceETag, ModelID: data.ModelID, Status: data.Status,
 		ConnectionState: data.ConnectionState, LastActivityTime: data.LastActivityTime,

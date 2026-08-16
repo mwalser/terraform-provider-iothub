@@ -24,11 +24,7 @@ func newTestClient(t *testing.T, srv *httptest.Server, tune func(*RetryOptions))
 	if tune != nil {
 		tune(&opts)
 	}
-	f, err := NewFactory(Config{Credential: fakeCred{}, Transport: redirectTo(srv), Retry: opts})
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := f.Client("hub.azure-devices.net")
+	c, err := New(Config{Hostname: "hub.azure-devices.net", Credential: fakeCred{}, Transport: redirectTo(srv), Retry: opts})
 	if err != nil {
 		t.Fatal(err)
 	}

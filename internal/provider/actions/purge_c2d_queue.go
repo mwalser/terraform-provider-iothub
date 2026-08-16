@@ -29,7 +29,6 @@ type purgeAction struct {
 }
 
 type purgeModel struct {
-	Hostname types.String `tfsdk:"hostname"`
 	DeviceID types.String `tfsdk:"device_id"`
 }
 
@@ -42,7 +41,6 @@ func (a *purgeAction) Schema(_ context.Context, _ action.SchemaRequest, resp *ac
 		MarkdownDescription: "Deletes every pending cloud-to-device message of a device and reports how many were purged. Typical " +
 			"uses are an `action_trigger` before re-commissioning a device, or an ad hoc `terraform apply -invoke`.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":  hostnameAttribute(),
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 		},
 	}
@@ -54,7 +52,7 @@ func (a *purgeAction) Invoke(ctx context.Context, req action.InvokeRequest, resp
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, diags := clientFor(ctx, a.pd, data.Hostname)
+	c, diags := hubClient(a.pd)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

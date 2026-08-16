@@ -39,8 +39,7 @@ resource "iothub_module" "test" {
 			{ // defaults: sas with hub-generated keys, no managed_by
 				Config: cfg(""),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/devices/"+dev+"/modules/telemetry")),
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("hostname"), knownvalue.StringExact(iotacc.Hostname())),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(dev+"/telemetry")),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("managed_by"), knownvalue.Null()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("type"), knownvalue.StringExact("sas")),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("primary_key"), knownvalue.StringRegexp(regexp.MustCompile(`^[A-Za-z0-9+/]{43}=$`))),
@@ -140,7 +139,7 @@ data "iothub_module" "other" {
 						knownvalue.StringExact("HostName="+iotacc.Hostname()+";DeviceId="+dev+";ModuleId=m1;SharedAccessKey="+k1)),
 					// list data source sees both modules, without keys
 					statecheck.ExpectKnownValue("data.iothub_modules.all", tfjsonpath.New("modules"), knownvalue.ListSizeExact(2)),
-					statecheck.ExpectKnownValue("data.iothub_modules.all", tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/devices/"+dev+"/modules")),
+					statecheck.ExpectKnownValue("data.iothub_modules.all", tfjsonpath.New("id"), knownvalue.StringExact(dev)),
 					statecheck.ExpectKnownValue("data.iothub_module.other", tfjsonpath.New("managed_by"), knownvalue.StringExact("someone")),
 					statecheck.ExpectKnownValue("data.iothub_module.other", tfjsonpath.New("authentication_type"), knownvalue.StringExact("certificateAuthority")),
 				},

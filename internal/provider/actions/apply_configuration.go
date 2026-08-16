@@ -32,7 +32,6 @@ type applyConfigurationAction struct {
 }
 
 type applyConfigurationModel struct {
-	Hostname       types.String  `tfsdk:"hostname"`
 	DeviceID       types.String  `tfsdk:"device_id"`
 	ModulesContent jsondoc.Value `tfsdk:"modules_content"`
 }
@@ -51,7 +50,6 @@ func (a *applyConfigurationAction) Schema(_ context.Context, _ action.SchemaRequ
 			"~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for " +
 			"example when the deployment is changed.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":  hostnameAttribute(),
 			"device_id": schema.StringAttribute{MarkdownDescription: "ID of the IoT Edge device.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"modules_content": schema.StringAttribute{
 				CustomType:          configuration.ModulesContentType,
@@ -68,7 +66,7 @@ func (a *applyConfigurationAction) Invoke(ctx context.Context, req action.Invoke
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, diags := clientFor(ctx, a.pd, data.Hostname)
+	c, diags := hubClient(a.pd)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

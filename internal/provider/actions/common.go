@@ -11,36 +11,15 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/action"
-	"github.com/hashicorp/terraform-plugin-framework/action/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 )
 
-// hostnameAttribute is the per-action hub override.
-func hostnameAttribute() schema.StringAttribute {
-	return schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()}
-}
-
-// clientFor resolves the hub for an action invocation. Unknown values cannot
-// occur at invoke time, so an unresolvable hostname is an error.
-func clientFor(ctx context.Context, pd *common.ProviderData, hostname types.String) (*client.Client, diag.Diagnostics) {
-	host, ok, diags := common.ResolveHostname(hostname, pd)
-	if diags.HasError() {
-		return nil, diags
-	}
-	if !ok {
-		diags.AddAttributeError(path.Root("hostname"), "IoT Hub hostname unknown", "Set `hostname` in the action's config or on the provider block.")
-		return nil, diags
-	}
-	c, d := pd.ClientFor(ctx, host)
-	diags.Append(d...)
-	return c, diags
-}
+// hubClient returns the hub client for an action invocation.
+func hubClient(pd *common.ProviderData) (*client.Client, diag.Diagnostics) { return pd.HubOrError() }
 
 // progress sends a progress message to Terraform (shown during apply) if the
 // framework provided a sender.

@@ -2,7 +2,7 @@ package common
 
 import (
 	"context"
-	"sync"
+	"sync/atomic"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -20,10 +20,10 @@ import (
 // carries. Otherwise the registry is read as before. There is no knob: the
 // behaviour is lossless, and a credential that cannot read twins (Entra ID
 // without `twins/read`, a SAS policy without ServiceConnect) is detected on
-// the first refresh per hub and the registry read is used silently for the
-// rest of the run.
+// the first refresh and the registry read is used silently for the rest of
+// the run.
 type RefreshGate struct {
-	twinsUnreadable sync.Map // hostname → struct{}
+	twinsUnreadable atomic.Bool
 }
 
 // TwinIfUnchanged reads the twin behind an identity and returns it when the
@@ -32,34 +32,31 @@ type RefreshGate struct {
 // still connectionState (the twin has no connectionStateUpdatedTime, so a
 // changed connection state must be read from the registry). Any other
 // outcome — a changed ETag, an unreadable twin, no ETag in state — returns
-// nil and the caller reads the registry as usual. A 401/403 marks the hub so
-// the twin is not tried again in this run.
-func (g *RefreshGate) TwinIfUnchanged(ctx context.Context, hostname string, read func(context.Context) (*client.Twin, error), etag, connectionState string) *client.Twin {
-	if g == nil || etag == "" {
-		return nil
-	}
-	if _, skip := g.twinsUnreadable.Load(hostname); skip {
+// nil and the caller reads the registry as usual. A 401/403 marks twins as
+// unreadable so they are not tried again in this run.
+func (g *RefreshGate) TwinIfUnchanged(ctx context.Context, read func(context.Context) (*client.Twin, error), etag, connectionState string) *client.Twin {
+	if g == nil || etag == "" || g.twinsUnreadable.Load() {
 		return nil
 	}
 	tw, err := read(ctx)
 	if err != nil {
 		if client.IsUnauthorized(err) {
-			g.twinsUnreadable.Store(hostname, struct{}{})
-			tflog.Info(ctx, "credential cannot read twins on this hub; identities are refreshed from the registry for the rest of the run",
-				map[string]any{"hostname": hostname, "error": err.Error()})
+			g.twinsUnreadable.Store(true)
+			tflog.Info(ctx, "credential cannot read twins; identities are refreshed from the registry for the rest of the run",
+				map[string]any{"error": err.Error()})
 		} else {
-			tflog.Debug(ctx, "twin read failed; refreshing the identity from the registry", map[string]any{"hostname": hostname, "error": err.Error()})
+			tflog.Debug(ctx, "twin read failed; refreshing the identity from the registry", map[string]any{"error": err.Error()})
 		}
 		return nil
 	}
 	switch {
 	case tw.DeviceETag != etag:
-		tflog.Debug(ctx, "identity changed since the last refresh; reading the registry", map[string]any{"hostname": hostname, "state_etag": etag, "device_etag": tw.DeviceETag})
+		tflog.Debug(ctx, "identity changed since the last refresh; reading the registry", map[string]any{"state_etag": etag, "device_etag": tw.DeviceETag})
 		return nil
 	case tw.ConnectionState != connectionState:
-		tflog.Debug(ctx, "connection state changed; reading the registry for its timestamp", map[string]any{"hostname": hostname})
+		tflog.Debug(ctx, "connection state changed; reading the registry for its timestamp", nil)
 		return nil
 	}
-	tflog.Debug(ctx, "identity unchanged; volatile fields refreshed from the twin", map[string]any{"hostname": hostname, "etag": etag})
+	tflog.Debug(ctx, "identity unchanged; volatile fields refreshed from the twin", map[string]any{"etag": etag})
 	return tw
 }

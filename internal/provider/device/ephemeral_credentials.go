@@ -27,13 +27,19 @@ type credentialsEphemeral struct {
 }
 
 type credentialsModel struct {
-	Hostname                  types.String `tfsdk:"hostname"`
 	DeviceID                  types.String `tfsdk:"device_id"`
 	AuthenticationType        types.String `tfsdk:"authentication_type"`
 	PrimaryKey                types.String `tfsdk:"primary_key"`
 	SecondaryKey              types.String `tfsdk:"secondary_key"`
 	PrimaryConnectionString   types.String `tfsdk:"primary_connection_string"`
 	SecondaryConnectionString types.String `tfsdk:"secondary_connection_string"`
+}
+
+// setUnknown marks every result value as known after apply.
+func (m *credentialsModel) setUnknown() {
+	m.AuthenticationType = types.StringUnknown()
+	m.PrimaryKey, m.SecondaryKey = types.StringUnknown(), types.StringUnknown()
+	m.PrimaryConnectionString, m.SecondaryConnectionString = types.StringUnknown(), types.StringUnknown()
 }
 
 func (e *credentialsEphemeral) Metadata(_ context.Context, req ephemeral.MetadataRequest, resp *ephemeral.MetadataResponse) {
@@ -49,7 +55,6 @@ func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaReque
 			"it does not exist yet at plan time. The plan then shows the values as known after apply and warns that the " +
 			"device was not found yet. The values are read during apply.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":            schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
 			"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.", Computed: true},
 			"primary_key":         schema.StringAttribute{MarkdownDescription: "Primary key, base64 encoded. Null unless `authentication_type` is `sas`.", Computed: true, Sensitive: true},
@@ -78,20 +83,12 @@ func (e *credentialsEphemeral) Open(ctx context.Context, req ephemeral.OpenReque
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, e.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.EphemeralHub(e.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &ephemeral.Deferred{Reason: ephemeral.DeferredReasonProviderConfigUnknown}
+		if resp.Deferred == nil && !resp.Diagnostics.HasError() {
+			data.setUnknown()
+			resp.Diagnostics.Append(resp.Result.Set(ctx, &data)...)
 		}
-		return
-	}
-	c, diags := e.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	dev, err := c.GetDevice(ctx, data.DeviceID.ValueString())
@@ -114,10 +111,7 @@ func (e *credentialsEphemeral) Open(ctx context.Context, req ephemeral.OpenReque
 			resp.Diagnostics.AddWarning("Device not found (yet)",
 				fmt.Sprintf("No device with ID %q exists in %s at the moment. If it is created in this run, its credentials become "+
 					"available at apply time; otherwise check the device ID.", data.DeviceID.ValueString(), c.Hostname()))
-			data.Hostname = types.StringValue(c.Hostname())
-			data.AuthenticationType = types.StringUnknown()
-			data.PrimaryKey, data.SecondaryKey = types.StringUnknown(), types.StringUnknown()
-			data.PrimaryConnectionString, data.SecondaryConnectionString = types.StringUnknown(), types.StringUnknown()
+			data.setUnknown()
 			resp.Diagnostics.Append(resp.Result.Set(ctx, &data)...)
 			return
 		}
@@ -126,7 +120,6 @@ func (e *credentialsEphemeral) Open(ctx context.Context, req ephemeral.OpenReque
 	}
 	tflog.Debug(ctx, "opened device credentials", map[string]any{"device_id": dev.DeviceID, "deferral_allowed": req.ClientCapabilities.DeferralAllowed})
 
-	data.Hostname = types.StringValue(c.Hostname())
 	data.AuthenticationType = types.StringNull()
 	data.PrimaryKey, data.SecondaryKey = types.StringNull(), types.StringNull()
 	data.PrimaryConnectionString, data.SecondaryConnectionString = types.StringNull(), types.StringNull()

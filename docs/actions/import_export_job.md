@@ -72,7 +72,6 @@ action "iothub_import_export_job" "import" {
 
 - `configurations_blob_name` (String) Configurations file name (default `configurations.txt`).
 - `exclude_keys_in_export` (Boolean) Export without symmetric keys (default `false`). The hub then writes a plain-text warning as the first line of the export file.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `include_configurations` (Boolean) Also export or import configurations and deployments, in the file named by `configurations_blob_name` (default `false`).
 - `input_blob_container_uri` (String) Container holding the import file. Required for `import`, ignored for `export`. With `keyBased`, the container URL followed by a SAS query string with at least read and list permissions. With `identityBased`, the plain container URL.
 - `input_blob_name` (String) Import file name (default `devices.txt`).

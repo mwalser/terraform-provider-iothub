@@ -4,7 +4,7 @@ page_title: "iothub_module Resource - iothub"
 subcategory: ""
 description: |-
   A module identity on a device. A module has its own credentials and its own twin. Manage the twin with iothub_module_twin. Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules.
-  Only device_id, module_id and hostname force replacement. Every other attribute changes in place.
+  Only device_id and module_id force replacement. Every other attribute changes in place.
   Credentials work as for iothub_device. The hub generates SAS keys by default and they are stored in state as sensitive values. Use the write-only primary_key_wo and secondary_key_wo arguments to keep keys out of state, and iothub_module_credentials to read connection strings. IoT Edge devices get the system modules $edgeAgent and $edgeHub from the hub. Those are not created through this resource.
   ~> With SAS authentication the hub refuses to create, change or delete modules of a disabled device. Enable the device first, or authenticate with Entra ID. Refreshing an existing module still works.
 ---
@@ -13,7 +13,7 @@ description: |-
 
 A module identity on a device. A module has its own credentials and its own twin. Manage the twin with `iothub_module_twin`. Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules.
 
-Only `device_id`, `module_id` and `hostname` force replacement. Every other attribute changes in place.
+Only `device_id` and `module_id` force replacement. Every other attribute changes in place.
 
 Credentials work as for `iothub_device`. The hub generates SAS keys by default and they are stored in state as sensitive values. Use the write-only `primary_key_wo` and `secondary_key_wo` arguments to keep keys out of state, and `iothub_module_credentials` to read connection strings. IoT Edge devices get the system modules `$edgeAgent` and `$edgeHub` from the hub. Those are not created through this resource.
 
@@ -75,7 +75,6 @@ resource "iothub_module" "diagnostics" {
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
 - `authentication` (Attributes) How the module authenticates. When omitted, the hub generates SAS keys. After an import, omitting it keeps the module's existing credentials. (see [below for nested schema](#nestedatt--authentication))
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the module.
 - `managed_by` (String) Free-text owner of the module. The hub sets `iotEdge` on its system modules.
 - `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version`. Changing the key value alone has no effect. Change the version whenever you change the key. Cannot be combined with `authentication.primary_key`. Set `secondary_key_wo` as well: with only one write-only key, the hub generates the other and it is stored in state.
 - `primary_key_wo_version` (Number) Version marker for `primary_key_wo`. Change it to rotate the key.
@@ -90,7 +89,7 @@ resource "iothub_module" "diagnostics" {
 - `connection_state_updated_time` (String) When the connection state last changed.
 - `etag` (String) ETag of the module identity.
 - `generation_id` (String) Hub-generated ID that changes when a module with the same ID is re-created.
-- `id` (String) `<hostname>/devices/<device_id>/modules/<module_id>`. Also the import ID.
+- `id` (String) `<device_id>/<module_id>`. Also the import ID.
 - `last_activity_time` (String) Last time the module connected, sent or received a message.
 
 <a id="nestedatt--authentication"></a>
@@ -122,6 +121,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Import ID: <hostname>/devices/<device_id>/modules/<module_id>
-terraform import iothub_module.telemetry contoso.azure-devices.net/devices/sensor-0001/modules/telemetry
+# Import ID: <device_id>/<module_id>
+terraform import iothub_module.telemetry sensor-0001/telemetry
 ```

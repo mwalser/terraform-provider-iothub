@@ -38,5 +38,4 @@ list "iothub_module" "telemetry" {
 ### Optional
 
 - `device_id` (String) Only modules of this device.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `query_condition` (String) `WHERE` clause over `devices.modules`, for example `moduleId = 'telemetry'` or `tags.x = 1`. Combined with `device_id` when both are set.

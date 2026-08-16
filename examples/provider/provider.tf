@@ -21,3 +21,11 @@ provider "iothub" {
 # provider "iothub" {
 #   connection_string = azurerm_iothub_shared_access_policy.terraform.primary_connection_string
 # }
+
+# A second hub: give its provider block an alias and select it on the
+# resource with `provider = iothub.staging`.
+#
+# provider "iothub" {
+#   alias    = "staging"
+#   hostname = "contoso-staging.azure-devices.net"
+# }

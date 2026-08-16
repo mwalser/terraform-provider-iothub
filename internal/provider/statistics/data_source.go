@@ -25,11 +25,10 @@ type dataSource struct {
 }
 
 type model struct {
-	Hostname             types.String `tfsdk:"hostname"`
-	TotalDeviceCount     types.Int64  `tfsdk:"total_device_count"`
-	EnabledDeviceCount   types.Int64  `tfsdk:"enabled_device_count"`
-	DisabledDeviceCount  types.Int64  `tfsdk:"disabled_device_count"`
-	ConnectedDeviceCount types.Int64  `tfsdk:"connected_device_count"`
+	TotalDeviceCount     types.Int64 `tfsdk:"total_device_count"`
+	EnabledDeviceCount   types.Int64 `tfsdk:"enabled_device_count"`
+	DisabledDeviceCount  types.Int64 `tfsdk:"disabled_device_count"`
+	ConnectedDeviceCount types.Int64 `tfsdk:"connected_device_count"`
 }
 
 func (d *dataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -41,12 +40,6 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 		MarkdownDescription: "Identity registry and service statistics of an IoT Hub. The service updates the counts " +
 			"asynchronously, so they can lag behind registry changes and device connections by minutes. Treat them as approximate.",
 		Attributes: map[string]schema.Attribute{
-			"hostname": schema.StringAttribute{
-				MarkdownDescription: common.HostnameAttributeDescription,
-				Optional:            true,
-				Computed:            true,
-				Validators:          common.HostnameValidators(),
-			},
 			"total_device_count": schema.Int64Attribute{
 				MarkdownDescription: "Number of device identities in the registry.",
 				Computed:            true,
@@ -80,32 +73,12 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 		return
 	}
 
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		// The hub is not known yet (first plan of a configuration that also
-		// creates the hub). Defer when Terraform allows it, otherwise leave
-		// the results unknown until apply.
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-			return
-		}
-		data.TotalDeviceCount, data.EnabledDeviceCount = types.Int64Unknown(), types.Int64Unknown()
-		data.DisabledDeviceCount, data.ConnectedDeviceCount = types.Int64Unknown(), types.Int64Unknown()
-		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
 
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	tflog.Debug(ctx, "reading IoT Hub statistics", map[string]any{"hostname": hostname})
+	tflog.Debug(ctx, "reading IoT Hub statistics", map[string]any{"hostname": c.Hostname()})
 	reg, err := c.GetRegistryStatistics(ctx)
 	if err != nil {
 		resp.Diagnostics.AddError("Cannot read IoT Hub registry statistics", common.DescribeError(err))
@@ -117,7 +90,6 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 		return
 	}
 
-	data.Hostname = types.StringValue(c.Hostname())
 	data.TotalDeviceCount = types.Int64Value(reg.TotalDeviceCount)
 	data.EnabledDeviceCount = types.Int64Value(reg.EnabledDeviceCount)
 	data.DisabledDeviceCount = types.Int64Value(reg.DisabledDeviceCount)

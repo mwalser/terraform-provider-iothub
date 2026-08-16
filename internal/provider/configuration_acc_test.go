@@ -69,7 +69,7 @@ resource "iothub_configuration" "test" {
 			{
 				Config: cfg("tags.fleet.region = 'eu'", 10, `{ owner = "platform" }`, metrics1, content1),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/configurations/"+id)),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(id)),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("priority"), knownvalue.Int64Exact(10)),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("labels").AtMapKey("owner"), knownvalue.StringExact("platform")),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("metrics").AtMapKey("applied"), knownvalue.NotNull()),
@@ -338,7 +338,7 @@ data "iothub_edge_deployment" "layer" {
 			{
 				Config: cfg(10, edgeManifest),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/configurations/"+id)),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(id)),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("priority"), knownvalue.Int64Exact(10)),
 					statecheck.ExpectKnownValue("data.iothub_edge_deployment.base", tfjsonpath.New("modules_content"), knownvalue.StringRegexp(regexp.MustCompile(`"\$edgeAgent":\{"properties.desired":\{"modules":\{\},"runtime"`))),
 					statecheck.ExpectKnownValue("data.iothub_edge_deployment.layer", tfjsonpath.New("priority"), knownvalue.Int64Exact(11)),

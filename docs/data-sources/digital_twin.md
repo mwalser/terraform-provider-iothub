@@ -57,13 +57,9 @@ resource "iothub_device_twin" "controller" {
 
 - `digital_twin_id` (String) The device ID. A digital twin has the same ID as its device.
 
-### Optional
-
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-
 ### Read-Only
 
 - `document` (String) The digital twin document as a JSON string, verbatim from the hub. Use `jsondecode()`.
 - `etag` (String) ETag of the digital twin.
-- `id` (String) `<hostname>/digitaltwins/<digital_twin_id>`.
+- `id` (String) The digital twin ID.
 - `model_id` (String) The DTDL model ID announced by the device. Null when the device is not a Plug and Play device.

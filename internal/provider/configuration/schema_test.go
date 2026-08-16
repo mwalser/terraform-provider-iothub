@@ -26,7 +26,7 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 		if edge != (name == "edge") || dev == (name == "edge") {
 			t.Errorf("%s: content attributes wrong (modules_content=%v device_content=%v)", name, edge, dev)
 		}
-		for _, a := range []string{"id", "hostname", "target_condition", "priority", "labels", "metrics", "schema_version", "etag", "system_metrics", "metric_results"} {
+		for _, a := range []string{"id", "target_condition", "priority", "labels", "metrics", "schema_version", "etag", "system_metrics", "metric_results"} {
 			if _, ok := rs.Schema.Attributes[a]; !ok {
 				t.Errorf("%s: missing %q", name, a)
 			}

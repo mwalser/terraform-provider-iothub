@@ -27,7 +27,6 @@ type dataSource struct {
 
 type dataSourceModel struct {
 	ID                         types.String `tfsdk:"id"`
-	Hostname                   types.String `tfsdk:"hostname"`
 	DeviceID                   types.String `tfsdk:"device_id"`
 	Status                     types.String `tfsdk:"status"`
 	StatusReason               types.String `tfsdk:"status_reason"`
@@ -59,8 +58,7 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 		MarkdownDescription: "A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here. " +
 			"Use the `iothub_device_credentials` ephemeral resource for keys and connection strings.",
 		Attributes: map[string]schema.Attribute{
-			"id":       c("`<hostname>/devices/<device_id>`."),
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
+			"id": c("The device ID."),
 			"device_id": schema.StringAttribute{
 				MarkdownDescription: "Device ID.",
 				Required:            true,
@@ -97,20 +95,8 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return
-	}
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	dev, err := c.GetDevice(ctx, data.DeviceID.ValueString())
@@ -123,8 +109,7 @@ func (d *dataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 		return
 	}
 
-	data.ID = types.StringValue(common.ResourceID(c.Hostname(), "devices", dev.DeviceID))
-	data.Hostname = types.StringValue(c.Hostname())
+	data.ID = types.StringValue(dev.DeviceID)
 	data.Status = types.StringValue(dev.Status)
 	data.StatusReason = types.StringNull()
 	if dev.StatusReason != nil && *dev.StatusReason != "" {

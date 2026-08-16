@@ -29,10 +29,9 @@ type cancelJobAction struct {
 }
 
 type cancelJobModel struct {
-	Hostname types.String `tfsdk:"hostname"`
-	JobID    types.String `tfsdk:"job_id"`
-	Kind     types.String `tfsdk:"kind"`
-	Timeout  types.String `tfsdk:"timeout"`
+	JobID   types.String `tfsdk:"job_id"`
+	Kind    types.String `tfsdk:"kind"`
+	Timeout types.String `tfsdk:"timeout"`
 }
 
 const (
@@ -50,8 +49,7 @@ func (a *cancelJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp
 			"twin-update and method jobs and for import and export jobs. A job that already finished is reported as such without an " +
 			"error. An unknown job fails.",
 		Attributes: map[string]schema.Attribute{
-			"hostname": hostnameAttribute(),
-			"job_id":   schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
+			"job_id": schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
 			"kind": schema.StringAttribute{
 				MarkdownDescription: "`scheduled` for twin-update and device-method jobs, or `import_export`.",
 				Required:            true,
@@ -70,7 +68,7 @@ func (a *cancelJobAction) Invoke(ctx context.Context, req action.InvokeRequest, 
 	}
 	timeout, diags := parseTimeout(data.Timeout, 5*time.Minute)
 	resp.Diagnostics.Append(diags...)
-	c, d := clientFor(ctx, a.pd, data.Hostname)
+	c, d := hubClient(a.pd)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return

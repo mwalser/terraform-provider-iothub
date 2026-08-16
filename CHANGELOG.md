@@ -4,7 +4,7 @@ Initial release.
 
 FEATURES:
 
-* provider: Microsoft Entra ID (default) and shared-access-policy (SAS) authentication; every construct accepts its own `hostname` (lowercase)
+* provider: Microsoft Entra ID (default) and shared-access-policy (SAS) authentication; one provider block per hub, `hostname` in lowercase
 * **New Resource:** `iothub_device` — device identities with SAS / X.509 authentication, IoT Edge capability, parent/child scopes, write-only keys, import
 * **New Resource:** `iothub_module` — module identities with the same authentication options, write-only keys and import
 * **New Resource:** `iothub_device_twin`, `iothub_module_twin` — manage exactly the twin tags and desired properties you declare; keys written by other systems are never touched, and an imported twin starts without managed values

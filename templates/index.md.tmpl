@@ -41,12 +41,18 @@ Two service restrictions depend on the authentication mode:
 - With SAS authentication the hub refuses to create, change or delete
   modules of a *disabled* device. Enable the device first, or use Entra ID.
 
-## Hostnames
+## Hubs
 
-Every resource, data source, ephemeral resource, action and list resource
-accepts its own `hostname`. This lets a single provider block manage several
-hubs. It also lets you reference a hub that the same configuration creates,
-for example `azurerm_iothub.x.hostname`. Write hostnames in lowercase, for
-example `contoso.azure-devices.net`. Other spellings are rejected.
+One provider block manages one hub. To manage several hubs, declare one
+provider block per hub with an `alias` and select it on the resource with
+`provider = iothub.<alias>`. Write the hostname in lowercase, for example
+`contoso.azure-devices.net`. Other spellings are rejected.
+
+The hub can be created in the same configuration. `hostname =
+azurerm_iothub.x.hostname` is not known during the first plan. The provider
+then plans its resources without contacting the hub, and the apply reaches
+the hub once it exists. Data sources cannot wait for the apply, so on that
+first run they report an error. Apply the hub first, or keep data sources in
+a configuration that runs after the hub exists.
 
 {{ .SchemaMarkdown | trimspace }}

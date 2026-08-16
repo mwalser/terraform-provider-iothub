@@ -59,7 +59,7 @@ func TestSASPolicy_CachesAndRefreshes(t *testing.T) {
 	}
 }
 
-func TestFactory_SASHeaderAndHostBinding(t *testing.T) {
+func TestNew_SASHeaderAndHostBinding(t *testing.T) {
 	var gotAuth, gotUA, gotQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth, gotUA, gotQuery = r.Header.Get("Authorization"), r.Header.Get("User-Agent"), r.URL.RawQuery
@@ -67,20 +67,16 @@ func TestFactory_SASHeaderAndHostBinding(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	f, err := NewFactory(Config{
-		SharedAccessKey: &SharedAccessKey{HostName: "hub.azure-devices.net", KeyName: "iothubowner", Key: "YWJj"},
-		Version:         "1.2.3",
-		Transport:       redirectTo(srv),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.Client("other.azure-devices.net"); err == nil || !strings.Contains(err.Error(), "belongs to hub.azure-devices.net") {
+	key := &SharedAccessKey{HostName: "hub.azure-devices.net", KeyName: "iothubowner", Key: "YWJj"}
+	if _, err := New(Config{Hostname: "other.azure-devices.net", SharedAccessKey: key}); err == nil || !strings.Contains(err.Error(), "belongs to hub.azure-devices.net") {
 		t.Fatalf("SAS client must be bound to its hub, got %v", err)
 	}
-	c, err := f.Client("HUB.azure-devices.net")
+	c, err := New(Config{Hostname: "HUB.azure-devices.net", SharedAccessKey: key, Version: "1.2.3", Transport: redirectTo(srv)})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if c.Hostname() != "hub.azure-devices.net" {
+		t.Errorf("hostname = %q", c.Hostname())
 	}
 	st, err := c.GetServiceStatistics(context.Background())
 	if err != nil || st.ConnectedDeviceCount != 3 {
@@ -95,21 +91,21 @@ func TestFactory_SASHeaderAndHostBinding(t *testing.T) {
 	if gotQuery != "api-version="+APIVersion {
 		t.Errorf("query = %q", gotQuery)
 	}
-	if c2, _ := f.Client("hub.azure-devices.net"); c2 != c {
-		t.Error("clients must be cached per hostname")
+	defaulted, err := New(Config{SharedAccessKey: key})
+	if err != nil || defaulted.Hostname() != "hub.azure-devices.net" {
+		t.Errorf("SAS hostname must default to the key's HostName, got %q %v", defaulted.Hostname(), err)
 	}
 }
 
-func TestFactory_ConfigValidation(t *testing.T) {
-	if _, err := NewFactory(Config{}); err == nil {
+func TestNew_ConfigValidation(t *testing.T) {
+	if _, err := New(Config{Hostname: "h.azure-devices.net"}); err == nil {
 		t.Error("expected error without credentials")
 	}
-	if _, err := NewFactory(Config{Credential: fakeCred{}, SharedAccessKey: &SharedAccessKey{HostName: "h", KeyName: "k", Key: "YWJj"}}); err == nil {
+	if _, err := New(Config{Hostname: "h", Credential: fakeCred{}, SharedAccessKey: &SharedAccessKey{HostName: "h", KeyName: "k", Key: "YWJj"}}); err == nil {
 		t.Error("expected error with both credentials")
 	}
-	f, _ := NewFactory(Config{Credential: fakeCred{}})
 	for _, bad := range []string{"", "https://h.azure-devices.net", "h.azure-devices.net/devices"} {
-		if _, err := f.Client(bad); err == nil {
+		if _, err := New(Config{Hostname: bad, Credential: fakeCred{}}); err == nil {
 			t.Errorf("expected error for hostname %q", bad)
 		}
 	}

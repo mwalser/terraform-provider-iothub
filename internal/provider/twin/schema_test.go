@@ -25,7 +25,7 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 		if hasModule != (name == "module") {
 			t.Errorf("%s: module_id presence = %v", name, hasModule)
 		}
-		for _, a := range []string{"id", "hostname", "device_id", "tags", "desired_properties", "etag", "version"} {
+		for _, a := range []string{"id", "device_id", "tags", "desired_properties", "etag", "version"} {
 			if _, ok := rs.Schema.Attributes[a]; !ok {
 				t.Errorf("%s: missing %q", name, a)
 			}
@@ -46,7 +46,7 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 	if diags := dt.Schema.ValidateImplementation(ctx); diags.HasError() {
 		t.Fatalf("digital twin data source schema: %v", diags)
 	}
-	for _, a := range []string{"id", "hostname", "digital_twin_id", "document", "model_id", "etag"} {
+	for _, a := range []string{"id", "digital_twin_id", "document", "model_id", "etag"} {
 		if _, ok := dt.Schema.Attributes[a]; !ok {
 			t.Errorf("digital twin: missing %q", a)
 		}

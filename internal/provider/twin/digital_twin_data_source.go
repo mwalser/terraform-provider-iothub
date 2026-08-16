@@ -28,7 +28,6 @@ type digitalTwinDataSource struct {
 
 type digitalTwinModel struct {
 	ID            types.String `tfsdk:"id"`
-	Hostname      types.String `tfsdk:"hostname"`
 	DigitalTwinID types.String `tfsdk:"digital_twin_id"`
 	Document      types.String `tfsdk:"document"`
 	ModelID       types.String `tfsdk:"model_id"`
@@ -48,8 +47,7 @@ func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 			"`iothub_device_twin`. In `iothub_device_twin`, component properties need the `\"__t\": \"c\"` marker. A device that " +
 			"never announced a model has a null `model_id` and a document without properties.",
 		Attributes: map[string]schema.Attribute{
-			"id":       schema.StringAttribute{MarkdownDescription: "`<hostname>/digitaltwins/<digital_twin_id>`.", Computed: true},
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Computed: true, Validators: common.HostnameValidators()},
+			"id": schema.StringAttribute{MarkdownDescription: "The digital twin ID.", Computed: true},
 			"digital_twin_id": schema.StringAttribute{
 				MarkdownDescription: "The device ID. A digital twin has the same ID as its device.",
 				Required:            true,
@@ -74,20 +72,8 @@ func (d *digitalTwinDataSource) Read(ctx context.Context, req datasource.ReadReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(data.Hostname, d.pd)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	c, ok := common.DataSourceHub(d.pd, req, resp)
 	if !ok {
-		if req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
-		}
-		return
-	}
-	c, diags := d.pd.ClientFor(ctx, hostname)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
 		return
 	}
 	dt, err := c.GetDigitalTwin(ctx, data.DigitalTwinID.ValueString())
@@ -99,8 +85,7 @@ func (d *digitalTwinDataSource) Read(ctx context.Context, req datasource.ReadReq
 		resp.Diagnostics.AddError("Cannot read IoT Hub digital twin", common.DescribeError(err))
 		return
 	}
-	data.ID = types.StringValue(common.ResourceID(c.Hostname(), "digitaltwins", data.DigitalTwinID.ValueString()))
-	data.Hostname = types.StringValue(c.Hostname())
+	data.ID = data.DigitalTwinID
 	data.Document = types.StringValue(string(dt.Document))
 	data.ModelID = identity.StringOrNull(dt.ModelID)
 	data.ETag = identity.StringOrNull(dt.ETag)

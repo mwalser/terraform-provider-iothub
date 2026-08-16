@@ -53,13 +53,18 @@ func UsingSAS() bool { return os.Getenv("IOTHUB_CONNECTION_STRING") != "" }
 
 // ProviderConfig returns a provider block for test configurations. The
 // hostname is passed explicitly so a stray IOTHUB_HOSTNAME cannot redirect
-// tests to another hub; credentials come from the environment.
+// tests to another hub; credentials come from the environment. Unit runs
+// without a test hub get a placeholder, which is never contacted.
 func ProviderConfig() string {
+	hub := Hostname()
+	if hub == "" {
+		hub = "contoso.azure-devices.net"
+	}
 	return fmt.Sprintf(`
 provider "iothub" {
   hostname = %q
 }
-`, Hostname())
+`, hub)
 }
 
 // ProtoV6ProviderFactoriesWithEcho adds HashiCorp's echo provider, which
@@ -73,7 +78,7 @@ var ProtoV6ProviderFactoriesWithEcho = map[string]func() (tfprotov6.ProviderServ
 // credentials the provider under test uses (Entra ID via the azidentity
 // default chain, or IOTHUB_CONNECTION_STRING).
 func NewClient() (*client.Client, error) {
-	cfg := client.Config{Version: "acctest"}
+	cfg := client.Config{Hostname: Hostname(), Version: "acctest"}
 	if cs := os.Getenv("IOTHUB_CONNECTION_STRING"); cs != "" {
 		parts := map[string]string{}
 		for _, p := range strings.Split(cs, ";") {
@@ -89,11 +94,7 @@ func NewClient() (*client.Client, error) {
 		}
 		cfg.Credential = cred
 	}
-	f, err := client.NewFactory(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("client factory: %w", err)
-	}
-	return f.Client(Hostname())
+	return client.New(cfg)
 }
 
 // Client is NewClient for tests: failures end the test.

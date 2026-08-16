@@ -17,25 +17,25 @@ func TestRefreshGate_TwinIfUnchanged(t *testing.T) {
 
 	var g RefreshGate
 	// unchanged identity: the twin is returned
-	if tw := g.TwinIfUnchanged(ctx, "hub", ok, "ETAG1", "Disconnected"); tw != twin {
+	if tw := g.TwinIfUnchanged(ctx, ok, "ETAG1", "Disconnected"); tw != twin {
 		t.Errorf("expected the twin for an unchanged identity, got %v", tw)
 	}
 	// changed identity ETag → registry read
-	if tw := g.TwinIfUnchanged(ctx, "hub", ok, "ETAG0", "Disconnected"); tw != nil {
+	if tw := g.TwinIfUnchanged(ctx, ok, "ETAG0", "Disconnected"); tw != nil {
 		t.Error("expected nil for a changed deviceEtag")
 	}
 	// changed connection state → registry read (the twin lacks the timestamp)
-	if tw := g.TwinIfUnchanged(ctx, "hub", ok, "ETAG1", "Connected"); tw != nil {
+	if tw := g.TwinIfUnchanged(ctx, ok, "ETAG1", "Connected"); tw != nil {
 		t.Error("expected nil for a changed connection state")
 	}
 	// no ETag in state (import) → registry read without touching the twin
 	before := reads
-	if tw := g.TwinIfUnchanged(ctx, "hub", ok, "", ""); tw != nil || reads != before {
+	if tw := g.TwinIfUnchanged(ctx, ok, "", ""); tw != nil || reads != before {
 		t.Error("expected no twin read without a state ETag")
 	}
 	// a nil gate is inert
 	var nilGate *RefreshGate
-	if tw := nilGate.TwinIfUnchanged(ctx, "hub", ok, "ETAG1", "Disconnected"); tw != nil {
+	if tw := nilGate.TwinIfUnchanged(ctx, ok, "ETAG1", "Disconnected"); tw != nil {
 		t.Error("nil gate must not return a twin")
 	}
 }
@@ -53,17 +53,18 @@ func TestRefreshGate_RemembersUnauthorizedHubs(t *testing.T) {
 	for _, status := range []int{http.StatusForbidden, http.StatusUnauthorized} {
 		g = RefreshGate{}
 		calls["read"] = 0
-		if tw := g.TwinIfUnchanged(ctx, "hub-a", forbidden(status), "E", ""); tw != nil {
+		if tw := g.TwinIfUnchanged(ctx, forbidden(status), "E", ""); tw != nil {
 			t.Fatal("expected nil on unauthorized")
 		}
-		// the hub is remembered: no further twin reads for hub-a …
-		if tw := g.TwinIfUnchanged(ctx, "hub-a", forbidden(status), "E", ""); tw != nil || calls["read"] != 1 {
+		// remembered: no further twin reads in this run …
+		if tw := g.TwinIfUnchanged(ctx, forbidden(status), "E", ""); tw != nil || calls["read"] != 1 {
 			t.Errorf("status %d: expected the twin read to be skipped after 401/403, reads = %d", status, calls["read"])
 		}
-		// … but other hubs are still tried
-		g.TwinIfUnchanged(ctx, "hub-b", forbidden(status), "E", "")
+		// … but a fresh gate (next run) tries again
+		g = RefreshGate{}
+		g.TwinIfUnchanged(ctx, forbidden(status), "E", "")
 		if calls["read"] != 2 {
-			t.Errorf("status %d: expected hub-b to be tried, reads = %d", status, calls["read"])
+			t.Errorf("status %d: expected a fresh gate to try again, reads = %d", status, calls["read"])
 		}
 	}
 	// other errors (404, transport) fall back without remembering
@@ -76,8 +77,8 @@ func TestRefreshGate_RemembersUnauthorizedHubs(t *testing.T) {
 		}
 		return nil, errors.New("dial tcp: i/o timeout")
 	}
-	g.TwinIfUnchanged(ctx, "hub-c", notFound, "E", "")
-	g.TwinIfUnchanged(ctx, "hub-c", notFound, "E", "")
+	g.TwinIfUnchanged(ctx, notFound, "E", "")
+	g.TwinIfUnchanged(ctx, notFound, "E", "")
 	if n != 2 {
 		t.Errorf("expected both reads to be attempted, got %d", n)
 	}

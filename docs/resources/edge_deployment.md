@@ -73,7 +73,6 @@ resource "iothub_edge_deployment" "temp_sensor" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the IoT Edge deployment.
 - `labels` (Map of String) Free-form labels (string map).
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200`. Results are in `metric_results`.
 - `priority` (Number) Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base.
@@ -84,7 +83,7 @@ resource "iothub_edge_deployment" "temp_sensor" {
 
 - `created_time_utc` (String) Creation time.
 - `etag` (String) ETag of the IoT Edge deployment.
-- `id` (String) `<hostname>/configurations/<deployment_id>`. Also the import ID.
+- `id` (String) The `deployment_id`. Also the import ID.
 - `last_updated_time_utc` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
@@ -106,6 +105,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Import ID: <hostname>/configurations/<deployment_id>
-terraform import iothub_edge_deployment.base contoso.azure-devices.net/configurations/base-1-4-0
+# Import ID: the deployment ID.
+terraform import iothub_edge_deployment.base base-1-4-0
 ```

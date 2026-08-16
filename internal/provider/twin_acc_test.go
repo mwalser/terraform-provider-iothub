@@ -121,7 +121,7 @@ resource "iothub_device_twin" "test" {
 			{
 				Config: cfg(tags1, desired1),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/twins/"+dev)),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(dev)),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("tags"), knownvalue.StringExact(`{"fleet":{"region":"eu","ring":2},"site":"munich"}`)),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("etag"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("version"), knownvalue.NotNull()),
@@ -273,11 +273,11 @@ resource "iothub_device_twin" "test" {
 				Config:             withTwin,
 				ResourceName:       res,
 				ImportState:        true,
-				ImportStateId:      iotacc.Hostname() + "/twins/" + dev,
+				ImportStateId:      dev,
 				ImportStatePersist: true,
 				ImportStateCheck: func(states []*terraform.InstanceState) error {
 					for _, st := range states {
-						if st.Attributes["id"] != iotacc.Hostname()+"/twins/"+dev {
+						if st.Attributes["id"] != dev {
 							continue
 						}
 						if v, ok := st.Attributes["tags"]; ok && v != "" {
@@ -336,7 +336,7 @@ data "iothub_device_twin" "test" {
 			{
 				Config: cfg,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/twins/"+dev+"/modules/m1")),
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("id"), knownvalue.StringExact(dev+"/m1")),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("tags"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("data.iothub_module_twin.test", tfjsonpath.New("desired_properties"), knownvalue.StringExact(`{"interval":30,"nested":{"flag":true}}`)),
 					statecheck.ExpectKnownValue("data.iothub_module_twin.test", tfjsonpath.New("reported_properties"), knownvalue.StringExact(`{}`)),

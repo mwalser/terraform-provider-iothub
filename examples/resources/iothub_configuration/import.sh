@@ -1,2 +1,2 @@
-# Import ID: <hostname>/configurations/<configuration_id>
-terraform import iothub_configuration.fw_channel contoso.azure-devices.net/configurations/fw-channel-stable
+# Import ID: the configuration ID.
+terraform import iothub_configuration.fw_channel fw-channel-stable

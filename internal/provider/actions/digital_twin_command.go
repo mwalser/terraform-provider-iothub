@@ -36,7 +36,6 @@ type digitalTwinCommandAction struct {
 }
 
 type digitalTwinCommandModel struct {
-	Hostname               types.String `tfsdk:"hostname"`
 	DigitalTwinID          types.String `tfsdk:"digital_twin_id"`
 	ComponentPath          types.String `tfsdk:"component_path"`
 	CommandName            types.String `tfsdk:"command_name"`
@@ -67,7 +66,6 @@ func (a *digitalTwinCommandAction) Schema(_ context.Context, _ action.SchemaRequ
 			"`service` or `iothubowner`. Under Entra ID, call the equivalent direct method with `iothub_direct_method` and " +
 			"`method_name = \"<component>*<command>\"`.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":        hostnameAttribute(),
 			"digital_twin_id": schema.StringAttribute{MarkdownDescription: "The device ID. A digital twin has the same ID as its device.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"component_path": schema.StringAttribute{
 				MarkdownDescription: "Component name for a component command. Omit it for a root-level command.",
@@ -120,7 +118,7 @@ func (a *digitalTwinCommandAction) Invoke(ctx context.Context, req action.Invoke
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	c, diags := clientFor(ctx, a.pd, data.Hostname)
+	c, diags := hubClient(a.pd)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

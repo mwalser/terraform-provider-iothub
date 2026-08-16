@@ -1,2 +1,2 @@
-# Import ID: <hostname>/devices/<device_id>/modules/<module_id>
-terraform import iothub_module.telemetry contoso.azure-devices.net/devices/sensor-0001/modules/telemetry
+# Import ID: <device_id>/<module_id>
+terraform import iothub_module.telemetry sensor-0001/telemetry

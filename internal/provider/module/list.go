@@ -32,7 +32,6 @@ type listResource struct {
 }
 
 type listModel struct {
-	Hostname       types.String `tfsdk:"hostname"`
 	DeviceID       types.String `tfsdk:"device_id"`
 	QueryCondition types.String `tfsdk:"query_condition"`
 }
@@ -46,7 +45,6 @@ func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListRe
 		MarkdownDescription: "Lists module identities for `terraform query`, for example to generate `import` blocks for an existing fleet. " +
 			"The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them.",
 		Attributes: map[string]schema.Attribute{
-			"hostname":  schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Only modules of this device.", Optional: true},
 			"query_condition": schema.StringAttribute{
 				MarkdownDescription: "`WHERE` clause over `devices.modules`, for example `moduleId = 'telemetry'` or `tags.x = 1`. Combined with `device_id` when both are set.",
@@ -68,17 +66,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(cfg.Hostname, l.pd)
-	if diags.HasError() {
-		stream.Results = list.ListResultsStreamDiagnostics(diags)
-		return
-	}
-	if !ok {
-		diags.AddError("IoT Hub hostname unknown", "Set `hostname` in the list block or on the provider block.")
-		stream.Results = list.ListResultsStreamDiagnostics(diags)
-		return
-	}
-	c, diags := l.pd.ClientFor(ctx, hostname)
+	c, diags := l.pd.HubOrError()
 	if diags.HasError() {
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
 		return
@@ -130,8 +118,8 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				return
 			}
 			result := req.NewListResult(ctx)
-			result.DisplayName = fmt.Sprintf("%s/%s (%s)", mod.DeviceID, mod.ModuleID, c.Hostname())
-			result.Diagnostics.Append(setIdentity(ctx, result.Identity, c.Hostname(), mod.DeviceID, mod.ModuleID)...)
+			result.DisplayName = common.ModuleID(mod.DeviceID, mod.ModuleID)
+			result.Diagnostics.Append(setIdentity(ctx, result.Identity, mod.DeviceID, mod.ModuleID)...)
 			if req.IncludeResource {
 				m := resourceModel{
 					PrimaryKeyWO: types.StringNull(), SecondaryKeyWO: types.StringNull(),
@@ -140,7 +128,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 						"create": types.StringType, "read": types.StringType, "update": types.StringType, "delete": types.StringType,
 					})},
 				}
-				setState(&m, c.Hostname(), mod, m.writeOnlyKeys())
+				setState(&m, mod, m.writeOnlyKeys())
 				result.Diagnostics.Append(result.Resource.Set(ctx, &m)...)
 			}
 			n++

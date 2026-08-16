@@ -20,18 +20,12 @@ func TestAccStatisticsDataSource_basic(t *testing.T) {
 			{
 				Config: acctest.ProviderConfig() + `
 data "iothub_statistics" "hub" {}
-
-data "iothub_statistics" "explicit" {
-  hostname = "` + acctest.Hostname() + `"
-}
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.iothub_statistics.hub", tfjsonpath.New("hostname"), knownvalue.StringExact(acctest.Hostname())),
 					statecheck.ExpectKnownValue("data.iothub_statistics.hub", tfjsonpath.New("total_device_count"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.iothub_statistics.hub", tfjsonpath.New("enabled_device_count"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.iothub_statistics.hub", tfjsonpath.New("disabled_device_count"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.iothub_statistics.hub", tfjsonpath.New("connected_device_count"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("data.iothub_statistics.explicit", tfjsonpath.New("hostname"), knownvalue.StringExact(acctest.Hostname())),
 				},
 			},
 		},
@@ -44,9 +38,9 @@ func TestAccStatisticsDataSource_noHostname(t *testing.T) {
 		ProtoV6ProviderFactories: acctest.ProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				// Provider without hostname and a data source without one: a
-				// clear error, not a crash. Only meaningful under Entra ID; with a
-				// connection string the hostname is derived from it.
+				// Provider without hostname: a clear error at configure time.
+				// Only meaningful under Entra ID; with a connection string the
+				// hostname is derived from it.
 				SkipFunc:    func() (bool, error) { return acctest.UsingSAS(), nil },
 				Config:      `provider "iothub" {}` + "\n" + `data "iothub_statistics" "none" {}`,
 				ExpectError: regexp.MustCompile(`No IoT Hub hostname configured`),

@@ -31,10 +31,6 @@ output "sensor_firmware_version" {
 
 - `device_id` (String) Device ID.
 
-### Optional
-
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-
 ### Read-Only
 
 - `connection_state` (String) `Connected` or `Disconnected`. Approximate.
@@ -42,7 +38,7 @@ output "sensor_firmware_version" {
 - `desired_version` (Number) `$version` of the desired properties.
 - `device_etag` (String) ETag of the underlying identity.
 - `etag` (String) ETag of the twin.
-- `id` (String) `<hostname>/twins/<device_id>`.
+- `id` (String) The device ID.
 - `last_activity_time` (String) Last time the device connected, sent or received a message.
 - `model_id` (String) IoT Plug and Play model ID announced by the device, if any.
 - `reported_properties` (String) All reported properties as a JSON string, without `$metadata` and `$version`.

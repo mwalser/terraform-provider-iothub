@@ -31,10 +31,6 @@ output "edge_agent_connection_state" {
 - `device_id` (String) Device ID.
 - `module_id` (String) Module ID. System modules such as `$edgeAgent` can be read too.
 
-### Optional
-
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
-
 ### Read-Only
 
 - `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.
@@ -43,7 +39,7 @@ output "edge_agent_connection_state" {
 - `connection_state_updated_time` (String) When the connection state last changed.
 - `etag` (String) ETag of the module identity.
 - `generation_id` (String) Hub-generated ID that changes when a module with the same ID is re-created.
-- `id` (String) `<hostname>/devices/<device_id>/modules/<module_id>`.
+- `id` (String) `<device_id>/<module_id>`.
 - `last_activity_time` (String) Last time the module connected, sent or received a message.
 - `managed_by` (String) Owner of the module, for example `iotEdge` for system modules.
 - `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.

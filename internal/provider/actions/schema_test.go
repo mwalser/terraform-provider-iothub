@@ -23,8 +23,8 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 		if diags := resp.Schema.ValidateImplementation(ctx); diags.HasError() {
 			t.Fatalf("%s schema implementation: %v", name, diags)
 		}
-		if _, ok := resp.Schema.Attributes["hostname"]; !ok {
-			t.Errorf("%s: missing hostname", name)
+		if _, ok := resp.Schema.Attributes["hostname"]; ok {
+			t.Errorf("%s: the hub is configured on the provider block, not per action", name)
 		}
 	}
 	// Terraform 1.15 rejects write-only attributes in action configuration

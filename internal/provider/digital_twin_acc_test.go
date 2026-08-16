@@ -43,7 +43,7 @@ data "iothub_digital_twin" "d" {
   digital_twin_id = iothub_device.d.device_id
 }`,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.iothub_digital_twin.d", tfjsonpath.New("id"), knownvalue.StringExact(iotacc.Hostname()+"/digitaltwins/"+dev)),
+					statecheck.ExpectKnownValue("data.iothub_digital_twin.d", tfjsonpath.New("id"), knownvalue.StringExact(dev)),
 					statecheck.ExpectKnownValue("data.iothub_digital_twin.d", tfjsonpath.New("model_id"), knownvalue.Null()),
 					statecheck.ExpectKnownValue("data.iothub_digital_twin.d", tfjsonpath.New("document"), knownvalue.StringRegexp(regexp.MustCompile(`"\$dtId":\s*"`+regexp.QuoteMeta(dev)+`"`))),
 					statecheck.ExpectKnownValue("data.iothub_digital_twin.d", tfjsonpath.New("document"), knownvalue.StringRegexp(regexp.MustCompile(`"\$model":\s*""`))),

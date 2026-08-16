@@ -63,7 +63,6 @@ type twinResource struct {
 // twin schema and stays null there.
 type resourceModel struct {
 	ID                types.String   `tfsdk:"id"`
-	Hostname          types.String   `tfsdk:"hostname"`
 	DeviceID          types.String   `tfsdk:"device_id"`
 	ModuleID          types.String   `tfsdk:"module_id"`
 	Tags              Document       `tfsdk:"tags"`
@@ -75,7 +74,6 @@ type resourceModel struct {
 
 type deviceModel struct {
 	ID                types.String   `tfsdk:"id"`
-	Hostname          types.String   `tfsdk:"hostname"`
 	DeviceID          types.String   `tfsdk:"device_id"`
 	Tags              Document       `tfsdk:"tags"`
 	DesiredProperties Document       `tfsdk:"desired_properties"`
@@ -95,25 +93,15 @@ func (r *twinResource) Metadata(_ context.Context, req resource.MetadataRequest,
 }
 
 func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	subject, idFormat := "device", "`<hostname>/twins/<device_id>`"
+	subject, idFormat := "device", "The device ID"
 	if r.kind.isModule() {
-		subject, idFormat = "module", "`<hostname>/twins/<device_id>/modules/<module_id>`"
+		subject, idFormat = "module", "`<device_id>/<module_id>`"
 	}
 	attrs := map[string]schema.Attribute{
 		"id": schema.StringAttribute{
 			MarkdownDescription: idFormat + ". Also the import ID. Every twin resource that manages the same twin has the same `id`.",
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-		},
-		"hostname": schema.StringAttribute{
-			MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the resource.",
-			Optional:            true,
-			Computed:            true,
-			Validators:          common.HostnameValidators(),
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-				stringplanmodifier.RequiresReplace(),
-			},
 		},
 		"device_id": schema.StringAttribute{
 			MarkdownDescription: "ID of the device" + map[bool]string{true: " the module belongs to", false: ""}[r.kind.isModule()] + ". Changing it replaces the resource.",
@@ -196,7 +184,7 @@ func (r *twinResource) get(ctx context.Context, src getter) (resourceModel, diag
 	}
 	var d deviceModel
 	diags := src.Get(ctx, &d)
-	return resourceModel{ID: d.ID, Hostname: d.Hostname, DeviceID: d.DeviceID, ModuleID: types.StringNull(), Tags: d.Tags,
+	return resourceModel{ID: d.ID, DeviceID: d.DeviceID, ModuleID: types.StringNull(), Tags: d.Tags,
 		DesiredProperties: d.DesiredProperties, ETag: d.ETag, Version: d.Version, Timeouts: d.Timeouts}, diags
 }
 
@@ -204,15 +192,15 @@ func (r *twinResource) set(ctx context.Context, dst setter, m resourceModel) dia
 	if r.kind.isModule() {
 		return dst.Set(ctx, &m)
 	}
-	return dst.Set(ctx, &deviceModel{ID: m.ID, Hostname: m.Hostname, DeviceID: m.DeviceID, Tags: m.Tags,
+	return dst.Set(ctx, &deviceModel{ID: m.ID, DeviceID: m.DeviceID, Tags: m.Tags,
 		DesiredProperties: m.DesiredProperties, ETag: m.ETag, Version: m.Version, Timeouts: m.Timeouts})
 }
 
-func (r *twinResource) resourceID(hostname, deviceID, moduleID string) string {
+func (r *twinResource) resourceID(deviceID, moduleID string) string {
 	if r.kind.isModule() {
-		return common.ResourceID(hostname, "twins", deviceID, "modules", moduleID)
+		return common.ModuleID(deviceID, moduleID)
 	}
-	return common.ResourceID(hostname, "twins", deviceID)
+	return deviceID
 }
 
 func (r *twinResource) name(m resourceModel) string {
@@ -222,14 +210,9 @@ func (r *twinResource) name(m resourceModel) string {
 	return fmt.Sprintf("twin of device %q", m.DeviceID.ValueString())
 }
 
-func (r *twinResource) client(ctx context.Context, hostname types.String) (*client.Client, string, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	if hostname.IsUnknown() || hostname.IsNull() || hostname.ValueString() == "" {
-		diags.AddAttributeError(path.Root("hostname"), "IoT Hub hostname unknown at apply time", "Set `hostname` on the resource or on the provider block.")
-		return nil, "", diags
-	}
-	c, d := r.pd.ClientFor(ctx, hostname.ValueString())
-	diags.Append(d...)
+// client returns the hub client and hostname for an apply-time operation.
+func (r *twinResource) client() (*client.Client, string, diag.Diagnostics) {
+	c, diags := r.pd.HubOrError()
 	if diags.HasError() {
 		return nil, "", diags
 	}
@@ -258,25 +241,16 @@ func (r *twinResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRe
 	}
 	plan, diags := r.get(ctx, req.Plan)
 	resp.Diagnostics.Append(diags...)
-	config, diags := r.get(ctx, req.Config)
-	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if plan.Hostname.IsUnknown() && r.pd != nil {
-		hostname, ok, diags := common.ResolveHostname(config.Hostname, r.pd)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		if ok {
-			plan.Hostname = types.StringValue(strings.ToLower(hostname))
-		} else if req.ClientCapabilities.DeferralAllowed {
+	if r.pd != nil {
+		if _, ok, diags := r.pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
 			resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
 		}
 	}
-	if !plan.Hostname.IsUnknown() && !plan.DeviceID.IsUnknown() && !plan.ModuleID.IsUnknown() {
-		plan.ID = types.StringValue(r.resourceID(plan.Hostname.ValueString(), plan.DeviceID.ValueString(), plan.ModuleID.ValueString()))
+	if !plan.DeviceID.IsUnknown() && !plan.ModuleID.IsUnknown() {
+		plan.ID = types.StringValue(r.resourceID(plan.DeviceID.ValueString(), plan.ModuleID.ValueString()))
 	}
 	resp.Diagnostics.Append(r.set(ctx, &resp.Plan, plan)...)
 }
@@ -321,9 +295,11 @@ func (r *twinResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client(ctx, state.Hostname)
+	c, ok, diags := r.pd.Hub()
 	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
+	if resp.Diagnostics.HasError() || !ok {
+		// !ok: the hub is not known yet (first plan of a configuration that
+		// also creates it); the prior state stands until apply.
 		return
 	}
 	tw, err := r.getTwin(ctx, c, state)
@@ -336,7 +312,7 @@ func (r *twinResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		resp.Diagnostics.AddError("Cannot read IoT Hub "+r.kind.noun(), common.DescribeError(err))
 		return
 	}
-	resp.Diagnostics.Append(r.project(&state, hostname, tw, state)...)
+	resp.Diagnostics.Append(r.project(&state, tw, state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -394,35 +370,28 @@ func (r *twinResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 }
 
 func (r *twinResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	hostname, parts, err := common.ParseResourceID(req.ID, "twins")
-	bad := err != nil
 	var deviceID, moduleID string
-	if !bad {
-		switch {
-		case !r.kind.isModule() && len(parts) == 1:
-			deviceID = parts[0]
-		case r.kind.isModule() && len(parts) == 3 && parts[1] == "modules" && parts[2] != "":
-			deviceID, moduleID = parts[0], parts[2]
-		default:
-			bad = true
-		}
+	var err error
+	if r.kind.isModule() {
+		deviceID, moduleID, err = common.ParseModuleID(req.ID)
+	} else if deviceID = strings.TrimSpace(req.ID); deviceID == "" || strings.Contains(deviceID, "/") {
+		err = fmt.Errorf("invalid device ID")
 	}
-	if bad {
-		want := "`<hostname>/twins/<device_id>`, e.g. contoso.azure-devices.net/twins/sensor-01"
+	if err != nil {
+		want := "the device ID, e.g. sensor-01"
 		if r.kind.isModule() {
-			want = "`<hostname>/twins/<device_id>/modules/<module_id>`, e.g. contoso.azure-devices.net/twins/sensor-01/modules/telemetry"
+			want = "`<device_id>/<module_id>`, e.g. sensor-01/telemetry"
 		}
 		resp.Diagnostics.AddError("Invalid import ID", "Expected "+want+".")
 		return
 	}
 	// The owned set starts empty: tags / desired_properties stay null and the
 	// first apply adopts what the configuration declares.
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(strings.ToLower(hostname)))...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("device_id"), types.StringValue(deviceID))...)
 	if r.kind.isModule() {
 		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("module_id"), types.StringValue(moduleID))...)
 	}
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(r.resourceID(hostname, deviceID, moduleID)))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(r.resourceID(deviceID, moduleID)))...)
 }
 
 // ---- engine glue -------------------------------------------------------------
@@ -433,7 +402,7 @@ func (r *twinResource) ImportState(ctx context.Context, req resource.ImportState
 // attributes of plan.
 func (r *twinResource) write(ctx context.Context, plan *resourceModel, prior resourceModel, op string) diag.Diagnostics {
 	var diags diag.Diagnostics
-	c, hostname, d := r.client(ctx, plan.Hostname)
+	c, hostname, d := r.client()
 	diags.Append(d...)
 	if diags.HasError() {
 		return diags
@@ -502,8 +471,7 @@ func (r *twinResource) write(ctx context.Context, plan *resourceModel, prior res
 	if diags.HasError() {
 		return diags
 	}
-	plan.ID = types.StringValue(r.resourceID(hostname, result.DeviceID, result.ModuleID))
-	plan.Hostname = types.StringValue(hostname)
+	plan.ID = types.StringValue(r.resourceID(result.DeviceID, result.ModuleID))
 	plan.ETag = types.StringValue(result.ETag)
 	plan.Version = types.Int64Value(result.Version)
 	return diags
@@ -550,10 +518,9 @@ func verifySection(planned Document, remote map[string]any, p path.Path) diag.Di
 // projection of the leaves owned (declared by owner) onto the twin. A null
 // section stays null. When the projection is semantically equal to what
 // owner declares, owner's string is kept verbatim (no cosmetic diffs).
-func (r *twinResource) project(m *resourceModel, hostname string, tw *client.Twin, owner resourceModel) diag.Diagnostics {
+func (r *twinResource) project(m *resourceModel, tw *client.Twin, owner resourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
-	m.ID = types.StringValue(r.resourceID(hostname, tw.DeviceID, tw.ModuleID))
-	m.Hostname = types.StringValue(hostname)
+	m.ID = types.StringValue(r.resourceID(tw.DeviceID, tw.ModuleID))
 	m.ETag = types.StringValue(tw.ETag)
 	m.Version = types.Int64Value(tw.Version)
 

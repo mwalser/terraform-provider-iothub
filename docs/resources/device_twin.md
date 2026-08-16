@@ -67,14 +67,13 @@ resource "iothub_device_twin" "sensor_ops" {
 ### Optional
 
 - `desired_properties` (String) The desired properties this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no desired properties.
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`). Changing it replaces the resource.
 - `tags` (String) The tags this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
 - `etag` (String) ETag of the twin.
-- `id` (String) `<hostname>/twins/<device_id>`. Also the import ID. Every twin resource that manages the same twin has the same `id`.
+- `id` (String) The device ID. Also the import ID. Every twin resource that manages the same twin has the same `id`.
 - `version` (Number) Version of the twin.
 
 <a id="nestedblock--timeouts"></a>
@@ -94,7 +93,7 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Import ID: <hostname>/twins/<device_id>. The imported resource manages nothing
-# yet. The first apply adopts the keys your configuration declares.
-terraform import iothub_device_twin.sensor contoso.azure-devices.net/twins/sensor-0001
+# Import ID: the device ID. The imported resource manages nothing yet. The
+# first apply adopts the keys your configuration declares.
+terraform import iothub_device_twin.sensor sensor-0001
 ```

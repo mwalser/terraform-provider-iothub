@@ -47,7 +47,6 @@ type deviceResource struct {
 
 type resourceModel struct {
 	ID                         types.String   `tfsdk:"id"`
-	Hostname                   types.String   `tfsdk:"hostname"`
 	DeviceID                   types.String   `tfsdk:"device_id"`
 	Status                     types.String   `tfsdk:"status"`
 	StatusReason               types.String   `tfsdk:"status_reason"`
@@ -85,7 +84,7 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A device identity in the IoT Hub identity registry.\n\n" +
 			"Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. " +
-			"Deleting a device deletes its twin and its modules. Only `device_id` and `hostname` force replacement. Every " +
+			"Deleting a device deletes its twin and its modules. Only `device_id` forces replacement. Every " +
 			"other attribute changes in place.\n\n" +
 			"**Credentials.** With `authentication.type = \"sas\"` and no keys given, the hub generates the keys. They are " +
 			"stored in state as sensitive values. To keep keys out of state, pass them through the write-only " +
@@ -93,19 +92,9 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"ephemeral resource. To rotate a write-only key, change the matching `*_wo_version`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				MarkdownDescription: "`<hostname>/devices/<device_id>`. Also the import ID.",
+				MarkdownDescription: "The device ID. Also the import ID.",
 				Computed:            true,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
-			},
-			"hostname": schema.StringAttribute{
-				MarkdownDescription: common.HostnameAttributeDescription + " Changing it replaces the device.",
-				Optional:            true,
-				Computed:            true,
-				Validators:          common.HostnameValidators(),
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"device_id": schema.StringAttribute{
 				MarkdownDescription: "Device ID: " + identity.IDDescription + ". Changing it replaces the device.",
@@ -168,26 +157,24 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	}
 }
 
-// identityModel is the resource identity: the hub and the device ID.
+// identityModel is the resource identity: the device ID.
 type identityModel struct {
-	Hostname types.String `tfsdk:"hostname"`
 	DeviceID types.String `tfsdk:"device_id"`
 }
 
 func (r *deviceResource) IdentitySchema(_ context.Context, _ resource.IdentitySchemaRequest, resp *resource.IdentitySchemaResponse) {
 	resp.IdentitySchema = identityschema.Schema{
 		Attributes: map[string]identityschema.Attribute{
-			"hostname":  identityschema.StringAttribute{RequiredForImport: true, Description: "IoT Hub hostname."},
 			"device_id": identityschema.StringAttribute{RequiredForImport: true, Description: "Device ID."},
 		},
 	}
 }
 
-func setIdentity(ctx context.Context, id *tfsdk.ResourceIdentity, hostname, deviceID string) diag.Diagnostics {
+func setIdentity(ctx context.Context, id *tfsdk.ResourceIdentity, deviceID string) diag.Diagnostics {
 	if id == nil {
 		return nil
 	}
-	return id.Set(ctx, &identityModel{Hostname: types.StringValue(hostname), DeviceID: types.StringValue(deviceID)})
+	return id.Set(ctx, &identityModel{DeviceID: types.StringValue(deviceID)})
 }
 
 func computedString(desc string) schema.StringAttribute {
@@ -215,9 +202,9 @@ func (r *deviceResource) ValidateConfig(ctx context.Context, req resource.Valida
 	resp.Diagnostics.Append(identity.ValidateAuth(ctx, data.Authentication, data.writeOnlyKeys())...)
 }
 
-// ModifyPlan resolves the hostname, defers when the hub is not known yet, and
-// keeps the planned authentication object consistent with its type so the
-// apply never produces a "inconsistent result" (CONCEPT.md §6.1).
+// ModifyPlan defers when the hub is not known yet, sets the ID, and keeps
+// the planned authentication object consistent with its type so the apply
+// never produces a "inconsistent result" (CONCEPT.md §6.1).
 func (r *deviceResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	if req.Plan.Raw.IsNull() { // destroy
 		return
@@ -237,21 +224,13 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 		}
 	}
 
-	// hostname: config > state > provider default; unknown -> defer if allowed.
-	if plan.Hostname.IsUnknown() && r.pd != nil {
-		hostname, ok, diags := common.ResolveHostname(config.Hostname, r.pd)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		if ok {
-			plan.Hostname = types.StringValue(strings.ToLower(hostname))
-		} else if req.ClientCapabilities.DeferralAllowed {
+	if r.pd != nil {
+		if _, ok, diags := r.pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
 			resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
 		}
 	}
-	if !plan.Hostname.IsUnknown() && !plan.DeviceID.IsUnknown() {
-		plan.ID = types.StringValue(common.ResourceID(plan.Hostname.ValueString(), "devices", plan.DeviceID.ValueString()))
+	if !plan.DeviceID.IsUnknown() {
+		plan.ID = plan.DeviceID
 	}
 
 	// authentication: make the planned object consistent with the type.
@@ -283,7 +262,7 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client(ctx, plan.Hostname)
+	c, hostname, diags := r.client()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -301,19 +280,19 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 		if client.IsConflict(err) {
 			resp.Diagnostics.AddAttributeError(path.Root("device_id"), "Device already exists",
 				fmt.Sprintf("A device with ID %q already exists in %s. To manage it with Terraform, import it:\n\n  terraform import <address> %s\n\n%s",
-					spec.DeviceID, hostname, common.ResourceID(hostname, "devices", spec.DeviceID), common.DescribeError(err)))
+					spec.DeviceID, hostname, spec.DeviceID, common.DescribeError(err)))
 			return
 		}
 		resp.Diagnostics.AddError("Cannot create IoT Hub device", common.DescribeError(err))
 		return
 	}
 	pk, sk := plan.keysInState()
-	resp.Diagnostics.Append(setState(&plan, hostname, created, pk, sk)...)
+	resp.Diagnostics.Append(setState(&plan, created, pk, sk)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, created.DeviceID)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, created.DeviceID)...)
 }
 
 func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -330,21 +309,27 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client(ctx, state.Hostname)
+	c, ok, diags := r.pd.Hub()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	if !ok {
+		// The hub is not known yet (first plan of a configuration that also
+		// creates it); the prior state stands until apply.
+		resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, state.DeviceID.ValueString())...)
 		return
 	}
 	// ETag-gated refresh (CONCEPT.md §11.2): the twin is cheap to read and its
 	// deviceEtag is the identity ETag; when it matches, only the volatile
 	// fields need refreshing and the registry read is skipped.
-	if tw := r.pd.Refresh.TwinIfUnchanged(ctx, hostname, func(ctx context.Context) (*client.Twin, error) {
+	if tw := r.pd.Refresh.TwinIfUnchanged(ctx, func(ctx context.Context) (*client.Twin, error) {
 		return c.GetDeviceTwin(ctx, state.DeviceID.ValueString())
 	}, state.ETag.ValueString(), state.ConnectionState.ValueString()); tw != nil {
 		state.LastActivityTime = identity.TimeOrNull(tw.LastActivityTime)
 		state.CloudToDeviceMessageCount = types.Int64Value(tw.CloudToDeviceMessageCount)
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-		resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, state.DeviceID.ValueString())...)
+		resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, state.DeviceID.ValueString())...)
 		return
 	}
 	dev, err := c.GetDevice(ctx, state.DeviceID.ValueString())
@@ -358,12 +343,12 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 	pk, sk := state.keysInState()
-	resp.Diagnostics.Append(setState(&state, hostname, dev, pk, sk)...)
+	resp.Diagnostics.Append(setState(&state, dev, pk, sk)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, dev.DeviceID)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, dev.DeviceID)...)
 }
 
 func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -382,7 +367,7 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client(ctx, plan.Hostname)
+	c, _, diags := r.client()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -453,12 +438,12 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 
 	pk, sk := plan.keysInState()
-	resp.Diagnostics.Append(setState(&plan, hostname, updated, pk, sk)...)
+	resp.Diagnostics.Append(setState(&plan, updated, pk, sk)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, updated.DeviceID)...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, updated.DeviceID)...)
 }
 
 func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -475,7 +460,7 @@ func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client(ctx, state.Hostname)
+	c, _, diags := r.client()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -486,31 +471,22 @@ func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *deviceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	var hostname, deviceID string
-	if req.ID != "" {
-		host, parts, err := common.ParseResourceID(req.ID, "devices")
-		if err != nil || len(parts) != 1 {
-			resp.Diagnostics.AddError("Invalid import ID", "Expected `<hostname>/devices/<device_id>`, e.g. contoso.azure-devices.net/devices/sensor-01.")
-			return
-		}
-		hostname, deviceID = host, parts[0]
-	} else if req.Identity != nil {
+	deviceID := strings.TrimSpace(req.ID)
+	if deviceID == "" && req.Identity != nil {
 		var id identityModel
 		resp.Diagnostics.Append(req.Identity.Get(ctx, &id)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		hostname, deviceID = id.Hostname.ValueString(), id.DeviceID.ValueString()
+		deviceID = id.DeviceID.ValueString()
 	}
-	if hostname == "" || deviceID == "" {
-		resp.Diagnostics.AddError("Invalid import", "Provide the import ID `<hostname>/devices/<device_id>` or the identity attributes `hostname` and `device_id`.")
+	if deviceID == "" {
+		resp.Diagnostics.AddError("Invalid import", "Provide the device ID as the import ID (for example sensor-01) or as the identity attribute `device_id`.")
 		return
 	}
-	hostname = strings.ToLower(hostname)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hostname"), types.StringValue(hostname))...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("device_id"), types.StringValue(deviceID))...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(common.ResourceID(hostname, "devices", deviceID)))...)
-	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, hostname, deviceID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(deviceID))...)
+	resp.Diagnostics.Append(setIdentity(ctx, resp.Identity, deviceID)...)
 }
 
 // ---- helpers ----------------------------------------------------------------
@@ -526,15 +502,9 @@ func (m resourceModel) keysInState() (primary, secondary bool) {
 	return m.writeOnlyKeys().KeysInState()
 }
 
-func (r *deviceResource) client(ctx context.Context, hostname types.String) (*client.Client, string, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	if hostname.IsUnknown() || hostname.IsNull() || hostname.ValueString() == "" {
-		diags.AddAttributeError(path.Root("hostname"), "IoT Hub hostname unknown at apply time",
-			"Set `hostname` on the resource or on the provider block.")
-		return nil, "", diags
-	}
-	c, d := r.pd.ClientFor(ctx, hostname.ValueString())
-	diags.Append(d...)
+// client returns the hub client and hostname for an apply-time operation.
+func (r *deviceResource) client() (*client.Client, string, diag.Diagnostics) {
+	c, diags := r.pd.HubOrError()
 	if diags.HasError() {
 		return nil, "", diags
 	}
@@ -572,9 +542,8 @@ func writtenFromState(state resourceModel, auth identity.Auth) writtenFields {
 }
 
 // setState maps a hub identity onto the model.
-func setState(m *resourceModel, hostname string, d *client.Device, primaryInState, secondaryInState bool) diag.Diagnostics {
-	m.ID = types.StringValue(common.ResourceID(hostname, "devices", d.DeviceID))
-	m.Hostname = types.StringValue(hostname)
+func setState(m *resourceModel, d *client.Device, primaryInState, secondaryInState bool) diag.Diagnostics {
+	m.ID = types.StringValue(d.DeviceID)
 	m.DeviceID = types.StringValue(d.DeviceID)
 	m.Status = types.StringValue(d.Status)
 	m.StatusReason = types.StringNull()

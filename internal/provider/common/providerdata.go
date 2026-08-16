@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 )
@@ -18,59 +17,90 @@ import (
 // ResourceData/DataSourceData/EphemeralResourceData/ActionData.
 type ProviderData struct {
 	Settings Settings
-	// HostnameUnknown is true when the provider-level hostname was unknown
-	// at configure time (it typically references azurerm_iothub.x.hostname
-	// during the first plan). Constructs without their own hostname must
-	// then defer.
-	HostnameUnknown bool
-	// Clients creates per-hub clients sharing one pipeline and credential.
-	Clients *client.Factory
+	// Client talks to the configured hub. It is nil while the hub's hostname
+	// is unknown, which happens during the first plan of a configuration that
+	// also creates the hub (`hostname = azurerm_iothub.x.hostname`); the
+	// provider is configured again with the real value at apply time.
+	Client *client.Client
 	// Refresh gates the twin-first refresh of identities (see RefreshGate).
 	Refresh RefreshGate
 }
 
-// HostnameAttributeDescription documents the per-construct hostname attribute.
-const HostnameAttributeDescription = "Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). " +
-	"Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to " +
-	"reference a hub created in the same configuration (`azurerm_iothub.x.hostname`)."
-
-// ResolveHostname picks the hub for a construct: its own `hostname` attribute
-// if set, otherwise the provider default. It returns ok=false without
-// diagnostics when the hostname is not knowable yet (unknown value during
-// plan) so the caller can defer or mark results unknown; it returns an error
-// diagnostic when no hostname is configured anywhere.
-func ResolveHostname(own types.String, pd *ProviderData) (hostname string, ok bool, diags diag.Diagnostics) {
-	if own.IsUnknown() {
-		return "", false, nil
+// Hub returns the client for the configured hub. It returns ok=false without
+// diagnostics while the hostname is not knowable yet (see Client), so the
+// caller can defer or return unknown values.
+func (pd *ProviderData) Hub() (c *client.Client, ok bool, diags diag.Diagnostics) {
+	if pd == nil {
+		diags.AddError("Provider not configured", "The provider was not configured before this operation; this is a bug in the provider.")
+		return nil, false, diags
 	}
-	if !own.IsNull() && strings.TrimSpace(own.ValueString()) != "" {
-		return strings.TrimSpace(own.ValueString()), true, nil
+	if pd.Client == nil {
+		return nil, false, nil
 	}
-	if pd.HostnameUnknown {
-		return "", false, nil
-	}
-	if pd.Settings.Hostname == "" {
-		diags.AddAttributeError(path.Root("hostname"), "No IoT Hub hostname configured",
-			"Set `hostname` on this block or on the provider block (or the IOTHUB_HOSTNAME environment variable).")
-		return "", false, diags
-	}
-	return pd.Settings.Hostname, true, nil
+	return pd.Client, true, nil
 }
 
-// ClientFor returns the client for the resolved hostname or a diagnostic
-// explaining why none can be built (e.g. SAS policy bound to another hub).
-func (pd *ProviderData) ClientFor(_ context.Context, hostname string) (*client.Client, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	if pd == nil || pd.Clients == nil {
-		diags.AddError("Provider not configured", "The provider was not configured before this operation; this is a bug in the provider.")
+// HubOrError is Hub for operations that only run at apply time (create,
+// update, delete, import, actions), where the hostname is always known: an
+// unconfigured hub is reported as an error.
+func (pd *ProviderData) HubOrError() (*client.Client, diag.Diagnostics) {
+	c, ok, diags := pd.Hub()
+	if diags.HasError() {
 		return nil, diags
 	}
-	c, err := pd.Clients.Client(hostname)
-	if err != nil {
-		diags.AddAttributeError(path.Root("hostname"), "Cannot address IoT Hub", err.Error())
+	if !ok {
+		diags.AddError("IoT Hub hostname unknown", "The provider's `hostname` (or `connection_string`) is not known yet. Apply the resources it depends on first.")
 		return nil, diags
 	}
-	return c, nil
+	return c, diags
+}
+
+// DataSourceHub returns the hub client for a data source read. A data source
+// is read at plan time, so while the hostname is unknown the read is deferred
+// when Terraform allows that and reported as an error otherwise; ok is false
+// in both cases and the caller returns.
+func DataSourceHub(pd *ProviderData, req datasource.ReadRequest, resp *datasource.ReadResponse) (c *client.Client, ok bool) {
+	c, ok, diags := pd.Hub()
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return nil, false
+	}
+	if ok {
+		return c, true
+	}
+	if req.ClientCapabilities.DeferralAllowed {
+		resp.Deferred = &datasource.Deferred{Reason: datasource.DeferredReasonProviderConfigUnknown}
+		return nil, false
+	}
+	resp.Diagnostics.AddError("IoT Hub hostname unknown during plan",
+		"This data source is read while planning, but the provider's `hostname` (or `connection_string`) is not known "+
+			"until apply, typically because the hub is created in the same configuration. Apply the hub first "+
+			"(for example with `-target`), or move the data source to a configuration that runs after the hub exists.")
+	return nil, false
+}
+
+// EphemeralHub returns the hub client for opening an ephemeral resource.
+// Ephemeral resources are opened at plan time too, so while the hostname is
+// unknown the open is deferred when Terraform allows that. Otherwise a
+// warning is added and ok is false without an error: the caller then reports
+// its values as unknown, and Terraform opens the resource again at apply
+// time when the hub is known.
+func EphemeralHub(pd *ProviderData, req ephemeral.OpenRequest, resp *ephemeral.OpenResponse) (c *client.Client, ok bool) {
+	c, ok, diags := pd.Hub()
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return nil, false
+	}
+	if ok {
+		return c, true
+	}
+	if req.ClientCapabilities.DeferralAllowed {
+		resp.Deferred = &ephemeral.Deferred{Reason: ephemeral.DeferredReasonProviderConfigUnknown}
+		return nil, false
+	}
+	resp.Diagnostics.AddWarning("IoT Hub not known yet",
+		"The provider's `hostname` (or `connection_string`) is not known until apply, so these values are known after apply.")
+	return nil, false
 }
 
 // ExpectProviderData asserts the framework handed us our ProviderData; nil is

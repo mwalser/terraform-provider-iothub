@@ -2,7 +2,6 @@ package device
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
@@ -31,7 +30,6 @@ type listResource struct {
 }
 
 type listModel struct {
-	Hostname       types.String `tfsdk:"hostname"`
 	QueryCondition types.String `tfsdk:"query_condition"`
 }
 
@@ -43,7 +41,6 @@ func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListRe
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet.",
 		Attributes: map[string]schema.Attribute{
-			"hostname": schema.StringAttribute{MarkdownDescription: common.HostnameAttributeDescription, Optional: true, Validators: common.HostnameValidators()},
 			"query_condition": schema.StringAttribute{
 				MarkdownDescription: "`WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, for example `tags.site = 'munich'` or " +
 					"`capabilities.iotEdge = true`. All devices when omitted.",
@@ -72,17 +69,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
 		return
 	}
-	hostname, ok, diags := common.ResolveHostname(cfg.Hostname, l.pd)
-	if diags.HasError() {
-		stream.Results = list.ListResultsStreamDiagnostics(diags)
-		return
-	}
-	if !ok {
-		diags.AddError("IoT Hub hostname unknown", "Set `hostname` in the list block or on the provider block.")
-		stream.Results = list.ListResultsStreamDiagnostics(diags)
-		return
-	}
-	c, diags := l.pd.ClientFor(ctx, hostname)
+	c, diags := l.pd.HubOrError()
 	if diags.HasError() {
 		stream.Results = list.ListResultsStreamDiagnostics(diags)
 		return
@@ -115,13 +102,13 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				return
 			}
 			result := req.NewListResult(ctx)
-			result.DisplayName = fmt.Sprintf("%s (%s)", dev.DeviceID, c.Hostname())
-			result.Diagnostics.Append(setIdentity(ctx, result.Identity, c.Hostname(), dev.DeviceID)...)
+			result.DisplayName = dev.DeviceID
+			result.Diagnostics.Append(setIdentity(ctx, result.Identity, dev.DeviceID)...)
 			if req.IncludeResource {
 				m := resourceModel{Timeouts: nullTimeouts()}
 				m.PrimaryKeyWO, m.SecondaryKeyWO = types.StringNull(), types.StringNull()
 				m.PrimaryKeyWOVersion, m.SecondaryKeyWOVersion = types.Int64Null(), types.Int64Null()
-				result.Diagnostics.Append(setState(&m, c.Hostname(), dev, true, true)...)
+				result.Diagnostics.Append(setState(&m, dev, true, true)...)
 				result.Diagnostics.Append(result.Resource.Set(ctx, &m)...)
 			}
 			n++

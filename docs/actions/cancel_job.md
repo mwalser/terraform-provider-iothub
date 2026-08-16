@@ -42,5 +42,4 @@ action "iothub_cancel_job" "export" {
 
 ### Optional
 
-- `hostname` (String) Hostname of the IoT Hub, in lowercase (`<hub>.azure-devices.net`). Defaults to the provider's `hostname`. Set it here to manage several hubs from one provider block, or to reference a hub created in the same configuration (`azurerm_iothub.x.hostname`).
 - `timeout` (String) How long to wait for the hub to report the job cancelled, for example `5m` (default).

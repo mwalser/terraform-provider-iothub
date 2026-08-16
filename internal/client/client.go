@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -26,9 +25,13 @@ const APIVersion = "2021-04-12"
 
 const moduleName = "terraform-provider-iothub"
 
-// Config configures a Factory. Exactly one of Credential (Entra ID) or
+// Config configures a Client. Exactly one of Credential (Entra ID) or
 // SharedAccessKey (SAS) must be set.
 type Config struct {
+	// Hostname is the hub the client addresses (e.g. contoso.azure-devices.net).
+	// In SAS mode it may be empty and defaults to the key's HostName; when set,
+	// it must name the same hub.
+	Hostname string
 	// Credential is an Entra ID token credential (azidentity); tokens are
 	// requested for EntraIDScope.
 	Credential azcore.TokenCredential
@@ -45,22 +48,27 @@ type Config struct {
 	Logger Logger
 }
 
-// Factory creates per-hub Clients that share one pipeline and credential.
-type Factory struct {
-	pipeline runtime.Pipeline
-	sasHost  string // non-empty in SAS mode: the only hub the key is valid for
-	logger   Logger
-
-	mu      sync.Mutex
-	clients map[string]*Client
-}
-
-// NewFactory builds the shared pipeline for the given configuration.
-func NewFactory(cfg Config) (*Factory, error) {
+// New builds a client for one hub with its own pipeline and credential.
+func New(cfg Config) (*Client, error) {
 	if (cfg.Credential == nil) == (cfg.SharedAccessKey == nil) {
 		return nil, fmt.Errorf("client: exactly one of Credential or SharedAccessKey must be set")
 	}
-	f := &Factory{logger: cfg.Logger, clients: map[string]*Client{}}
+	host := strings.ToLower(strings.TrimSpace(cfg.Hostname))
+	if cfg.SharedAccessKey != nil {
+		sasHost := strings.ToLower(strings.TrimSpace(cfg.SharedAccessKey.HostName))
+		switch {
+		case host == "":
+			host = sasHost
+		case host != sasHost:
+			return nil, fmt.Errorf("client: the shared access policy in connection_string belongs to %s and cannot be used for %s", sasHost, host)
+		}
+	}
+	if host == "" {
+		return nil, fmt.Errorf("client: hub hostname is required")
+	}
+	if strings.Contains(host, "/") || strings.Contains(host, "://") {
+		return nil, fmt.Errorf("client: %q is not a bare hostname", cfg.Hostname)
+	}
 
 	var auth policy.Policy
 	if cfg.SharedAccessKey != nil {
@@ -69,7 +77,6 @@ func NewFactory(cfg Config) (*Factory, error) {
 			return nil, err
 		}
 		auth = p
-		f.sasHost = strings.ToLower(cfg.SharedAccessKey.HostName)
 	} else {
 		auth = runtime.NewBearerTokenPolicy(cfg.Credential, []string{EntraIDScope}, nil)
 	}
@@ -92,31 +99,7 @@ func NewFactory(cfg Config) (*Factory, error) {
 		Telemetry: policy.TelemetryOptions{ApplicationID: moduleName + "/" + version},
 		Transport: cfg.Transport,
 	}
-	f.pipeline = runtime.NewPipeline(moduleName, version, plOpts, clOpts)
-	return f, nil
-}
-
-// Client returns the client for a hub hostname (e.g. contoso.azure-devices.net).
-// In SAS mode only the hub the key belongs to can be addressed.
-func (f *Factory) Client(hostname string) (*Client, error) {
-	host := strings.ToLower(strings.TrimSpace(hostname))
-	if host == "" {
-		return nil, fmt.Errorf("client: hub hostname is required")
-	}
-	if strings.Contains(host, "/") || strings.Contains(host, "://") {
-		return nil, fmt.Errorf("client: %q is not a bare hostname", hostname)
-	}
-	if f.sasHost != "" && host != f.sasHost {
-		return nil, fmt.Errorf("client: the shared access policy in connection_string belongs to %s and cannot be used for %s; use Entra ID authentication to address several hubs", f.sasHost, host)
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if c, ok := f.clients[host]; ok {
-		return c, nil
-	}
-	c := &Client{hostname: host, pipeline: f.pipeline, log: f.logger}
-	f.clients[host] = c
-	return c, nil
+	return &Client{hostname: host, pipeline: runtime.NewPipeline(moduleName, version, plOpts, clOpts), log: cfg.Logger}, nil
 }
 
 // Client talks to one IoT Hub.
