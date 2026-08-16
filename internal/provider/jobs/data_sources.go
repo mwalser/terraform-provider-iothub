@@ -68,7 +68,7 @@ func (d *scheduledJobDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A scheduled twin-update or device-method job, for example one started by the `iothub_scheduled_job` " +
-			"action. The hub keeps job history for a limited time. Reading an unknown job is an error.",
+			"action. The hub keeps job history for a limited time.",
 		Attributes: map[string]schema.Attribute{
 			"id":                         c("The job ID."),
 			"job_id":                     schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true},

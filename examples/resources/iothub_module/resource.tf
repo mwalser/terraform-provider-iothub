@@ -18,8 +18,7 @@ resource "iothub_module" "updater" {
   }
 }
 
-# Keys that never enter state: both keys as write-only arguments, plus a
-# version to rotate. Change the version whenever you change a key.
+# Keys that never enter state. Bump the version to rotate.
 ephemeral "random_bytes" "diagnostics_primary" {
   length = 32
 }

@@ -30,7 +30,7 @@ func timeoutAttribute(def, covers string) schema.StringAttribute {
 
 func waitAttribute() schema.BoolAttribute {
 	return schema.BoolAttribute{
-		MarkdownDescription: "Wait for the job to finish (default `true`). With `false` the action returns as soon as the job is created.",
+		MarkdownDescription: "Wait for the job to finish and fail if it failed or was cancelled (default `true`). With `false` the action returns as soon as the job is created.",
 		Optional:            true,
 	}
 }

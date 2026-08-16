@@ -104,17 +104,14 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 			Validators:          []validator.String{identity.IDValidator()},
 		},
 		"tags": schema.StringAttribute{
-			CustomType: DocumentType,
-			MarkdownDescription: "The tags this resource manages, as a JSON object (use `jsonencode`). Only the keys declared " +
-				"here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.",
-			Optional: true,
+			CustomType:          DocumentType,
+			MarkdownDescription: "The tags to manage, as a JSON object (`jsonencode`).",
+			Optional:            true,
 		},
 		"desired_properties": schema.StringAttribute{
-			CustomType: DocumentType,
-			MarkdownDescription: "The desired properties this resource manages, as a JSON object (use `jsonencode`). Only the " +
-				"keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no " +
-				"desired properties.",
-			Optional: true,
+			CustomType:          DocumentType,
+			MarkdownDescription: "The desired properties to manage, as a JSON object (`jsonencode`).",
+			Optional:            true,
 		},
 		"etag":    schema.StringAttribute{MarkdownDescription: "ETag of the twin.", Computed: true},
 		"version": schema.Int64Attribute{MarkdownDescription: "Version of the twin.", Computed: true},
@@ -129,24 +126,19 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages part of a " + subject + " twin: the tags and desired properties you declare. Reported " +
-			"properties are read-only and available from the `iothub_" + subject + "_twin` data source.\n\n" +
-			"## Ownership and lifecycle\n\n" +
-			"The twin exists as long as the " + subject + " does. This resource does not create or delete it. Terraform manages " +
-			"only the keys you declare in `tags` and `desired_properties`, down to the innermost key. Everything else in the twin " +
-			"is left alone, including keys that other systems write next to yours. For example, a backend can write " +
-			"`desired.firmware.lastCheck` beside your `desired.firmware.channel` without Terraform noticing.\n\n" +
-			"Several resources, teams and systems can therefore share one twin, as long as they declare different keys. If two " +
-			"writers declare the same key, each apply overwrites the other's value and both keep showing drift. That includes " +
-			"desired properties pushed by `iothub_configuration` and by `iothub_scheduled_job` twin patches, so do not declare a " +
-			"desired property here that a configuration also targets.\n\n" +
-			"Removing a key from the configuration removes it from the twin. Destroying the resource removes every key it " +
-			"manages. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. An imported " +
-			"twin starts without managed keys. The first apply adopts the keys your configuration declares and deletes nothing " +
-			"else. Changes made outside Terraform to managed keys show up as drift.\n\n" +
+			"properties are read-only, in the `iothub_" + subject + "_twin` data source.\n\n" +
+			"## Ownership\n\n" +
+			"The twin exists as long as the " + subject + " does. This resource neither creates nor deletes it. Terraform " +
+			"manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key, and leaves " +
+			"everything else in the twin alone: a backend can write `desired.firmware.lastCheck` beside your " +
+			"`desired.firmware.channel`. Several resources and systems can share one twin as long as they declare different " +
+			"keys. Two writers of the same key, including `iothub_configuration` and `iothub_scheduled_job` twin patches, " +
+			"overwrite each other on every apply.\n\n" +
+			"Removing a key from the configuration removes it from the twin, and destroying the resource removes every " +
+			"managed key. An imported twin starts without managed keys. The first apply adopts the declared ones and deletes " +
+			"nothing.\n\n" +
 			"Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). " +
-			"Violations are reported at plan time. Values are compared by content: key order, whitespace and `2` versus `2.0` " +
-			"count as equal, so they never show as drift from the hub. Reformatting a value in your own configuration still " +
-			"appears in the plan as an update, but that update writes nothing.",
+			"Values are compared by content: key order, whitespace and `2` versus `2.0` are equal and never show as drift.",
 		Attributes: attrs,
 	}
 }

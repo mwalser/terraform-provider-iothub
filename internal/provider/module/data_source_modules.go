@@ -38,7 +38,7 @@ func (d *modulesDataSource) Metadata(_ context.Context, req datasource.MetadataR
 func (d *modulesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "All module identities of a device, including the hub-managed `$edgeAgent` and `$edgeHub` on IoT " +
-			"Edge devices. Symmetric keys are not exposed. Use `iothub_module_credentials` for those.",
+			"Edge devices. Keys are in `iothub_module_credentials`.",
 		Attributes: map[string]schema.Attribute{
 			"id":        schema.StringAttribute{MarkdownDescription: "The device ID.", Computed: true},
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},

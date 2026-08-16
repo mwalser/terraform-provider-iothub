@@ -3,12 +3,12 @@
 page_title: "iothub_module Data Source - iothub"
 subcategory: ""
 description: |-
-  A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here. Use the iothub_module_credentials ephemeral resource for keys and connection strings.
+  A module identity from the IoT Hub identity registry. Keys and connection strings are in the iothub_module_credentials ephemeral resource.
 ---
 
 # iothub_module (Data Source)
 
-A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here. Use the `iothub_module_credentials` ephemeral resource for keys and connection strings.
+A module identity from the IoT Hub identity registry. Keys and connection strings are in the `iothub_module_credentials` ephemeral resource.
 
 ## Example Usage
 

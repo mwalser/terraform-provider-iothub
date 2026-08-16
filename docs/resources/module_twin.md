@@ -3,27 +3,24 @@
 page_title: "iothub_module_twin Resource - iothub"
 subcategory: ""
 description: |-
-  Manages part of a module twin: the tags and desired properties you declare. Reported properties are read-only and available from the iothub_module_twin data source.
-  Ownership and lifecycle
-  The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the keys you declare in tags and desired_properties, down to the innermost key. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write desired.firmware.lastCheck beside your desired.firmware.channel without Terraform noticing.
-  Several resources, teams and systems can therefore share one twin, as long as they declare different keys. If two writers declare the same key, each apply overwrites the other's value and both keep showing drift. That includes desired properties pushed by iothub_configuration and by iothub_scheduled_job twin patches, so do not declare a desired property here that a configuration also targets.
-  Removing a key from the configuration removes it from the twin. Destroying the resource removes every key it manages. To stop managing a twin without touching it, use removed { … lifecycle { destroy = false } }. An imported twin starts without managed keys. The first apply adopts the keys your configuration declares and deletes nothing else. Changes made outside Terraform to managed keys show up as drift.
-  Keys and values must follow the twin format rules https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format. Violations are reported at plan time. Values are compared by content: key order, whitespace and 2 versus 2.0 count as equal, so they never show as drift from the hub. Reformatting a value in your own configuration still appears in the plan as an update, but that update writes nothing.
+  Manages part of a module twin: the tags and desired properties you declare. Reported properties are read-only, in the iothub_module_twin data source.
+  Ownership
+  The twin exists as long as the module does. This resource neither creates nor deletes it. Terraform manages only the keys you declare in tags and desired_properties, down to the innermost key, and leaves everything else in the twin alone: a backend can write desired.firmware.lastCheck beside your desired.firmware.channel. Several resources and systems can share one twin as long as they declare different keys. Two writers of the same key, including iothub_configuration and iothub_scheduled_job twin patches, overwrite each other on every apply.
+  Removing a key from the configuration removes it from the twin, and destroying the resource removes every managed key. An imported twin starts without managed keys. The first apply adopts the declared ones and deletes nothing.
+  Keys and values must follow the twin format rules https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format. Values are compared by content: key order, whitespace and 2 versus 2.0 are equal and never show as drift.
 ---
 
 # iothub_module_twin (Resource)
 
-Manages part of a module twin: the tags and desired properties you declare. Reported properties are read-only and available from the `iothub_module_twin` data source.
+Manages part of a module twin: the tags and desired properties you declare. Reported properties are read-only, in the `iothub_module_twin` data source.
 
-## Ownership and lifecycle
+## Ownership
 
-The twin exists as long as the module does. This resource does not create or delete it. Terraform manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key. Everything else in the twin is left alone, including keys that other systems write next to yours. For example, a backend can write `desired.firmware.lastCheck` beside your `desired.firmware.channel` without Terraform noticing.
+The twin exists as long as the module does. This resource neither creates nor deletes it. Terraform manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key, and leaves everything else in the twin alone: a backend can write `desired.firmware.lastCheck` beside your `desired.firmware.channel`. Several resources and systems can share one twin as long as they declare different keys. Two writers of the same key, including `iothub_configuration` and `iothub_scheduled_job` twin patches, overwrite each other on every apply.
 
-Several resources, teams and systems can therefore share one twin, as long as they declare different keys. If two writers declare the same key, each apply overwrites the other's value and both keep showing drift. That includes desired properties pushed by `iothub_configuration` and by `iothub_scheduled_job` twin patches, so do not declare a desired property here that a configuration also targets.
+Removing a key from the configuration removes it from the twin, and destroying the resource removes every managed key. An imported twin starts without managed keys. The first apply adopts the declared ones and deletes nothing.
 
-Removing a key from the configuration removes it from the twin. Destroying the resource removes every key it manages. To stop managing a twin without touching it, use `removed { … lifecycle { destroy = false } }`. An imported twin starts without managed keys. The first apply adopts the keys your configuration declares and deletes nothing else. Changes made outside Terraform to managed keys show up as drift.
-
-Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). Violations are reported at plan time. Values are compared by content: key order, whitespace and `2` versus `2.0` count as equal, so they never show as drift from the hub. Reformatting a value in your own configuration still appears in the plan as an update, but that update writes nothing.
+Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). Values are compared by content: key order, whitespace and `2` versus `2.0` are equal and never show as drift.
 
 ## Example Usage
 
@@ -33,8 +30,7 @@ resource "iothub_module" "telemetry" {
   module_id = "telemetry"
 }
 
-# Terraform manages exactly these keys: desired.interval and desired.sinks.
-# Anything else in the module twin is neither read nor written.
+# Manages exactly desired.interval and desired.sinks. The rest is left alone.
 resource "iothub_module_twin" "telemetry" {
   device_id = iothub_module.telemetry.device_id
   module_id = iothub_module.telemetry.module_id
@@ -56,8 +52,8 @@ resource "iothub_module_twin" "telemetry" {
 
 ### Optional
 
-- `desired_properties` (String) The desired properties this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no desired properties.
-- `tags` (String) The tags this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.
+- `desired_properties` (String) The desired properties to manage, as a JSON object (`jsonencode`).
+- `tags` (String) The tags to manage, as a JSON object (`jsonencode`).
 
 ### Read-Only
 
@@ -72,7 +68,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Import ID: <device_id>/<module_id>. The imported resource manages nothing
-# yet. The first apply adopts the keys your configuration declares.
+# Import ID: <device_id>/<module_id>
 terraform import iothub_module_twin.telemetry sensor-0001/telemetry
 ```

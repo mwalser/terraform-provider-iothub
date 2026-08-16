@@ -48,8 +48,8 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 	attrs["device_id"] = schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true}
 	attrs["module_id"] = schema.StringAttribute{MarkdownDescription: "Module ID. System modules such as `$edgeAgent` can be read too.", Required: true}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A module identity from the IoT Hub identity registry. Symmetric keys are not exposed here. " +
-			"Use the `iothub_module_credentials` ephemeral resource for keys and connection strings.",
+		MarkdownDescription: "A module identity from the IoT Hub identity registry. Keys and connection strings are in the " +
+			"`iothub_module_credentials` ephemeral resource.",
 		Attributes: attrs,
 	}
 }

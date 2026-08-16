@@ -8,23 +8,19 @@ terraform {
   }
 }
 
-# Entra ID (default), configured like the azurerm provider: a client secret or
-# certificate, an OIDC token (use_oidc), a managed identity (use_msi) or the
-# Azure CLI login, from the block or the ARM_* environment variables. The
-# identity needs an IoT Hub data-plane role on the hub, for example "IoT Hub
-# Data Contributor". Owner and Contributor are not enough.
+# Entra ID by default, configured like azurerm: ARM_* variables, use_oidc,
+# use_msi or the Azure CLI login. See Authentication below.
 provider "iothub" {
   hostname = "contoso-prod.azure-devices.net"
 }
 
-# Shared access policy (SAS) instead of Entra ID:
+# A shared access policy instead:
 #
 # provider "iothub" {
 #   connection_string = azurerm_iothub_shared_access_policy.terraform.primary_connection_string
 # }
 
-# A second hub: give its provider block an alias and select it on the
-# resource with `provider = iothub.staging`.
+# A second hub, selected on resources with `provider = iothub.staging`:
 #
 # provider "iothub" {
 #   alias    = "staging"

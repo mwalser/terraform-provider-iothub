@@ -3,12 +3,12 @@
 page_title: "iothub_modules Data Source - iothub"
 subcategory: ""
 description: |-
-  All module identities of a device, including the hub-managed $edgeAgent and $edgeHub on IoT Edge devices. Symmetric keys are not exposed. Use iothub_module_credentials for those.
+  All module identities of a device, including the hub-managed $edgeAgent and $edgeHub on IoT Edge devices. Keys are in iothub_module_credentials.
 ---
 
 # iothub_modules (Data Source)
 
-All module identities of a device, including the hub-managed `$edgeAgent` and `$edgeHub` on IoT Edge devices. Symmetric keys are not exposed. Use `iothub_module_credentials` for those.
+All module identities of a device, including the hub-managed `$edgeAgent` and `$edgeHub` on IoT Edge devices. Keys are in `iothub_module_credentials`.
 
 ## Example Usage
 

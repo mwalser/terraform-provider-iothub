@@ -2,10 +2,9 @@ resource "iothub_device" "sensor" {
   device_id = "sensor-0001"
 }
 
-# Terraform manages exactly these keys: tags.site, tags.fleet.region,
-# tags.fleet.ring, desired.telemetryIntervalSec and desired.firmware.channel.
-# Anything else in the twin is neither read nor written. That includes other
-# top-level keys and other systems' keys inside `fleet` or `firmware`.
+# Manages exactly these keys: tags.site, tags.fleet.region, tags.fleet.ring,
+# desired.telemetryIntervalSec and desired.firmware.channel. The rest of the
+# twin is left alone.
 resource "iothub_device_twin" "sensor" {
   device_id = iothub_device.sensor.device_id
 

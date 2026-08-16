@@ -3,12 +3,12 @@
 page_title: "iothub_device Data Source - iothub"
 subcategory: ""
 description: |-
-  A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here. Use the iothub_device_credentials ephemeral resource for keys and connection strings.
+  A device identity from the IoT Hub identity registry. Keys and connection strings are in the iothub_device_credentials ephemeral resource.
 ---
 
 # iothub_device (Data Source)
 
-A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here. Use the `iothub_device_credentials` ephemeral resource for keys and connection strings.
+A device identity from the IoT Hub identity registry. Keys and connection strings are in the `iothub_device_credentials` ephemeral resource.
 
 ## Example Usage
 

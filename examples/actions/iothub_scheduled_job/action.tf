@@ -3,11 +3,8 @@ variable "release" {
   default = "1.4.0"
 }
 
-# Roll a desired-property change out to a fleet with a scheduled twin update
-# job. It runs immediately, waits for completion and fails if any device failed.
-# The job ID must be new for every run while the hub still remembers the
-# earlier job, so it carries the release. Job IDs allow only lowercase letters,
-# digits and hyphens.
+# Roll a desired-property change out to a fleet on every release. The job ID
+# carries the release because an ID cannot be reused while the hub remembers it.
 action "iothub_scheduled_job" "fw_channel" {
   config {
     job_id                     = "fw-channel-${replace(var.release, ".", "-")}"
@@ -29,8 +26,7 @@ resource "terraform_data" "release" {
   }
 }
 
-# Reboot every gateway of a site eight hours from now. Do not wait for the run.
-# The same ID is used by the iothub_cancel_job example to cancel it.
+# Reboot every gateway of a site eight hours from now, without waiting.
 action "iothub_scheduled_job" "reboot_gateways" {
   config {
     job_id          = "reboot-gateways-${formatdate("YYYY-MM-DD", plantimestamp())}"
@@ -44,5 +40,3 @@ action "iothub_scheduled_job" "reboot_gateways" {
     wait = false
   }
 }
-
-# Ad hoc:  terraform apply -invoke=action.iothub_scheduled_job.reboot_gateways

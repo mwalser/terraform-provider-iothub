@@ -1,5 +1,4 @@
-# Cancel a scheduled job that has not run yet, for example the reboot job
-# scheduled by the iothub_scheduled_job example, or a running import/export job.
+# A scheduled job that has not run yet (the iothub_scheduled_job example's reboot job).
 action "iothub_cancel_job" "reboot_gateways" {
   config {
     job_id = "reboot-gateways-${formatdate("YYYY-MM-DD", plantimestamp())}"
@@ -13,5 +12,3 @@ action "iothub_cancel_job" "export" {
     kind   = "import_export"
   }
 }
-
-# Ad hoc:  terraform apply -invoke=action.iothub_cancel_job.reboot_gateways

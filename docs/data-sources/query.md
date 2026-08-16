@@ -4,14 +4,14 @@ page_title: "iothub_query Data Source - iothub"
 subcategory: ""
 description: |-
   Runs an IoT Hub query language https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language statement against the hub and returns all results.
-  Results are JSON strings, so use jsondecode() on them. SELECT * FROM devices yields whole twins, a projection yields the selected columns, and FROM devices.jobs yields job records. The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the iothub_device or iothub_device_twin data source.
+  The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the iothub_device or iothub_device_twin data source.
 ---
 
 # iothub_query (Data Source)
 
 Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) statement against the hub and returns all results.
 
-Results are JSON strings, so use `jsondecode()` on them. `SELECT * FROM devices` yields whole twins, a projection yields the selected columns, and `FROM devices.jobs` yields job records. The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.
+The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.
 
 ## Example Usage
 

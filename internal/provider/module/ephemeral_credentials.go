@@ -49,12 +49,7 @@ func (e *credentialsEphemeral) Metadata(_ context.Context, req ephemeral.Metadat
 
 func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The symmetric keys and connection strings of a module. They are never written to state or plan. " +
-			"Feed them into write-only arguments such as `azurerm_key_vault_secret.value_wo`. " +
-			"Modules with X.509 authentication have no keys, so the key attributes are null for them.\n\n" +
-			"Terraform opens ephemeral resources during `plan` as well as `apply`. If the module is created in the same run, " +
-			"it does not exist yet at plan time. The plan then shows the values as known after apply and warns that the " +
-			"module was not found yet. The values are read during apply.",
+		MarkdownDescription: "The symmetric keys and connection strings of a module.",
 		Attributes: map[string]schema.Attribute{
 			"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"module_id":           schema.StringAttribute{MarkdownDescription: "Module ID.", Required: true},

@@ -69,14 +69,11 @@ func (r *deviceResource) Metadata(_ context.Context, req resource.MetadataReques
 
 func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A device identity in the IoT Hub identity registry.\n\n" +
-			"Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. " +
-			"Deleting a device deletes its twin and its modules. Only `device_id` forces replacement. Every " +
-			"other attribute changes in place.\n\n" +
-			"**Credentials.** With `authentication.type = \"sas\"` and no keys given, the hub generates the keys. They are " +
-			"stored in state as sensitive values. To keep keys out of state, pass them through the write-only " +
-			"`primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the `iothub_device_credentials` " +
-			"ephemeral resource. To rotate a write-only key, change the matching `*_wo_version`.",
+		MarkdownDescription: "A device identity in the IoT Hub identity registry. Creating a device also creates its twin, " +
+			"managed with `iothub_device_twin`. Deleting a device deletes its twin and its modules.\n\n" +
+			"Hub-generated SAS keys are stored in state as sensitive values. To keep keys out of state, pass them through " +
+			"the write-only `primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the " +
+			"`iothub_device_credentials` ephemeral resource.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				MarkdownDescription: "The device ID. Also the import ID.",

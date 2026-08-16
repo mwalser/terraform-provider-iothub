@@ -22,10 +22,7 @@ resource "iothub_device" "downstream" {
   }
 }
 
-# Keys that never enter state: both keys as write-only arguments, plus a
-# version to rotate. Change the version whenever you change a key. A changed
-# key alone is not sent. (With only primary_key_wo set, the hub generates the
-# secondary key and it is stored in state.)
+# Keys that never enter state. Bump the version to rotate.
 variable "key_rotation" {
   type    = number
   default = 1

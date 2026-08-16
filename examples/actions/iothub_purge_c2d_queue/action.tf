@@ -8,5 +8,3 @@ action "iothub_purge_c2d_queue" "sensor" {
     device_id = iothub_device.sensor.device_id
   }
 }
-
-# Ad hoc:  terraform apply -invoke=action.iothub_purge_c2d_queue.sensor

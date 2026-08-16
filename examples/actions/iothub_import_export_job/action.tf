@@ -1,6 +1,4 @@
-# Nightly registry export into a blob container, keys excluded.
-# The hub authenticates to storage with its managed identity, which has
-# Storage Blob Data Contributor on the container. No SAS in the configuration.
+# Nightly export with the hub's managed identity, keys excluded.
 action "iothub_import_export_job" "export" {
   config {
     type                        = "export"
@@ -12,10 +10,7 @@ action "iothub_import_export_job" "export" {
   }
 }
 
-# Bulk import from a devices.txt prepared by a migration pipeline, with a
-# container SAS. A key-based container URI is the container URL followed by
-# the SAS query string. Per-line errors are written to importErrors.log in
-# the output container.
+# Import with a container SAS: the container URL followed by the SAS query string.
 locals {
   migration_container_sas_uri = "${azurerm_storage_account.migration.primary_blob_endpoint}${azurerm_storage_container.migration.name}${data.azurerm_storage_account_blob_container_sas.migration.sas}"
 }
@@ -29,5 +24,3 @@ action "iothub_import_export_job" "import" {
     timeout                   = "2h"
   }
 }
-
-# Ad hoc:  terraform apply -invoke=action.iothub_import_export_job.export

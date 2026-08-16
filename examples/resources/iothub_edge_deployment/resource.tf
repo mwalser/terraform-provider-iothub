@@ -5,8 +5,7 @@ variable "release" {
 
 # A base deployment from a standard deployment manifest file.
 resource "iothub_edge_deployment" "base" {
-  # A changed manifest replaces the deployment. A version in the ID plus
-  # create_before_destroy avoids a window without a deployment.
+  # Versioned ID + create_before_destroy: no window without a deployment.
   deployment_id    = "base-${replace(var.release, ".", "-")}"
   target_condition = "tags.site = 'munich'"
   priority         = 10

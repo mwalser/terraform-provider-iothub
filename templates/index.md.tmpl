@@ -14,37 +14,33 @@ description: |-
 
 ## Authentication
 
-The provider authenticates with Microsoft Entra ID unless `connection_string`
-is set, which selects a hub shared access policy (SAS) instead. Entra ID uses
-the argument names and `ARM_*` environment variables of the `azurerm`
-provider, plus the `AZURE_*` variables the Azure SDK reads, so one
-environment serves both providers. The identity needs an IoT Hub
-**data-plane** role at hub scope (see Permissions). `Owner` and `Contributor`
+The provider uses Entra ID by default, with the argument names and `ARM_*`
+variables of the `azurerm` provider (the Azure SDK's `AZURE_*` variables work
+too), or a hub shared access policy (SAS) when `connection_string` is set. The identity
+needs an IoT Hub **data-plane** role at hub scope. `Owner` and `Contributor`
 are not enough.
-
-Three rules:
 
 - An argument in the provider block wins over `ARM_*` variables, which win
   over `AZURE_*` variables.
 - The first method whose inputs are present is used, in the order of the
-  table below. Nothing is probed or guessed.
-- A method that is switched on but incomplete is an error. It does not fall
-  back to the Azure CLI. Set `use_cli = false` in CI so that a missing
-  configuration fails instead of using a developer's login.
+  table.
+- A method that is switched on but incomplete is an error, not a fallback to
+  the Azure CLI. Set `use_cli = false` in CI so that a missing configuration
+  fails instead of using a developer's login.
 
 | Method | Set | Also needed | Environment |
 |---|---|---|---|
 | Client certificate | `client_certificate_path` or `client_certificate` (base64) | `tenant_id`, `client_id`, `client_certificate_password` if the file has one | `ARM_CLIENT_CERTIFICATE_PATH`, `ARM_CLIENT_CERTIFICATE`, `ARM_CLIENT_CERTIFICATE_PASSWORD` |
 | Client secret | `client_secret` or `client_secret_file_path` | `tenant_id`, `client_id` (or `client_id_file_path`) | `ARM_CLIENT_SECRET`, `ARM_CLIENT_SECRET_FILE_PATH` |
-| OIDC: HCP Terraform | `use_oidc = true` | `tenant_id`; HCP sets `client_id` and `oidc_token` | `ARM_USE_OIDC`, `ARM_OIDC_TOKEN`, `ARM_CLIENT_ID` (set by HCP), `ARM_TENANT_ID` (yours); several provider configurations use `client_id_file_path` and `oidc_token_file_path` |
-| OIDC: GitHub Actions | `use_oidc = true` | `tenant_id`, `client_id`; the job needs `permissions: id-token: write` | `ARM_USE_OIDC`, `ARM_CLIENT_ID`, `ARM_TENANT_ID`; the request URL and token come from `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` |
+| OIDC: HCP Terraform | `use_oidc = true` | `tenant_id`; HCP sets `client_id` and `oidc_token` (`client_id_file_path` and `oidc_token_file_path` with several provider configurations) | `ARM_USE_OIDC`, `ARM_TENANT_ID`; `ARM_CLIENT_ID` and `ARM_OIDC_TOKEN` set by HCP |
+| OIDC: GitHub Actions | `use_oidc = true` | `tenant_id`, `client_id`; the job needs `permissions: id-token: write` | `ARM_USE_OIDC`, `ARM_CLIENT_ID`, `ARM_TENANT_ID`; `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` are read |
 | OIDC: Azure DevOps | `use_oidc = true`, `ado_pipeline_service_connection_id` | `tenant_id`, `client_id`; export `SYSTEM_ACCESSTOKEN: $(System.AccessToken)` and `SYSTEM_OIDCREQUESTURI: $(System.OidcRequestUri)` in the task | `ARM_USE_OIDC`, `ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID`, `SYSTEM_ACCESSTOKEN`, `SYSTEM_OIDCREQUESTURI` |
-| OIDC: AKS workload identity | `use_oidc = true` (or azurerm's `use_aks_workload_identity = true`) | nothing else; AKS injects the client ID, tenant ID and token file | `ARM_USE_OIDC` or `ARM_USE_AKS_WORKLOAD_IDENTITY`; `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_FEDERATED_TOKEN_FILE` |
-| Managed identity | `use_msi = true` | `client_id` for a user-assigned identity; the endpoint is found automatically on VMs, App Service, Container Apps and Arc | `ARM_USE_MSI` |
+| OIDC: AKS workload identity | `use_oidc = true` (or `use_aks_workload_identity = true`) | nothing; AKS injects client ID, tenant ID and token file | `ARM_USE_OIDC` or `ARM_USE_AKS_WORKLOAD_IDENTITY`; `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_FEDERATED_TOKEN_FILE` |
+| Managed identity | `use_msi = true` | `client_id` for a user-assigned identity | `ARM_USE_MSI` |
 | Azure CLI | nothing (`use_cli` defaults to `true`) | an `az login` session | `ARM_USE_CLI=false` disables it |
 | Shared access policy | `connection_string` | nothing; `hostname` is taken from it | `IOTHUB_CONNECTION_STRING` |
 
-Two short examples. A GitHub Actions job:
+A GitHub Actions job:
 
 ```yaml
 permissions:
@@ -68,15 +64,9 @@ An Azure DevOps task:
 ```
 
 The Azure side (app registration, federated credential, role assignment) is
-the same as for `azurerm`; its
+the same as for `azurerm`, so its
 [authentication guides](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_oidc)
-apply, with one difference: assign an IoT Hub data role, not *Contributor*.
-
-`azurerm` arguments with no equivalent here, because the data plane needs
-none of them: `subscription_id`, `environment` (public cloud only),
-`metadata_host`, `auxiliary_tenant_ids`, `msi_endpoint`, `msi_api_version`,
-`partner_id`, `storage_use_azuread`, `resource_provider_registrations` and
-`features`.
+apply.
 
 ### Permissions
 
@@ -89,25 +79,13 @@ policy (SAS). Narrower permissions work for subsets:
 | Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query`, the `iothub_device` and `iothub_module` list resources | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
 | Configurations and deployments (resources, data sources, list resources), jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
 
-The identity that runs `terraform plan` needs the read permissions too:
-refresh reads every managed object, and ephemeral resources open during plan.
-
-One service restriction depends on the authentication mode: with SAS
-authentication the hub refuses to create, change or delete modules of a
-*disabled* device. Enable the device first, or use Entra ID.
-
 ## Hubs
 
-One provider block manages one hub. To manage several hubs, declare one
-provider block per hub with an `alias` and select it on the resource with
-`provider = iothub.<alias>`. Write the hostname in lowercase, for example
-`contoso.azure-devices.net`. Other spellings are rejected.
-
-The hub can be created in the same configuration. `hostname =
-azurerm_iothub.x.hostname` is not known during the first plan. The provider
-then plans its resources without contacting the hub, and the apply reaches
-the hub once it exists. Data sources cannot wait for the apply, so on that
-first run they report an error. Apply the hub first, or keep data sources in
-a configuration that runs after the hub exists.
+One provider block manages one hub. Use aliases for several. If the hub is
+created in the same configuration, `hostname = azurerm_iothub.x.hostname` is
+unknown during the first plan. Resources are then planned without contacting
+the hub and applied once it exists. Data sources report an error on that
+first run, so apply the hub first or keep them in a configuration that runs
+after the hub exists.
 
 {{ .SchemaMarkdown | trimspace }}

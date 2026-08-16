@@ -76,15 +76,12 @@ func (a *scheduledJobAction) Metadata(_ context.Context, req action.MetadataRequ
 
 func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Runs a scheduled job on every device that matches `query_condition`, now or at a future `start_time`. " +
-			"Set `twin_patch` to merge tags and desired properties into the twins, or `method` to invoke a direct method on the " +
-			"devices.\n\n" +
-			"With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled. With " +
-			"`fail_on_device_failures` (default) it also fails if any targeted device failed. Read a job's outcome later with the " +
-			"`iothub_scheduled_job` data source.\n\n" +
+		MarkdownDescription: "Runs a scheduled job on every device that matches `query_condition`, now or at a future `start_time`: " +
+			"`twin_patch` merges tags and desired properties into the twins, `method` invokes a direct method. The " +
+			"`iothub_scheduled_job` data source reads a job's outcome later.\n\n" +
 			"A hub runs only a [limited number of jobs](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-quotas-throttling) " +
-			"at a time. While all slots are taken, the action waits for a free one within `timeout`. Re-running with the same " +
-			"`job_id` fails while the hub still remembers the earlier job. Use a new ID per run, or omit `job_id`.",
+			"at a time. While all slots are taken, the action waits for a free one within `timeout`. A `job_id` cannot be reused " +
+			"while the hub still remembers the earlier job: use a new ID per run, or omit it.",
 		Attributes: map[string]schema.Attribute{
 			"job_id": schema.StringAttribute{
 				MarkdownDescription: "Job ID, unique per hub: 1 to 64 lowercase letters, digits and hyphens. Generated as `tf-<random>` " +

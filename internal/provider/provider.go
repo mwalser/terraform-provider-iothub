@@ -76,25 +76,17 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 		MarkdownDescription: "Manages the Azure IoT Hub **data plane**: device and module identities, twins, " +
 			"automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play. " +
 			"The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.\n\n" +
-			"Requirements:\n\n" +
-			"- Terraform 1.14 or later.\n" +
-			"- An IoT Hub in the Azure public cloud. Sovereign clouds are not supported.\n" +
-			"- Either an Entra ID identity with an IoT Hub data-plane role on the hub, or a shared access policy connection " +
-			"string (see Permissions below).\n\n" +
+			"Requirements: Terraform 1.14 or later, an IoT Hub in the Azure public cloud (no sovereign clouds), and an " +
+			"Entra ID identity with an IoT Hub data-plane role on the hub or a shared access policy connection string.\n\n" +
 			"Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, " +
 			"and Device Provisioning Service enrollments.\n\n" +
-			"Authentication is Microsoft Entra ID by default, with the argument names and `ARM_*` variables of the `azurerm` " +
-			"provider. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled " +
-			"requests are retried automatically for up to 20 minutes per request; actions bound their whole invocation with " +
-			"`timeout`. The provider " +
-			"is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every " +
-			"such change.",
+			"The provider is at version 0.x: minor releases may still change attribute names and behaviour. The changelog " +
+			"lists every such change.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
 				MarkdownDescription: "Hostname of the IoT Hub, in lowercase, for example `contoso.azure-devices.net`. Falls back to " +
-					"`IOTHUB_HOSTNAME`. When `connection_string` is set you can omit `hostname`, which is then taken from the " +
-					"connection string. If you set both, they must name the same hub. To manage several hubs, declare one " +
-					"provider block per hub with an `alias`.",
+					"`IOTHUB_HOSTNAME`. Optional when `connection_string` is set: it is then taken from the connection string, " +
+					"and both must name the same hub if given.",
 				Optional:   true,
 				Validators: common.HostnameValidators(),
 			},
@@ -107,24 +99,24 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Optional:            true,
 			},
 			"client_id_file_path": schema.StringAttribute{
-				MarkdownDescription: "File containing the client ID, as HCP Terraform provides it for multiple provider configurations. Falls back to `ARM_CLIENT_ID_FILE_PATH`.",
+				MarkdownDescription: "File containing the client ID. Falls back to `ARM_CLIENT_ID_FILE_PATH`.",
 				Optional:            true,
 			},
 			"client_secret": schema.StringAttribute{
-				MarkdownDescription: "Client secret for service-principal authentication. Falls back to `ARM_CLIENT_SECRET` or `AZURE_CLIENT_SECRET`.",
+				MarkdownDescription: "Client secret. Falls back to `ARM_CLIENT_SECRET` or `AZURE_CLIENT_SECRET`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"client_secret_file_path": schema.StringAttribute{
-				MarkdownDescription: "File containing the client secret, for mounted secrets. Falls back to `ARM_CLIENT_SECRET_FILE_PATH`.",
+				MarkdownDescription: "File containing the client secret. Falls back to `ARM_CLIENT_SECRET_FILE_PATH`.",
 				Optional:            true,
 			},
 			"client_certificate_path": schema.StringAttribute{
-				MarkdownDescription: "Path to the client certificate for service-principal authentication: a PKCS#12 file (`.pfx`, as `openssl pkcs12 -export` writes it) or a PEM bundle with the certificate and an unencrypted private key. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` or `AZURE_CLIENT_CERTIFICATE_PATH`.",
+				MarkdownDescription: "Path to the client certificate: a PKCS#12 file (`.pfx`) or a PEM bundle with the certificate and an unencrypted private key. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` or `AZURE_CLIENT_CERTIFICATE_PATH`.",
 				Optional:            true,
 			},
 			"client_certificate": schema.StringAttribute{
-				MarkdownDescription: "The client certificate itself, base64 encoded (PKCS#12 or PEM), instead of a file. Falls back to `ARM_CLIENT_CERTIFICATE`.",
+				MarkdownDescription: "The client certificate itself, base64 encoded (PKCS#12 or PEM). Falls back to `ARM_CLIENT_CERTIFICATE`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -134,16 +126,14 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Sensitive:           true,
 			},
 			"use_oidc": schema.BoolAttribute{
-				MarkdownDescription: "Authenticate with a federated (OIDC) token, as HCP Terraform, GitHub Actions, Azure DevOps and " +
-					"Kubernetes workload identity provide it. With `ado_pipeline_service_connection_id` the token comes from Azure " +
-					"DevOps; otherwise from `oidc_token`, `oidc_token_file_path`, or `oidc_request_url` and `oidc_request_token`, in " +
-					"that order. Falls back to `ARM_USE_OIDC`.",
+				MarkdownDescription: "Authenticate with a federated (OIDC) token. It comes from Azure DevOps when " +
+					"`ado_pipeline_service_connection_id` is set, otherwise from `oidc_token`, `oidc_token_file_path`, or " +
+					"`oidc_request_url` and `oidc_request_token`, in that order. Falls back to `ARM_USE_OIDC`.",
 				Optional: true,
 			},
 			"use_aks_workload_identity": schema.BoolAttribute{
-				MarkdownDescription: "The same as `use_oidc`, under azurerm's name for AKS workload identity. The `AZURE_CLIENT_ID`, " +
-					"`AZURE_TENANT_ID` and `AZURE_FEDERATED_TOKEN_FILE` variables that AKS injects are read either way. Falls back " +
-					"to `ARM_USE_AKS_WORKLOAD_IDENTITY`.",
+				MarkdownDescription: "The same as `use_oidc`, under azurerm's name for AKS workload identity. Falls back to " +
+					"`ARM_USE_AKS_WORKLOAD_IDENTITY`.",
 				Optional: true,
 			},
 			"oidc_token": schema.StringAttribute{
@@ -173,13 +163,12 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Optional:            true,
 			},
 			"use_cli": schema.BoolAttribute{
-				MarkdownDescription: "Allow the Azure CLI login as the authentication method when no other method is configured (default `true`). Set it to `false` in CI to make a missing configuration fail instead of using a developer's login. Falls back to `ARM_USE_CLI`.",
+				MarkdownDescription: "Use the Azure CLI login when no other method is configured (default `true`). Falls back to `ARM_USE_CLI`.",
 				Optional:            true,
 			},
 			"connection_string": schema.StringAttribute{
 				MarkdownDescription: "Connection string of a hub shared access policy (`HostName=…;SharedAccessKeyName=…;SharedAccessKey=…`). " +
-					"Setting it selects SAS authentication instead of Entra ID. Falls back to `IOTHUB_CONNECTION_STRING`. " +
-					"`azurerm_iothub_shared_access_policy` exposes it as `primary_connection_string`.",
+					"Setting it selects SAS authentication instead of Entra ID. Falls back to `IOTHUB_CONNECTION_STRING`.",
 				Optional:  true,
 				Sensitive: true,
 			},

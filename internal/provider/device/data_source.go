@@ -51,8 +51,8 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A device identity from the IoT Hub identity registry. Symmetric keys are not exposed here. " +
-			"Use the `iothub_device_credentials` ephemeral resource for keys and connection strings.",
+		MarkdownDescription: "A device identity from the IoT Hub identity registry. Keys and connection strings are in the " +
+			"`iothub_device_credentials` ephemeral resource.",
 		Attributes: map[string]schema.Attribute{
 			"id": c("The device ID."),
 			"device_id": schema.StringAttribute{

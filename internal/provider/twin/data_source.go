@@ -105,7 +105,7 @@ func (d *twinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "The complete " + subject + " twin: tags, desired properties and reported properties as JSON strings, " +
-			"plus versions and the identity fields the twin carries. Use `jsondecode()` on the JSON attributes.",
+			"plus versions and the identity fields the twin carries.",
 		Attributes: attrs,
 	}
 }

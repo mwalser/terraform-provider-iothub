@@ -3,12 +3,12 @@
 page_title: "iothub_module_twin Data Source - iothub"
 subcategory: ""
 description: |-
-  The complete module twin: tags, desired properties and reported properties as JSON strings, plus versions and the identity fields the twin carries. Use jsondecode() on the JSON attributes.
+  The complete module twin: tags, desired properties and reported properties as JSON strings, plus versions and the identity fields the twin carries.
 ---
 
 # iothub_module_twin (Data Source)
 
-The complete module twin: tags, desired properties and reported properties as JSON strings, plus versions and the identity fields the twin carries. Use `jsondecode()` on the JSON attributes.
+The complete module twin: tags, desired properties and reported properties as JSON strings, plus versions and the identity fields the twin carries.
 
 ## Example Usage
 

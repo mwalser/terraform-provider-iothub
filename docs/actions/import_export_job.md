@@ -3,31 +3,26 @@
 page_title: "iothub_import_export_job Action - iothub"
 subcategory: ""
 description: |-
-  Runs a bulk identity registry job. An export writes the registry to a blob container, optionally with configurations and deployments. An import reads a file in the same format from a container. The file format is described in Import and export IoT Hub device identities in bulk https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt.
-  Blob access is either keyBased or identityBased. With keyBased you pass container SAS URIs. Action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS. With identityBased the hub uses its system-assigned or a user-assigned managed identity, which needs Storage Blob Data Contributor on the container.
-  With wait = true (default) the action waits for the job to finish. It fails if the job failed or was cancelled.
-  ~> An import that finishes with per-line errors still counts as completed. The hub writes those errors to importErrors.log in the output container. The action tells you where the log is but does not read it, so check it after every import.
-  Only one import or export job runs per hub at a time, so the action waits for its turn within timeout. With identityBased, a role assignment that has just been granted can take a few minutes to become effective. The action retries during that window.
+  Runs a bulk identity registry job. An export writes the registry to a blob container, optionally with configurations and deployments. An import reads a file in the same format https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt from a container.
+  Blob access is keyBased with container SAS URIs, or identityBased with the hub's system-assigned or a user-assigned managed identity, which needs Storage Blob Data Contributor on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window.
+  ~> An import that finishes with per-line errors still counts as completed. The hub writes them to importErrors.log in the output container. The action reports where the log is but does not read it.
+  Only one import or export job runs per hub at a time, so the action waits for its turn within timeout.
 ---
 
 # iothub_import_export_job (Action)
 
-Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally with configurations and deployments. An **import** reads a file in the same format from a container. The file format is described in [Import and export IoT Hub device identities in bulk](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt).
+Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally with configurations and deployments. An **import** reads a file in the same [format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) from a container.
 
-Blob access is either `keyBased` or `identityBased`. With `keyBased` you pass container SAS URIs. Action configuration is never stored in state, but it does appear in plan output, so prefer short-lived SAS. With `identityBased` the hub uses its system-assigned or a user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container.
+Blob access is `keyBased` with container SAS URIs, or `identityBased` with the hub's system-assigned or a user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window.
 
-With `wait = true` (default) the action waits for the job to finish. It fails if the job failed or was cancelled.
+~> **An import that finishes with per-line errors still counts as completed.** The hub writes them to `importErrors.log` in the output container. The action reports where the log is but does not read it.
 
-~> **An import that finishes with per-line errors still counts as completed.** The hub writes those errors to `importErrors.log` in the output container. The action tells you where the log is but does not read it, so check it after every import.
-
-Only one import or export job runs per hub at a time, so the action waits for its turn within `timeout`. With `identityBased`, a role assignment that has just been granted can take a few minutes to become effective. The action retries during that window.
+Only one import or export job runs per hub at a time, so the action waits for its turn within `timeout`.
 
 ## Example Usage
 
 ```terraform
-# Nightly registry export into a blob container, keys excluded.
-# The hub authenticates to storage with its managed identity, which has
-# Storage Blob Data Contributor on the container. No SAS in the configuration.
+# Nightly export with the hub's managed identity, keys excluded.
 action "iothub_import_export_job" "export" {
   config {
     type                        = "export"
@@ -39,10 +34,7 @@ action "iothub_import_export_job" "export" {
   }
 }
 
-# Bulk import from a devices.txt prepared by a migration pipeline, with a
-# container SAS. A key-based container URI is the container URL followed by
-# the SAS query string. Per-line errors are written to importErrors.log in
-# the output container.
+# Import with a container SAS: the container URL followed by the SAS query string.
 locals {
   migration_container_sas_uri = "${azurerm_storage_account.migration.primary_blob_endpoint}${azurerm_storage_container.migration.name}${data.azurerm_storage_account_blob_container_sas.migration.sas}"
 }
@@ -56,8 +48,6 @@ action "iothub_import_export_job" "import" {
     timeout                   = "2h"
   }
 }
-
-# Ad hoc:  terraform apply -invoke=action.iothub_import_export_job.export
 ```
 
 <!-- action schema generated by tfplugindocs -->
@@ -79,4 +69,4 @@ action "iothub_import_export_job" "import" {
 - `storage_authentication_type` (String) `keyBased` for SAS URIs (default), or `identityBased` for the hub's managed identity.
 - `timeout` (String) Overall deadline for the invocation, for example `30m` (default `1h`). It covers waiting for a free job slot and, when `wait` is true, the job's execution.
 - `user_assigned_identity` (String) Resource ID of a user-assigned managed identity of the hub, for `identityBased`. The system-assigned identity is used when omitted.
-- `wait` (Boolean) Wait for the job to finish (default `true`). With `false` the action returns as soon as the job is created.
+- `wait` (Boolean) Wait for the job to finish and fail if it failed or was cancelled (default `true`). With `false` the action returns as soon as the job is created.

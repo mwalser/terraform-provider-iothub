@@ -51,6 +51,16 @@ Leave out:
   at plan time is fine when it saves the user an apply; how the check works
   is not.
 - Azure's own file formats beyond a pointer.
+- Terraform itself: how ephemeral resources, write-only arguments, `removed`
+  blocks, `action_trigger`, `-invoke`, replacement or drift work. The reader
+  uses Terraform already; describe only what this provider adds.
+- Reasons for what is absent ("no equivalent here, because …"). Absent things
+  need no text.
+- Anything already said on the same page or on the provider page. A fact
+  belongs in the attribute description if it concerns one attribute, otherwise
+  in the summary, and is written once. Example comments say only what the
+  code does not show.
+- Filler ("Two short examples.", "as the example shows").
 
 Style: a one- or two-sentence summary, then the attributes. Plain language
 over service jargon ("if the device is offline", not "404 `DeviceNotOnline`").

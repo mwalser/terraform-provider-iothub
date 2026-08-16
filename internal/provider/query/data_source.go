@@ -44,10 +44,9 @@ func (d *dataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) " +
 			"statement against the hub and returns all results.\n\n" +
-			"Results are JSON strings, so use `jsondecode()` on them. `SELECT * FROM devices` yields whole twins, a projection " +
-			"yields the selected columns, and `FROM devices.jobs` yields job records. The query index is eventually consistent: " +
-			"a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. " +
-			"For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.",
+			"The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted " +
+			"device can be listed for a while afterwards. For a single known device, prefer the `iothub_device` or " +
+			"`iothub_device_twin` data source.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{MarkdownDescription: "A short hash of the query.", Computed: true},
 			"query": schema.StringAttribute{

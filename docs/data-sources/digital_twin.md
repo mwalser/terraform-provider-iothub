@@ -3,15 +3,12 @@
 page_title: "iothub_digital_twin Data Source - iothub"
 subcategory: ""
 description: |-
-  The IoT Plug and Play digital twin of a device. The hub derives this document from the device twin and the device's DTDL model. It contains $dtId, $metadata.$model, root-level properties and components. Components are objects with their own $metadata.
-  The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with iothub_device_twin. In iothub_device_twin, component properties need the "__t": "c" marker. A device that never announced a model has a null model_id and a document without properties.
+  The IoT Plug and Play digital twin of a device, as the hub derives it from the device twin and the device's DTDL model. Writable Plug and Play properties are twin desired properties: manage them with iothub_device_twin, with the "__t": "c" marker on component objects.
 ---
 
 # iothub_digital_twin (Data Source)
 
-The IoT Plug and Play digital twin of a device. The hub derives this document from the device twin and the device's DTDL model. It contains `$dtId`, `$metadata.$model`, root-level properties and components. Components are objects with their own `$metadata`.
-
-The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with `iothub_device_twin`. In `iothub_device_twin`, component properties need the `"__t": "c"` marker. A device that never announced a model has a null `model_id` and a document without properties.
+The IoT Plug and Play digital twin of a device, as the hub derives it from the device twin and the device's DTDL model. Writable Plug and Play properties are twin desired properties: manage them with `iothub_device_twin`, with the `"__t": "c"` marker on component objects.
 
 ## Example Usage
 
@@ -20,16 +17,14 @@ data "iothub_digital_twin" "controller" {
   device_id = "controller-0001"
 }
 
-# The DTDL model the device announced when it connected (null for non-PnP devices).
 output "controller_model" {
   value = data.iothub_digital_twin.controller.model_id
 }
 
-# The document is the hub's Plug and Play view: root properties and components
-# (objects with their own $metadata), derived from the device twin.
 locals {
   digital_twin = jsondecode(data.iothub_digital_twin.controller.document)
-  components   = [for k, v in local.digital_twin : k if !startswith(k, "$") && can(v["$metadata"])]
+  # Components are the non-$ keys that carry their own $metadata.
+  components = [for k, v in local.digital_twin : k if !startswith(k, "$") && can(v["$metadata"])]
 }
 
 output "controller_components" {
@@ -40,8 +35,7 @@ output "thermostat_max_temperature" {
   value = try(local.digital_twin.thermostat1.maxTempSinceLastReboot, null)
 }
 
-# Writable PnP properties are twin desired properties. Manage them with
-# iothub_device_twin. Component properties carry the "__t" = "c" marker.
+# Writable properties are twin desired properties. "__t" = "c" marks a component.
 resource "iothub_device_twin" "controller" {
   device_id = "controller-0001"
   desired_properties = jsonencode({
@@ -59,7 +53,7 @@ resource "iothub_device_twin" "controller" {
 
 ### Read-Only
 
-- `document` (String) The digital twin document as a JSON string, verbatim from the hub. Use `jsondecode()`.
+- `document` (String) The digital twin document as a JSON string, verbatim from the hub.
 - `etag` (String) ETag of the digital twin.
 - `id` (String) The device ID.
 - `model_id` (String) The DTDL model ID announced by the device. Null when the device is not a Plug and Play device.

@@ -25,5 +25,3 @@ resource "iothub_device_twin" "sensor" {
     }
   }
 }
-
-# Or ad hoc:  terraform apply -invoke=action.iothub_direct_method.reboot

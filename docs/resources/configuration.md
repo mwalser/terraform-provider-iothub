@@ -4,7 +4,7 @@ page_title: "iothub_configuration Resource - iothub"
 subcategory: ""
 description: |-
   An automatic device management configuration. The hub applies its desired properties to every device or module that matches target_condition, in order of priority.
-  target_condition, priority, labels and metrics can be changed in place. target_condition and the metrics queries are checked against the hub at plan time. Changing device_content or module_content replaces the configuration. The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }.
+  Changing device_content or module_content replaces the configuration. The content is compared by value, so reformatting it is not a change. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time.
   Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 ---
 
@@ -12,7 +12,7 @@ description: |-
 
 An automatic device management configuration. The hub applies its desired properties to every device or module that matches `target_condition`, in order of `priority`.
 
-`target_condition`, `priority`, `labels` and `metrics` can be changed in place. `target_condition` and the `metrics` queries are checked against the hub at plan time. **Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, so reformatting it is not a change. A replacement deletes the configuration and creates it again under the same ID. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`.
+**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, so reformatting it is not a change. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time.
 
 Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 
@@ -26,8 +26,7 @@ variable "release" {
 
 # Push a desired firmware channel to every EU leaf device (device twins).
 resource "iothub_configuration" "fw_channel" {
-  # Changing the content replaces the configuration. A version in the ID plus
-  # create_before_destroy avoids a window without a configuration.
+  # Versioned ID + create_before_destroy: no window without a configuration.
   configuration_id = "fw-channel-${replace(var.release, ".", "-")}"
   target_condition = "tags.fleet.region = 'eu' AND tags.kind = 'leaf'"
   priority         = 10
@@ -41,7 +40,6 @@ resource "iothub_configuration" "fw_channel" {
     create_before_destroy = true
   }
 
-  # Custom metrics. Results appear in `metric_results`.
   metrics = {
     applied = "SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'"
   }
@@ -68,8 +66,8 @@ resource "iothub_configuration" "telemetry_interval" {
 
 ### Optional
 
-- `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys, for example `jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration**, and the hub re-evaluates every targeted device.
-- `labels` (Map of String) Free-form labels (string map).
+- `device_content` (String) Device twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys, for example `jsonencode({ "properties.desired.firmware" = { channel = "stable" } })`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
+- `labels` (Map of String) Free-form labels.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.
 - `module_content` (String) Module twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys. Use it with a module target condition such as `FROM devices.modules WHERE moduleId = '…'`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
 - `priority` (Number) Priority, 0 or higher (default 0). When several configurations target the same device, the highest priority wins.
@@ -81,7 +79,7 @@ resource "iothub_configuration" "telemetry_interval" {
 - `id` (String) The `configuration_id`. Also the import ID.
 - `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
-- `schema_version` (String) Version string of the configuration document as the hub reports it, if any. Tools such as the Azure CLI write `1.0`.
+- `schema_version` (String) Schema version of the document as the hub reports it, if any (the Azure CLI writes `1.0`).
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration.
 
 ## Import

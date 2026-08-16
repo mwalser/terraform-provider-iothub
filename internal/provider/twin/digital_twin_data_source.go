@@ -40,12 +40,9 @@ func (d *digitalTwinDataSource) Metadata(_ context.Context, req datasource.Metad
 
 func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The IoT Plug and Play digital twin of a device. The hub derives this document from the device twin and " +
-			"the device's DTDL model. It contains `$dtId`, `$metadata.$model`, root-level properties and components. Components are " +
-			"objects with their own `$metadata`.\n\n" +
-			"The digital twin is read-only here. Writable Plug and Play properties are twin desired properties, so manage them with " +
-			"`iothub_device_twin`. In `iothub_device_twin`, component properties need the `\"__t\": \"c\"` marker. A device that " +
-			"never announced a model has a null `model_id` and a document without properties.",
+		MarkdownDescription: "The IoT Plug and Play digital twin of a device, as the hub derives it from the device twin and the " +
+			"device's DTDL model. Writable Plug and Play properties are twin desired properties: manage them with " +
+			"`iothub_device_twin`, with the `\"__t\": \"c\"` marker on component objects.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{MarkdownDescription: "The device ID.", Computed: true},
 			"device_id": schema.StringAttribute{
@@ -53,7 +50,7 @@ func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 				Required:            true,
 				Validators:          []validator.String{identity.IDValidator()},
 			},
-			"document": schema.StringAttribute{MarkdownDescription: "The digital twin document as a JSON string, verbatim from the hub. Use `jsondecode()`.", Computed: true},
+			"document": schema.StringAttribute{MarkdownDescription: "The digital twin document as a JSON string, verbatim from the hub.", Computed: true},
 			"model_id": schema.StringAttribute{MarkdownDescription: "The DTDL model ID announced by the device. Null when the device is not a Plug and Play device.", Computed: true},
 			"etag":     schema.StringAttribute{MarkdownDescription: "ETag of the digital twin.", Computed: true},
 		},

@@ -3,18 +3,15 @@
 page_title: "iothub_device Resource - iothub"
 subcategory: ""
 description: |-
-  A device identity in the IoT Hub identity registry.
-  Creating a device also creates its twin. Manage tags and desired properties with iothub_device_twin. Deleting a device deletes its twin and its modules. Only device_id forces replacement. Every other attribute changes in place.
-  Credentials. With authentication.type = "sas" and no keys given, the hub generates the keys. They are stored in state as sensitive values. To keep keys out of state, pass them through the write-only primary_key_wo and secondary_key_wo arguments and read connection strings with the iothub_device_credentials ephemeral resource. To rotate a write-only key, change the matching *_wo_version.
+  A device identity in the IoT Hub identity registry. Creating a device also creates its twin, managed with iothub_device_twin. Deleting a device deletes its twin and its modules.
+  Hub-generated SAS keys are stored in state as sensitive values. To keep keys out of state, pass them through the write-only primary_key_wo and secondary_key_wo arguments and read connection strings with the iothub_device_credentials ephemeral resource.
 ---
 
 # iothub_device (Resource)
 
-A device identity in the IoT Hub identity registry.
+A device identity in the IoT Hub identity registry. Creating a device also creates its twin, managed with `iothub_device_twin`. Deleting a device deletes its twin and its modules.
 
-Creating a device also creates its twin. Manage tags and desired properties with `iothub_device_twin`. Deleting a device deletes its twin and its modules. Only `device_id` forces replacement. Every other attribute changes in place.
-
-**Credentials.** With `authentication.type = "sas"` and no keys given, the hub generates the keys. They are stored in state as sensitive values. To keep keys out of state, pass them through the write-only `primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the `iothub_device_credentials` ephemeral resource. To rotate a write-only key, change the matching `*_wo_version`.
+Hub-generated SAS keys are stored in state as sensitive values. To keep keys out of state, pass them through the write-only `primary_key_wo` and `secondary_key_wo` arguments and read connection strings with the `iothub_device_credentials` ephemeral resource.
 
 ## Example Usage
 
@@ -43,10 +40,7 @@ resource "iothub_device" "downstream" {
   }
 }
 
-# Keys that never enter state: both keys as write-only arguments, plus a
-# version to rotate. Change the version whenever you change a key. A changed
-# key alone is not sent. (With only primary_key_wo set, the hub generates the
-# secondary key and it is stored in state.)
+# Keys that never enter state. Bump the version to rotate.
 variable "key_rotation" {
   type    = number
   default = 1
@@ -85,9 +79,9 @@ resource "iothub_device" "meter" {
 - `authentication` (Attributes) How the device authenticates. When omitted, the hub generates SAS keys. After an import, omitting it keeps the device's existing credentials. (see [below for nested schema](#nestedatt--authentication))
 - `edge_enabled` (Boolean) Whether the device is an IoT Edge device (default `false`). Edge devices get a hub-generated `device_scope` and the `$edgeAgent` and `$edgeHub` module identities.
 - `parent_scope` (String) The `device_scope` of the parent IoT Edge device. Setting it makes this device a child of that gateway, either as a leaf device or as a nested edge device. Remove it to detach the device from its parent. A device has at most one parent.
-- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). It is sent to the hub and never stored in state or plan. Requires `primary_key_wo_version` and `secondary_key_wo`, so that no key ends up in state. Changing the key value alone has no effect. Change the version whenever you change the key. Cannot be combined with `authentication.primary_key`.
+- `primary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only primary key, base64 encoded (16 to 64 bytes). Requires `primary_key_wo_version` and `secondary_key_wo`. Cannot be combined with `authentication.primary_key`.
 - `primary_key_wo_version` (Number) Version marker for `primary_key_wo`. Change it to rotate the key.
-- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key. Works like `primary_key_wo` and requires it. Cannot be combined with `authentication.secondary_key`.
+- `secondary_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secondary key. Requires `secondary_key_wo_version` and `primary_key_wo`. Cannot be combined with `authentication.secondary_key`.
 - `secondary_key_wo_version` (Number) Version marker for `secondary_key_wo`. Change it to rotate the key.
 - `status` (String) `enabled` (default) or `disabled`. A disabled device cannot connect.
 - `status_reason` (String) Free-text reason for the status, up to 128 characters.
@@ -109,11 +103,11 @@ resource "iothub_device" "meter" {
 
 Optional:
 
-- `primary_key` (String, Sensitive) Primary key, base64 encoded (16 to 64 bytes). Generated by the hub on create when omitted. A key rotated outside Terraform is adopted on refresh unless you set it explicitly. Not returned when `primary_key_wo` is used.
+- `primary_key` (String, Sensitive) Primary key, base64 encoded (16 to 64 bytes). Generated by the hub when omitted. A key rotated outside Terraform is then adopted on refresh. Null when `primary_key_wo` is used.
 - `primary_thumbprint` (String) Primary X.509 thumbprint for `selfSigned`: 40 or 64 hex characters without separators.
-- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (16 to 64 bytes). Generated by the hub on create when omitted. A key rotated outside Terraform is adopted on refresh unless you set it explicitly. Not returned when `secondary_key_wo` is used.
+- `secondary_key` (String, Sensitive) Secondary key, base64 encoded (16 to 64 bytes). Generated by the hub when omitted. A key rotated outside Terraform is then adopted on refresh. Null when `secondary_key_wo` is used.
 - `secondary_thumbprint` (String) Secondary X.509 thumbprint for `selfSigned`.
-- `type` (String) `sas` for symmetric keys, `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates. An identity created without an `authentication` block gets `sas`; an existing identity keeps its type.
+- `type` (String) `sas` for symmetric keys, `selfSigned` for X.509 thumbprints, or `certificateAuthority` for CA-signed X.509 certificates.
 
 ## Import
 

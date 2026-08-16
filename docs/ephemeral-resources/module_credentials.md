@@ -3,15 +3,12 @@
 page_title: "iothub_module_credentials Ephemeral Resource - iothub"
 subcategory: ""
 description: |-
-  The symmetric keys and connection strings of a module. They are never written to state or plan. Feed them into write-only arguments such as azurerm_key_vault_secret.value_wo. Modules with X.509 authentication have no keys, so the key attributes are null for them.
-  Terraform opens ephemeral resources during plan as well as apply. If the module is created in the same run, it does not exist yet at plan time. The plan then shows the values as known after apply and warns that the module was not found yet. The values are read during apply.
+  The symmetric keys and connection strings of a module.
 ---
 
 # iothub_module_credentials (Ephemeral Resource)
 
-The symmetric keys and connection strings of a module. They are never written to state or plan. Feed them into write-only arguments such as `azurerm_key_vault_secret.value_wo`. Modules with X.509 authentication have no keys, so the key attributes are null for them.
-
-Terraform opens ephemeral resources during `plan` as well as `apply`. If the module is created in the same run, it does not exist yet at plan time. The plan then shows the values as known after apply and warns that the module was not found yet. The values are read during apply.
+The symmetric keys and connection strings of a module.
 
 ## Example Usage
 
@@ -21,13 +18,11 @@ resource "iothub_module" "telemetry" {
   module_id = "telemetry"
 }
 
-# Read at apply time, never stored in state or plan.
 ephemeral "iothub_module_credentials" "telemetry" {
   device_id = iothub_module.telemetry.device_id
   module_id = iothub_module.telemetry.module_id
 }
 
-# Hand the connection string to a write-only argument.
 resource "azurerm_key_vault_secret" "telemetry" {
   name             = "sensor-0001-telemetry-connection-string"
   key_vault_id     = azurerm_key_vault.devices.id
