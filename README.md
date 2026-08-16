@@ -178,36 +178,14 @@ use. Pass it as a container SAS URI with `racwdl` permissions in
 `IOTHUB_TEST_BLOB_CONTAINER_SAS_URI`. The test is skipped otherwise.
 Everything else runs against the hub alone.
 
-### Acceptance tests in CI
-
-The `Tests` workflow runs the acceptance suite on `workflow_dispatch`, on
-every push to `main` and on release tags once the repository **variable**
-`IOTHUB_TEST_HOSTNAME` is set. The job runs in the GitHub environment
-`acceptance`; credentials come from that environment's **secrets**, either
-
-- `IOTHUB_CONNECTION_STRING` — a shared access policy of the test hub, or
-- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — an Entra ID
-  application with a [federated credential for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust?pivots=identity-wif-apps-methods-azp#github-actions)
-  whose subject is `repo:<owner>@<owner id>/<repo>@<repo id>:environment:acceptance`
-  (GitHub's default subject carries the IDs; the job runs in the `acceptance`
-  environment, so one credential covers pushes to `main`, release tags and
-  manual runs) and *IoT Hub Data Contributor* on the hub.
-  The workflow logs in with `azure/login` and the provider uses that CLI
-  session.
-
-Optionally, `IOTHUB_TEST_BLOB_CONTAINER_SAS_URI` enables the import/export
-job test.
+In CI, the `Tests` workflow runs the suite on pushes to `main`, on release
+tags and on demand; the variables and secrets it needs are listed at the top
+of `.github/workflows/test.yml`.
 
 ## Releasing
 
-Releases are cut by pushing a tag `vX.Y.Z`. The `Release` workflow first
-runs the `Tests` workflow on that commit (build, lint, docs freshness, unit
-tests, and the acceptance suite when the test hub is configured) and only
-then builds all platforms with GoReleaser, signs the checksums and publishes
-a GitHub release. The GoReleaser job runs in the `release` environment, which holds
-the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` for the key whose public part
-is registered with the Terraform Registry, admits `v*` tags only and waits
-for approval. Bump
+Push a tag `vX.Y.Z`. The `Release` workflow runs the tests on that commit,
+then builds, signs and publishes the release with GoReleaser. Bump
 `CHANGELOG.md` before tagging.
 
 ## License

@@ -12,7 +12,8 @@
 # job runs in that environment, so the OIDC subject is
 # repo:<owner>@<id>/<repo>@<id>:environment:acceptance on every ref and event
 # and a single federated credential covers pushes, tags and manual runs.
-# See README.md "Acceptance tests in CI".
+# Optional: IOTHUB_TEST_BLOB_CONTAINER_SAS_URI enables the import/export
+# job test.
 name: Tests
 
 on:
