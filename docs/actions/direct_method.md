@@ -23,8 +23,8 @@ action "iothub_direct_method" "reboot" {
     device_id                = iothub_device.sensor.device_id
     method_name              = "reboot"
     payload                  = jsonencode({ delaySec = 5 })
-    response_timeout_seconds = 30
-    connect_timeout_seconds  = 60 # wait for a device that is offline right now
+    response_timeout_seconds = 90
+    connect_timeout_seconds  = 60 # wait for a device that is offline right now, within the 90 s
     expected_status_codes    = [200, 202]
   }
 }
@@ -52,7 +52,7 @@ resource "iothub_device_twin" "sensor" {
 
 ### Optional
 
-- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0).
+- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0) and at most `response_timeout_seconds`, which bounds the whole call.
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`).
 - `module_id` (String) Module ID, to call a module's method.
 - `payload` (String) JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.

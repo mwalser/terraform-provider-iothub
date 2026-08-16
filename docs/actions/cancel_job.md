@@ -3,12 +3,12 @@
 page_title: "iothub_cancel_job Action - iothub"
 subcategory: "Jobs"
 description: |-
-  Cancels a running or scheduled job and waits until the hub reports it cancelled. Works for scheduled twin-update and method jobs and for import and export jobs. A job that already finished is reported as such without an error. An unknown job fails.
+  Cancels a queued or scheduled twin-update or method job, or an enqueued or running import/export job, and waits until the hub reports a terminal state. IoT Hub does not cancel a scheduled job after it has started running. A job that already finished is reported as such without an error. An unknown job fails.
 ---
 
 # iothub_cancel_job (Action)
 
-Cancels a running or scheduled job and waits until the hub reports it cancelled. Works for scheduled twin-update and method jobs and for import and export jobs. A job that already finished is reported as such without an error. An unknown job fails.
+Cancels a queued or scheduled twin-update or method job, or an enqueued or running import/export job, and waits until the hub reports a terminal state. IoT Hub does not cancel a scheduled job after it has started running. A job that already finished is reported as such without an error. An unknown job fails.
 
 ## Example Usage
 
@@ -40,4 +40,4 @@ action "iothub_cancel_job" "export" {
 
 ### Optional
 
-- `timeout` (String) How long to wait for the hub to report the job cancelled (default `5m`).
+- `timeout` (String) Overall deadline for the invocation, for example `30m` (default `5m`). It covers the cancellation request and waiting for the terminal job record.

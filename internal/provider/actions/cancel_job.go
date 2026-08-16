@@ -45,9 +45,9 @@ func (a *cancelJobAction) Metadata(_ context.Context, req action.MetadataRequest
 
 func (a *cancelJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Cancels a running or scheduled job and waits until the hub reports it cancelled. Works for scheduled " +
-			"twin-update and method jobs and for import and export jobs. A job that already finished is reported as such without an " +
-			"error. An unknown job fails.",
+		MarkdownDescription: "Cancels a queued or scheduled twin-update or method job, or an enqueued or running import/export job, " +
+			"and waits until the hub reports a terminal state. IoT Hub does not cancel a scheduled job after it has started running. " +
+			"A job that already finished is reported as such without an error. An unknown job fails.",
 		Attributes: map[string]schema.Attribute{
 			"job_id": schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
 			"kind": schema.StringAttribute{
@@ -55,7 +55,7 @@ func (a *cancelJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp
 				Required:            true,
 				Validators:          []validator.String{stringvalidator.OneOf(kindScheduled, kindImportExport)},
 			},
-			"timeout": schema.StringAttribute{MarkdownDescription: "How long to wait for the hub to report the job cancelled (default `5m`).", Optional: true},
+			"timeout": timeoutAttribute("5m", "It covers the cancellation request and waiting for the terminal job record."),
 		},
 	}
 }
@@ -78,9 +78,25 @@ func (a *cancelJobAction) Invoke(ctx context.Context, req action.InvokeRequest, 
 	id := data.JobID.ValueString()
 
 	if data.Kind.ValueString() == kindImportExport {
-		if err := c.CancelImportExportJob(ctx, id); err != nil {
+		job, err := c.GetImportExportJob(ctx, id)
+		if err != nil {
 			if client.IsNotFound(err) {
 				resp.Diagnostics.AddAttributeError(path.Root("job_id"), "Job not found", fmt.Sprintf("No import/export job %q exists in %s.\n\n%s", id, c.Hostname(), common.DescribeError(err)))
+				return
+			}
+			resp.Diagnostics.AddError("Cannot read import/export job", common.DescribeError(err))
+			return
+		}
+		if job.IsTerminal() {
+			progress(resp, "Import/export job %q is already %s.", id, job.Status)
+			return
+		}
+		if err := c.CancelImportExportJob(ctx, id); err != nil {
+			// Completion can race the cancellation request, and the service may
+			// answer 500 rather than a useful terminal-state error. Read truth.
+			fresh, readErr := c.GetImportExportJob(ctx, id)
+			if readErr == nil && fresh.IsTerminal() {
+				progress(resp, "Import/export job %q is already %s.", id, fresh.Status)
 				return
 			}
 			resp.Diagnostics.AddError("Cannot cancel import/export job", common.DescribeError(err))
@@ -110,10 +126,30 @@ func (a *cancelJobAction) Invoke(ctx context.Context, req action.InvokeRequest, 
 		}
 	}
 
-	job, err := c.CancelScheduledJob(ctx, id)
+	job, err := c.GetScheduledJob(ctx, id)
 	if err != nil {
-		if client.IsNotFound(err) {
-			resp.Diagnostics.AddAttributeError(path.Root("job_id"), "Job not found", fmt.Sprintf("No scheduled job %q exists in %s.\n\n%s", id, c.Hostname(), common.DescribeError(err)))
+		resp.Diagnostics.AddError("Cannot read scheduled job", common.DescribeError(err))
+		return
+	}
+	if job.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(path.Root("job_id"), "Job not found", fmt.Sprintf("No scheduled job %q exists in %s.", id, c.Hostname()))
+		return
+	}
+	if job.IsTerminal() {
+		progress(resp, "Scheduled job %q is already %s.", id, job.Status)
+		return
+	}
+	job, err = c.CancelScheduledJob(ctx, id)
+	if err != nil {
+		// Completion (or the start of execution) can race the cancellation
+		// request: the hub answers 405 for a running or finished job.
+		fresh, readErr := c.GetScheduledJob(ctx, id)
+		if readErr == nil && fresh.IsTerminal() {
+			progress(resp, "Scheduled job %q is already %s.", id, fresh.Status)
+			return
+		}
+		if readErr == nil && fresh.Status == client.JobStatusRunning {
+			resp.Diagnostics.AddError("Job is already running", fmt.Sprintf("The hub does not cancel scheduled job %q once it has started running; it finishes on its own.\n\n%s", id, common.DescribeError(err)))
 			return
 		}
 		resp.Diagnostics.AddError("Cannot cancel scheduled job", common.DescribeError(err))

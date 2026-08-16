@@ -250,10 +250,11 @@ func (c *Client) GetImportExportJob(ctx context.Context, id string) (*ImportExpo
 	return &out, nil
 }
 
-// CancelImportExportJob cancels a bulk job (DELETE /jobs/{id}); unknown IDs
-// answer 404.
+// CancelImportExportJob cancels a bulk job (DELETE /jobs/{id}). An unknown or
+// long-finished job answers 500 (verified), so only throttling is retried:
+// the caller reads the job record to tell a race from a real failure.
 func (c *Client) CancelImportExportJob(ctx context.Context, id string) error {
-	_, err := c.do(ctx, request{method: http.MethodDelete, path: "/jobs/" + id}, nil)
+	_, err := c.do(ctx, request{method: http.MethodDelete, path: "/jobs/" + id, retry: perRequest{OnlyThrottleRetries: true}}, nil)
 	return err
 }
 

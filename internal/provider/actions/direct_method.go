@@ -74,7 +74,7 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Validators:          []validator.Int64{int64validator.Between(5, 300)},
 			},
 			"connect_timeout_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0).",
+				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0) and at most `response_timeout_seconds`, which bounds the whole call.",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.Between(0, 300)},
 			},
@@ -98,6 +98,7 @@ func (a *directMethodAction) ValidateConfig(ctx context.Context, req action.Vali
 	if !data.Payload.IsNull() && !data.Payload.IsUnknown() && !json.Valid([]byte(data.Payload.ValueString())) {
 		resp.Diagnostics.AddAttributeError(path.Root("payload"), "Invalid payload", "payload must be valid JSON (use jsonencode).")
 	}
+	resp.Diagnostics.Append(validateMethodTimeouts(data.ResponseTimeoutSeconds, data.ConnectTimeoutSeconds, path.Root("connect_timeout_seconds"))...)
 }
 
 func (a *directMethodAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {

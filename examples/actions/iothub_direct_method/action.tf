@@ -8,8 +8,8 @@ action "iothub_direct_method" "reboot" {
     device_id                = iothub_device.sensor.device_id
     method_name              = "reboot"
     payload                  = jsonencode({ delaySec = 5 })
-    response_timeout_seconds = 30
-    connect_timeout_seconds  = 60 # wait for a device that is offline right now
+    response_timeout_seconds = 90
+    connect_timeout_seconds  = 60 # wait for a device that is offline right now, within the 90 s
     expected_status_codes    = [200, 202]
   }
 }

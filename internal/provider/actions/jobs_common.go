@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/action/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -25,6 +26,26 @@ func timeoutAttribute(def, covers string) schema.StringAttribute {
 	return schema.StringAttribute{
 		MarkdownDescription: "Overall deadline for the invocation, for example `30m` (default `" + def + "`). " + covers,
 		Optional:            true,
+		Validators:          []validator.String{durationValidator{}},
+	}
+}
+
+type durationValidator struct{}
+
+func (durationValidator) Description(context.Context) string {
+	return "must be a positive Go duration such as 30m or 2h"
+}
+
+func (v durationValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (durationValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	if d, err := time.ParseDuration(req.ConfigValue.ValueString()); err != nil || d <= 0 {
+		resp.Diagnostics.AddAttributeError(req.Path, "Invalid timeout", "Use a positive Go duration such as \"30m\" or \"2h\".")
 	}
 }
 
@@ -47,6 +68,26 @@ func parseTimeout(v types.String, def time.Duration) (time.Duration, diag.Diagno
 		return 0, diags
 	}
 	return d, diags
+}
+
+func validateMethodTimeouts(response, connect types.Int64, connectPath path.Path) diag.Diagnostics {
+	var diags diag.Diagnostics
+	if response.IsUnknown() || connect.IsUnknown() {
+		return diags
+	}
+	responseSeconds := int64(defaultResponseTimeout)
+	if !response.IsNull() {
+		responseSeconds = response.ValueInt64()
+	}
+	connectSeconds := int64(defaultConnectTimeout)
+	if !connect.IsNull() {
+		connectSeconds = connect.ValueInt64()
+	}
+	if connectSeconds > responseSeconds {
+		diags.AddAttributeError(connectPath, "Connect timeout exceeds response timeout",
+			"connect_timeout_seconds must be less than or equal to response_timeout_seconds; the IoT Hub rejects a larger connect timeout.")
+	}
+	return diags
 }
 
 func boolOr(v types.Bool, def bool) bool {

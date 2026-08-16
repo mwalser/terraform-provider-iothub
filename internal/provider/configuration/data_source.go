@@ -138,7 +138,7 @@ func (d *configDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 			other = edgeDeploymentKind
 		}
 		resp.Diagnostics.AddError("Wrong data source for this "+d.kind.noun(),
-			fmt.Sprintf("%q carries %s and is an %s; read it with data.%s instead.", cfg.ID, section, other.noun(), other.resourceType()))
+			fmt.Sprintf("%q carries %s and is %s; read it with data.%s instead.", cfg.ID, section, other.indefiniteNoun(), other.resourceType()))
 		return
 	}
 

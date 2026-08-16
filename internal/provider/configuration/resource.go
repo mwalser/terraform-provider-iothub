@@ -126,8 +126,9 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		description = "An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every " +
 			"IoT Edge device that matches `target_condition`, in order of `priority`. A deployment is layered when its " +
 			"`$edgeAgent` content sets `properties.desired.modules.<name>` keys instead of a full `properties.desired`.\n\n" +
-			"**Changing `modules_content` replaces the deployment.** The content is compared by value, so reformatting it is " +
-			"not a change. To avoid a window without a deployment, put a version in `deployment_id` and use " +
+			"**Changing `modules_content` replaces the deployment.** The content is compared by value: reformatting it plans an " +
+			"in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version " +
+			"in `deployment_id` and use " +
 			"`lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against " +
 			"the hub at plan time where possible.\n\n" +
 			"Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment " +
@@ -152,8 +153,9 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		}
 		description = "An automatic device management configuration. The hub applies its desired properties to every device or " +
 			"module that matches `target_condition`, in order of `priority`.\n\n" +
-			"**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value, " +
-			"so reformatting it is not a change. To avoid a window without a configuration, put a version in " +
+			"**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value: " +
+			"reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a " +
+			"configuration, put a version in " +
 			"`configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` " +
 			"queries are checked against the hub at plan time where possible.\n\n" +
 			"Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until " +
@@ -356,7 +358,7 @@ func (r *configResource) checkKind(cfg *client.Configuration) diag.Diagnostics {
 			other = edgeDeploymentKind
 		}
 		diags.AddError("Wrong resource type for this "+r.kind.noun(),
-			fmt.Sprintf("%q carries %s and is an %s; manage it with %s instead.", cfg.ID, section, other.noun(), other.resourceType()))
+			fmt.Sprintf("%q carries %s and is %s; manage it with %s instead.", cfg.ID, section, other.indefiniteNoun(), other.resourceType()))
 	}
 	return diags
 }
@@ -367,6 +369,20 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	state, d := r.kind.get(ctx, req.State)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Terraform sees a changed configured string even when its JSON value is
+	// equal. Record that representation in state without spending a
+	// configuration write or moving the remote ETag.
+	if len(diffWritten(writtenFromModel(ctx, state), writtenFromModel(ctx, plan))) == 0 {
+		plan.SchemaVersion = state.SchemaVersion
+		plan.ETag = state.ETag
+		plan.CreatedTime = state.CreatedTime
+		plan.LastUpdatedTime = state.LastUpdatedTime
+		plan.SystemMetrics = state.SystemMetrics
+		plan.MetricResults = state.MetricResults
+		resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, plan)...)
+		resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, plan.ConfigurationID.ValueString())...)
 		return
 	}
 	c, diags := r.pd.HubOrError()

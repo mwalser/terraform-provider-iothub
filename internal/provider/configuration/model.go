@@ -45,6 +45,13 @@ func (k kind) noun() string {
 	return "configuration"
 }
 
+func (k kind) indefiniteNoun() string {
+	if k.isEdge() {
+		return "an " + k.noun()
+	}
+	return "a " + k.noun()
+}
+
 func (k kind) typeSuffix() string {
 	if k.isEdge() {
 		return "_edge_deployment"

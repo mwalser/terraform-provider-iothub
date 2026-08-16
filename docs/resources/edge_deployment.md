@@ -4,7 +4,7 @@ page_title: "iothub_edge_deployment Resource - iothub"
 subcategory: "Configurations and deployments"
 description: |-
   An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches target_condition, in order of priority. A deployment is layered when its $edgeAgent content sets properties.desired.modules.<name> keys instead of a full properties.desired.
-  Changing modules_content replaces the deployment. The content is compared by value, so reformatting it is not a change. To avoid a window without a deployment, put a version in deployment_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time where possible.
+  Changing modules_content replaces the deployment. The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version in deployment_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time where possible.
   Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment targets them.
 ---
 
@@ -12,7 +12,7 @@ description: |-
 
 An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches `target_condition`, in order of `priority`. A deployment is layered when its `$edgeAgent` content sets `properties.desired.modules.<name>` keys instead of a full `properties.desired`.
 
-**Changing `modules_content` replaces the deployment.** The content is compared by value, so reformatting it is not a change. To avoid a window without a deployment, put a version in `deployment_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time where possible.
+**Changing `modules_content` replaces the deployment.** The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version in `deployment_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time where possible.
 
 Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment targets them.
 

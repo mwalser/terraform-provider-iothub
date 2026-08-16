@@ -87,7 +87,7 @@ Required:
 
 Optional:
 
-- `connect_timeout_seconds` (Number) Per-device connect timeout in seconds, 0 to 300 (default 0).
+- `connect_timeout_seconds` (Number) Per-device connect timeout in seconds, 0 to 300 (default 0) and at most `response_timeout_seconds`.
 - `payload` (String) JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.
 - `response_timeout_seconds` (Number) Per-device response timeout in seconds, 5 to 300 (default 30).
 

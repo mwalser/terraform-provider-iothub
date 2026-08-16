@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/action"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 func TestSchemas_ValidateImplementation(t *testing.T) {
@@ -49,5 +52,37 @@ func TestJobHelpers(t *testing.T) {
 		if scheduledJobIDPattern.MatchString(bad) {
 			t.Errorf("%q should not be a valid job ID", bad)
 		}
+	}
+}
+
+func TestDurationValidator(t *testing.T) {
+	ctx := context.Background()
+	v := durationValidator{}
+	for _, value := range []string{"30m", "2h", "1.5s"} {
+		var resp validator.StringResponse
+		v.ValidateString(ctx, validator.StringRequest{Path: path.Root("timeout"), ConfigValue: types.StringValue(value)}, &resp)
+		if resp.Diagnostics.HasError() {
+			t.Errorf("%q rejected: %v", value, resp.Diagnostics)
+		}
+	}
+	for _, value := range []string{"zero", "0s", "-1m"} {
+		var resp validator.StringResponse
+		v.ValidateString(ctx, validator.StringRequest{Path: path.Root("timeout"), ConfigValue: types.StringValue(value)}, &resp)
+		if !resp.Diagnostics.HasError() {
+			t.Errorf("%q accepted", value)
+		}
+	}
+}
+
+func TestValidateMethodTimeouts(t *testing.T) {
+	p := path.Root("method").AtName("connect_timeout_seconds")
+	if diags := validateMethodTimeouts(types.Int64Value(30), types.Int64Value(31), p); !diags.HasError() {
+		t.Fatal("connect timeout greater than response timeout accepted")
+	}
+	if diags := validateMethodTimeouts(types.Int64Value(30), types.Int64Value(30), p); diags.HasError() {
+		t.Fatalf("equal timeouts rejected: %v", diags)
+	}
+	if diags := validateMethodTimeouts(types.Int64Null(), types.Int64Value(31), p); !diags.HasError() {
+		t.Fatal("connect timeout greater than the default response timeout accepted")
 	}
 }

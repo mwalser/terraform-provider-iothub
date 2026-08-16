@@ -119,7 +119,7 @@ func (a *scheduledJobAction) Schema(_ context.Context, _ action.SchemaRequest, r
 					"name":                     schema.StringAttribute{MarkdownDescription: "Method name.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
 					"payload":                  schema.StringAttribute{MarkdownDescription: "JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.", Optional: true},
 					"response_timeout_seconds": schema.Int64Attribute{MarkdownDescription: "Per-device response timeout in seconds, 5 to 300 (default 30).", Optional: true, Validators: []validator.Int64{int64validator.Between(5, 300)}},
-					"connect_timeout_seconds":  schema.Int64Attribute{MarkdownDescription: "Per-device connect timeout in seconds, 0 to 300 (default 0).", Optional: true, Validators: []validator.Int64{int64validator.Between(0, 300)}},
+					"connect_timeout_seconds":  schema.Int64Attribute{MarkdownDescription: "Per-device connect timeout in seconds, 0 to 300 (default 0) and at most `response_timeout_seconds`.", Optional: true, Validators: []validator.Int64{int64validator.Between(0, 300)}},
 				},
 			},
 			"wait": waitAttribute(),
@@ -168,9 +168,9 @@ func (a *scheduledJobAction) validate(ctx context.Context, cfg tfsdk.Config) dia
 		if !m.Payload.IsNull() && !m.Payload.IsUnknown() && !json.Valid([]byte(m.Payload.ValueString())) {
 			diags.AddAttributeError(path.Root("method").AtName("payload"), "Invalid payload", "payload must be valid JSON (use jsonencode).")
 		}
+		diags.Append(validateMethodTimeouts(m.ResponseTimeoutSeconds, m.ConnectTimeoutSeconds, path.Root("method").AtName("connect_timeout_seconds"))...)
 	}
 	timeout, d := parseTimeout(data.Timeout, defaultJobTimeout)
-	diags.Append(d...)
 	if !data.StartTime.IsNull() && !data.StartTime.IsUnknown() {
 		st, err := time.Parse(time.RFC3339, data.StartTime.ValueString())
 		switch {

@@ -123,9 +123,6 @@ func (a *importExportJobAction) ValidateConfig(ctx context.Context, req action.V
 	if !data.UserAssignedIdentity.IsNull() && data.StorageAuthenticationType.ValueString() != client.StorageAuthIdentityBased {
 		resp.Diagnostics.AddAttributeError(path.Root("user_assigned_identity"), "user_assigned_identity needs identityBased authentication", "Set storage_authentication_type = \"identityBased\".")
 	}
-	if _, d := parseTimeout(data.Timeout, defaultJobTimeout); d.HasError() {
-		resp.Diagnostics.Append(d...)
-	}
 }
 
 func (a *importExportJobAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
