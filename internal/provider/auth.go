@@ -1,7 +1,10 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"crypto"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -14,6 +17,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"software.sslmate.com/src/go-pkcs12"
 
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 )
@@ -45,11 +49,7 @@ func newEntraCredential(s common.EntraSettings) (azcore.TokenCredential, error) 
 		} else if data, err = base64.StdEncoding.DecodeString(s.ClientCertificate); err != nil {
 			return nil, fmt.Errorf("client_certificate must be base64: %w", err)
 		}
-		var password []byte
-		if s.ClientCertificatePassword != "" {
-			password = []byte(s.ClientCertificatePassword)
-		}
-		certs, key, err := azidentity.ParseCertificates(data, password)
+		certs, key, err := parseClientCertificate(data, s.ClientCertificatePassword)
 		if err != nil {
 			return nil, fmt.Errorf("parsing client certificate: %w", err)
 		}
@@ -64,12 +64,6 @@ func newEntraCredential(s common.EntraSettings) (azcore.TokenCredential, error) 
 	case s.UseOIDC:
 		if err := needIDs("OIDC"); err != nil {
 			return nil, err
-		}
-		if s.ADOPipelineServiceConnID != "" {
-			if s.OIDCRequestToken == "" {
-				return nil, fmt.Errorf("OIDC authentication through Azure DevOps needs the pipeline's system access token (oidc_request_token or SYSTEM_ACCESSTOKEN)")
-			}
-			return azidentity.NewAzurePipelinesCredential(s.TenantID, s.ClientID, s.ADOPipelineServiceConnID, s.OIDCRequestToken, nil)
 		}
 		getAssertion, err := oidcAssertion(s)
 		if err != nil {
@@ -92,11 +86,34 @@ func newEntraCredential(s common.EntraSettings) (azcore.TokenCredential, error) 
 	}
 }
 
-// oidcAssertion returns the federated token source for use_oidc: a literal
-// token, a token file (read on every request, because such files rotate),
-// or the GitHub Actions token request endpoint.
+// parseClientCertificate loads a PEM bundle or a PKCS#12 file. PKCS#12 goes
+// through go-pkcs12, which understands the OpenSSL 3 defaults (AES, SHA-256
+// MAC) that azidentity's parser rejects — the same library azurerm uses, so
+// a .pfx that works there works here.
+func parseClientCertificate(data []byte, password string) ([]*x509.Certificate, crypto.PrivateKey, error) {
+	if bytes.Contains(data, []byte("-----BEGIN")) {
+		return azidentity.ParseCertificates(data, nil)
+	}
+	key, cert, chain, err := pkcs12.DecodeChain(data, password)
+	if err != nil {
+		return nil, nil, fmt.Errorf("PKCS#12: %w", err)
+	}
+	return append([]*x509.Certificate{cert}, chain...), key, nil
+}
+
+// oidcAssertion returns the federated token source for use_oidc: an Azure
+// DevOps service connection, a literal token, a token file (read on every
+// request, because such files rotate), or the GitHub Actions token request
+// endpoint.
 func oidcAssertion(s common.EntraSettings) (func(context.Context) (string, error), error) {
 	switch {
+	case s.ADOPipelineServiceConnID != "":
+		if s.OIDCRequestURL == "" || s.OIDCRequestToken == "" {
+			return nil, fmt.Errorf("OIDC authentication through Azure DevOps needs the pipeline's token endpoint and access token (oidc_request_url and oidc_request_token, which Azure Pipelines provides as SYSTEM_OIDCREQUESTURI and SYSTEM_ACCESSTOKEN)")
+		}
+		return func(ctx context.Context) (string, error) {
+			return requestAzureDevOpsOIDCToken(ctx, s.OIDCRequestURL, s.OIDCRequestToken, s.ADOPipelineServiceConnID)
+		}, nil
 	case s.OIDCToken != "":
 		return func(context.Context) (string, error) { return s.OIDCToken, nil }, nil
 	case s.OIDCTokenFilePath != "":
@@ -118,6 +135,43 @@ func oidcAssertion(s common.EntraSettings) (func(context.Context) (string, error
 
 // oidcAudience is the audience Entra ID expects in a federated token.
 const oidcAudience = "api://AzureADTokenExchange"
+
+// requestAzureDevOpsOIDCToken fetches an ID token for a service connection
+// from the Azure Pipelines OIDC endpoint, as azurerm and azidentity do.
+func requestAzureDevOpsOIDCToken(ctx context.Context, requestURL, systemAccessToken, serviceConnectionID string) (string, error) {
+	u, err := url.Parse(requestURL)
+	if err != nil {
+		return "", fmt.Errorf("oidc_request_url: %w", err)
+	}
+	q := u.Query()
+	q.Set("api-version", "7.1")
+	q.Set("serviceConnectionId", serviceConnectionID)
+	u.RawQuery = q.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+systemAccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-TFS-FedAuthRedirect", "Suppress") // 401 instead of a login redirect on a bad token
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("requesting the OIDC token from Azure DevOps: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("requesting the OIDC token from Azure DevOps: HTTP %d: %s (check the service connection ID and the pipeline's permissions)", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out struct {
+		OIDCToken string `json:"oidcToken"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil || out.OIDCToken == "" {
+		return "", fmt.Errorf("requesting the OIDC token from Azure DevOps: unexpected response %q", strings.TrimSpace(string(body)))
+	}
+	return out.OIDCToken, nil
+}
 
 // requestGitHubOIDCToken fetches an ID token from the GitHub Actions token
 // endpoint, as azurerm does.

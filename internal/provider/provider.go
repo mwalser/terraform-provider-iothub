@@ -48,11 +48,14 @@ type providerModel struct {
 	Hostname                  types.String `tfsdk:"hostname"`
 	TenantID                  types.String `tfsdk:"tenant_id"`
 	ClientID                  types.String `tfsdk:"client_id"`
+	ClientIDFilePath          types.String `tfsdk:"client_id_file_path"`
 	ClientSecret              types.String `tfsdk:"client_secret"`
+	ClientSecretFilePath      types.String `tfsdk:"client_secret_file_path"`
 	ClientCertificatePath     types.String `tfsdk:"client_certificate_path"`
 	ClientCertificate         types.String `tfsdk:"client_certificate"`
 	ClientCertificatePassword types.String `tfsdk:"client_certificate_password"`
 	UseOIDC                   types.Bool   `tfsdk:"use_oidc"`
+	UseAKSWorkloadIdentity    types.Bool   `tfsdk:"use_aks_workload_identity"`
 	OIDCToken                 types.String `tfsdk:"oidc_token"`
 	OIDCTokenFilePath         types.String `tfsdk:"oidc_token_file_path"`
 	OIDCRequestURL            types.String `tfsdk:"oidc_request_url"`
@@ -80,7 +83,7 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 			"string (see Permissions below).\n\n" +
 			"Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, " +
 			"and Device Provisioning Service enrollments.\n\n" +
-			"Authentication is Microsoft Entra ID by default, with the same arguments and environment variables as the `azurerm` " +
+			"Authentication is Microsoft Entra ID by default, with the argument names and `ARM_*` variables of the `azurerm` " +
 			"provider. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled " +
 			"requests are retried automatically for up to 20 minutes per request; actions bound their whole invocation with " +
 			"`timeout`. The provider " +
@@ -103,17 +106,25 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				MarkdownDescription: "Entra ID application (client) ID. Falls back to `ARM_CLIENT_ID` or `AZURE_CLIENT_ID`.",
 				Optional:            true,
 			},
+			"client_id_file_path": schema.StringAttribute{
+				MarkdownDescription: "File containing the client ID, as HCP Terraform provides it for multiple provider configurations. Falls back to `ARM_CLIENT_ID_FILE_PATH`.",
+				Optional:            true,
+			},
 			"client_secret": schema.StringAttribute{
 				MarkdownDescription: "Client secret for service-principal authentication. Falls back to `ARM_CLIENT_SECRET` or `AZURE_CLIENT_SECRET`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
+			"client_secret_file_path": schema.StringAttribute{
+				MarkdownDescription: "File containing the client secret, for mounted secrets. Falls back to `ARM_CLIENT_SECRET_FILE_PATH`.",
+				Optional:            true,
+			},
 			"client_certificate_path": schema.StringAttribute{
-				MarkdownDescription: "Path to a PEM or PKCS#12 client certificate for service-principal authentication. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` or `AZURE_CLIENT_CERTIFICATE_PATH`.",
+				MarkdownDescription: "Path to the client certificate for service-principal authentication: a PKCS#12 file (`.pfx`, as `openssl pkcs12 -export` writes it) or a PEM bundle with the certificate and an unencrypted private key. Falls back to `ARM_CLIENT_CERTIFICATE_PATH` or `AZURE_CLIENT_CERTIFICATE_PATH`.",
 				Optional:            true,
 			},
 			"client_certificate": schema.StringAttribute{
-				MarkdownDescription: "The client certificate itself, base64 encoded (PEM or PKCS#12), instead of a file. Falls back to `ARM_CLIENT_CERTIFICATE`.",
+				MarkdownDescription: "The client certificate itself, base64 encoded (PKCS#12 or PEM), instead of a file. Falls back to `ARM_CLIENT_CERTIFICATE`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -124,9 +135,15 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 			},
 			"use_oidc": schema.BoolAttribute{
 				MarkdownDescription: "Authenticate with a federated (OIDC) token, as HCP Terraform, GitHub Actions, Azure DevOps and " +
-					"Kubernetes workload identity provide it. The token comes from `oidc_token`, `oidc_token_file_path`, or " +
-					"`oidc_request_url` and `oidc_request_token`, in that order; Azure DevOps uses `ado_pipeline_service_connection_id`. " +
-					"Falls back to `ARM_USE_OIDC`.",
+					"Kubernetes workload identity provide it. With `ado_pipeline_service_connection_id` the token comes from Azure " +
+					"DevOps; otherwise from `oidc_token`, `oidc_token_file_path`, or `oidc_request_url` and `oidc_request_token`, in " +
+					"that order. Falls back to `ARM_USE_OIDC`.",
+				Optional: true,
+			},
+			"use_aks_workload_identity": schema.BoolAttribute{
+				MarkdownDescription: "The same as `use_oidc`, under azurerm's name for AKS workload identity. The `AZURE_CLIENT_ID`, " +
+					"`AZURE_TENANT_ID` and `AZURE_FEDERATED_TOKEN_FILE` variables that AKS injects are read either way. Falls back " +
+					"to `ARM_USE_AKS_WORKLOAD_IDENTITY`.",
 				Optional: true,
 			},
 			"oidc_token": schema.StringAttribute{
@@ -139,11 +156,11 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Optional:            true,
 			},
 			"oidc_request_url": schema.StringAttribute{
-				MarkdownDescription: "URL of a token request endpoint such as the one GitHub Actions provides. Falls back to `ARM_OIDC_REQUEST_URL` or `ACTIONS_ID_TOKEN_REQUEST_URL`.",
+				MarkdownDescription: "URL of the token request endpoint of GitHub Actions or Azure Pipelines. Falls back to `ARM_OIDC_REQUEST_URL`, `ACTIONS_ID_TOKEN_REQUEST_URL` or `SYSTEM_OIDCREQUESTURI`.",
 				Optional:            true,
 			},
 			"oidc_request_token": schema.StringAttribute{
-				MarkdownDescription: "Bearer token for `oidc_request_url`, or the system access token of an Azure DevOps pipeline. Falls back to `ARM_OIDC_REQUEST_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_TOKEN` or `SYSTEM_ACCESSTOKEN`.",
+				MarkdownDescription: "Bearer token for `oidc_request_url`: the GitHub Actions request token or the Azure Pipelines system access token. Falls back to `ARM_OIDC_REQUEST_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_TOKEN` or `SYSTEM_ACCESSTOKEN`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -187,9 +204,11 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		name string
 		v    interface{ IsUnknown() bool }
 	}{
-		{"tenant_id", data.TenantID}, {"client_id", data.ClientID}, {"client_secret", data.ClientSecret},
+		{"tenant_id", data.TenantID}, {"client_id", data.ClientID}, {"client_id_file_path", data.ClientIDFilePath},
+		{"client_secret", data.ClientSecret}, {"client_secret_file_path", data.ClientSecretFilePath},
 		{"client_certificate_path", data.ClientCertificatePath}, {"client_certificate", data.ClientCertificate},
-		{"client_certificate_password", data.ClientCertificatePassword}, {"use_oidc", data.UseOIDC}, {"oidc_token", data.OIDCToken},
+		{"client_certificate_password", data.ClientCertificatePassword}, {"use_oidc", data.UseOIDC},
+		{"use_aks_workload_identity", data.UseAKSWorkloadIdentity}, {"oidc_token", data.OIDCToken},
 		{"oidc_token_file_path", data.OIDCTokenFilePath}, {"oidc_request_url", data.OIDCRequestURL}, {"oidc_request_token", data.OIDCRequestToken},
 		{"ado_pipeline_service_connection_id", data.ADOPipelineServiceConnID}, {"use_msi", data.UseMSI}, {"use_cli", data.UseCLI},
 	}
@@ -220,7 +239,9 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	raw := rawConfig{
 		TenantID:                  data.TenantID.ValueString(),
 		ClientID:                  data.ClientID.ValueString(),
+		ClientIDFilePath:          data.ClientIDFilePath.ValueString(),
 		ClientSecret:              data.ClientSecret.ValueString(),
+		ClientSecretFilePath:      data.ClientSecretFilePath.ValueString(),
 		ClientCertificatePath:     data.ClientCertificatePath.ValueString(),
 		ClientCertificate:         data.ClientCertificate.ValueString(),
 		ClientCertificatePassword: data.ClientCertificatePassword.ValueString(),
@@ -237,6 +258,10 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	if !data.UseOIDC.IsNull() {
 		v := data.UseOIDC.ValueBool()
 		raw.UseOIDC = &v
+	}
+	if !data.UseAKSWorkloadIdentity.IsNull() {
+		v := data.UseAKSWorkloadIdentity.ValueBool()
+		raw.UseAKSWorkloadIdentity = &v
 	}
 	if !data.UseMSI.IsNull() {
 		v := data.UseMSI.ValueBool()

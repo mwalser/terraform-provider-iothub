@@ -14,11 +14,14 @@ type rawConfig struct {
 	Hostname                  string
 	TenantID                  string
 	ClientID                  string
+	ClientIDFilePath          string
 	ClientSecret              string
+	ClientSecretFilePath      string
 	ClientCertificatePath     string
 	ClientCertificate         string
 	ClientCertificatePassword string
 	UseOIDC                   *bool
+	UseAKSWorkloadIdentity    *bool
 	OIDCToken                 string
 	OIDCTokenFilePath         string
 	OIDCRequestURL            string
@@ -94,11 +97,26 @@ func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 			ClientCertificatePassword: first(cfg.ClientCertificatePassword, "ARM_CLIENT_CERTIFICATE_PASSWORD", "AZURE_CLIENT_CERTIFICATE_PASSWORD"),
 			OIDCToken:                 first(cfg.OIDCToken, "ARM_OIDC_TOKEN"),
 			OIDCTokenFilePath:         first(cfg.OIDCTokenFilePath, "ARM_OIDC_TOKEN_FILE_PATH", "AZURE_FEDERATED_TOKEN_FILE"),
-			OIDCRequestURL:            first(cfg.OIDCRequestURL, "ARM_OIDC_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_URL"),
+			OIDCRequestURL:            first(cfg.OIDCRequestURL, "ARM_OIDC_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_URL", "SYSTEM_OIDCREQUESTURI"),
 			OIDCRequestToken:          first(cfg.OIDCRequestToken, "ARM_OIDC_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "SYSTEM_ACCESSTOKEN"),
 			ADOPipelineServiceConnID:  first(cfg.ADOPipelineServiceConnID, "ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID", "ARM_OIDC_AZURE_SERVICE_CONNECTION_ID"),
 		}
 		if s.Entra.UseOIDC, err = firstBool(cfg.UseOIDC, false, "ARM_USE_OIDC"); err != nil {
+			return common.Settings{}, err
+		}
+		// azurerm's AKS flag is the same thing as use_oidc here: the AZURE_*
+		// variables AKS injects are read anyway.
+		aks, err := firstBool(cfg.UseAKSWorkloadIdentity, false, "ARM_USE_AKS_WORKLOAD_IDENTITY")
+		if err != nil {
+			return common.Settings{}, err
+		}
+		s.Entra.UseOIDC = s.Entra.UseOIDC || aks
+		// Values handed over as files (HCP Terraform's multi-configuration
+		// pattern, mounted secrets). A file must agree with a direct value.
+		if s.Entra.ClientID, err = fromFile("client_id", s.Entra.ClientID, first(cfg.ClientIDFilePath, "ARM_CLIENT_ID_FILE_PATH")); err != nil {
+			return common.Settings{}, err
+		}
+		if s.Entra.ClientSecret, err = fromFile("client_secret", s.Entra.ClientSecret, first(cfg.ClientSecretFilePath, "ARM_CLIENT_SECRET_FILE_PATH")); err != nil {
 			return common.Settings{}, err
 		}
 		if s.Entra.UseMSI, err = firstBool(cfg.UseMSI, false, "ARM_USE_MSI"); err != nil {
@@ -115,6 +133,23 @@ func resolve(cfg rawConfig, env envLookup) (common.Settings, error) {
 		}
 	}
 	return s, nil
+}
+
+// fromFile returns value, or the trimmed content of path when value is
+// empty; a value and a file that disagree are an error (azurerm's rule).
+func fromFile(name, value, path string) (string, error) {
+	if path == "" {
+		return value, nil
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("%s_file_path: %w", name, err)
+	}
+	fromFile := strings.TrimSpace(string(b))
+	if value != "" && value != fromFile {
+		return "", fmt.Errorf("%s and %s_file_path disagree; set one of them", name, name)
+	}
+	return fromFile, nil
 }
 
 // parseConnectionString parses an IoT Hub *service* connection string.

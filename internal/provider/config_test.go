@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -84,9 +86,39 @@ func TestResolve_OIDCSourcesFromEnv(t *testing.T) {
 		t.Fatalf("ARM_OIDC_TOKEN not resolved: %+v %v", s.Entra, err)
 	}
 	// Azure DevOps.
-	s, err = resolve(rawConfig{}, envFrom(map[string]string{"ARM_USE_OIDC": "true", "ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID": "sc", "SYSTEM_ACCESSTOKEN": "sys"}))
-	if err != nil || s.Entra.ADOPipelineServiceConnID != "sc" || s.Entra.OIDCRequestToken != "sys" {
+	s, err = resolve(rawConfig{}, envFrom(map[string]string{"ARM_USE_OIDC": "true", "ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID": "sc", "SYSTEM_ACCESSTOKEN": "sys", "SYSTEM_OIDCREQUESTURI": "https://dev.azure.com/x"}))
+	if err != nil || s.Entra.ADOPipelineServiceConnID != "sc" || s.Entra.OIDCRequestToken != "sys" || s.Entra.OIDCRequestURL != "https://dev.azure.com/x" {
 		t.Fatalf("Azure DevOps variables not resolved: %+v %v", s.Entra, err)
+	}
+	// AKS: azurerm's flag means use_oidc here.
+	s, err = resolve(rawConfig{}, envFrom(map[string]string{"ARM_USE_AKS_WORKLOAD_IDENTITY": "true", "AZURE_CLIENT_ID": "c", "AZURE_TENANT_ID": "t", "AZURE_FEDERATED_TOKEN_FILE": "/var/run/secrets/azure/tokens/azure-identity-token"}))
+	if err != nil || !s.Entra.UseOIDC || s.Entra.ClientID != "c" || s.Entra.OIDCTokenFilePath != "/var/run/secrets/azure/tokens/azure-identity-token" {
+		t.Fatalf("AKS workload identity not resolved: %+v %v", s.Entra, err)
+	}
+}
+
+func TestResolve_ValuesFromFiles(t *testing.T) {
+	dir := t.TempDir()
+	idFile, secretFile := filepath.Join(dir, "client_id"), filepath.Join(dir, "client_secret")
+	if err := os.WriteFile(idFile, []byte("c-from-file\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(secretFile, []byte("s3cret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := resolve(rawConfig{ClientIDFilePath: idFile}, envFrom(map[string]string{"ARM_CLIENT_SECRET_FILE_PATH": secretFile}))
+	if err != nil || s.Entra.ClientID != "c-from-file" || s.Entra.ClientSecret != "s3cret" {
+		t.Fatalf("values from files: %+v %v", s.Entra, err)
+	}
+	// a direct value that agrees is fine; one that disagrees is an error
+	if _, err := resolve(rawConfig{ClientID: "c-from-file", ClientIDFilePath: idFile}, envFrom(nil)); err != nil {
+		t.Errorf("agreeing client_id and file: %v", err)
+	}
+	if _, err := resolve(rawConfig{ClientID: "other", ClientIDFilePath: idFile}, envFrom(nil)); err == nil || !strings.Contains(err.Error(), "disagree") {
+		t.Errorf("disagreeing client_id and file must fail, got %v", err)
+	}
+	if _, err := resolve(rawConfig{ClientIDFilePath: filepath.Join(dir, "missing")}, envFrom(nil)); err == nil {
+		t.Error("missing file must fail")
 	}
 }
 

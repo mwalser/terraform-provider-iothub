@@ -116,13 +116,17 @@ provider "iothub" {
 
   # --- Authentication: Entra ID (default) ------------------------------
   # The first configured method wins, in azurerm's order: client certificate
-  # (path or base64) → client secret → OIDC (use_oidc: oidc_token,
-  # oidc_token_file_path, or the GitHub Actions request URL/token; Azure
-  # DevOps via ado_pipeline_service_connection_id) → managed identity
-  # (use_msi) → Azure CLI (use_cli, default true; false makes CI fail
-  # instead of using a developer login). Same names & env vars as azurerm
-  # (ARM_*), plus AZURE_* for AKS workload identity. Nothing is probed:
-  # a wrong secret fails, it does not fall back. Public cloud only.
+  # (path or base64; PKCS#12 via go-pkcs12 so OpenSSL-3 .pfx files work, PEM
+  # via azidentity) → client secret (value or file) → OIDC (use_oidc, or
+  # azurerm's use_aks_workload_identity: Azure DevOps service connection,
+  # oidc_token, oidc_token_file_path, or the GitHub Actions request URL/token;
+  # the ADO exchange is done by the provider from oidc_request_url so azurerm's
+  # variable mapping works) → managed identity (use_msi) → Azure CLI (use_cli,
+  # default true; false makes CI fail instead of using a developer login).
+  # Same names & env vars as azurerm (ARM_*, incl. client_id_file_path /
+  # client_secret_file_path for HCP Terraform), plus AZURE_* for AKS workload
+  # identity. Nothing is probed: a wrong secret fails, it does not fall back.
+  # Verified against azurerm's guides 2026-08-16. Public cloud only.
 
   # --- Authentication: shared access policy (fallback) -----------------
   # connection_string = "HostName=…;SharedAccessKeyName=iothubowner;SharedAccessKey=…"   # env IOTHUB_CONNECTION_STRING
