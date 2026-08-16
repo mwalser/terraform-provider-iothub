@@ -3,12 +3,12 @@
 page_title: "iothub_device List Resource - iothub"
 subcategory: "Devices and modules"
 description: |-
-  Lists device identities for terraform query, for example to generate import blocks for an existing fleet.
+  Lists device identities for terraform query, for example to generate import blocks for an existing fleet. Results carry no keys.
 ---
 
 # iothub_device (List Resource)
 
-Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet.
+Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet. Results carry no keys.
 
 ## Example Usage
 

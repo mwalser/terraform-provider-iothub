@@ -211,7 +211,7 @@ func (r *moduleResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 	hostname := c.Hostname()
-	spec, diags := r.spec(ctx, plan, config, nil)
+	spec, diags := r.spec(ctx, plan, config.writeOnlyKeys(), nil)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -322,7 +322,7 @@ func (r *moduleResource) Update(ctx context.Context, req resource.UpdateRequest,
 			}
 			tflog.Debug(ctx, "module ETag moved without a change to written fields; continuing", map[string]any{"module_id": moduleID})
 		}
-		spec, d := r.spec(ctx, plan, config, fresh)
+		spec, d := r.spec(ctx, plan, config.writeOnlyKeys().ForUpdate(state.writeOnlyKeys()), fresh)
 		resp.Diagnostics.Append(d...)
 		if resp.Diagnostics.HasError() {
 			return
@@ -394,7 +394,7 @@ func (m resourceModel) writeOnlyKeys() identity.WriteOnlyKeys {
 }
 
 // spec builds the full module identity to write.
-func (r *moduleResource) spec(ctx context.Context, plan, config resourceModel, current *client.Module) (client.ModuleSpec, diag.Diagnostics) {
+func (r *moduleResource) spec(ctx context.Context, plan resourceModel, wo identity.WriteOnlyKeys, current *client.Module) (client.ModuleSpec, diag.Diagnostics) {
 	spec := client.ModuleSpec{
 		DeviceID:  plan.DeviceID.ValueString(),
 		ModuleID:  plan.ModuleID.ValueString(),
@@ -404,7 +404,7 @@ func (r *moduleResource) spec(ctx context.Context, plan, config resourceModel, c
 	if current != nil {
 		currentAuth = current.Authentication
 	}
-	auth, diags := identity.BuildAuth(ctx, plan.Authentication, config.writeOnlyKeys(), currentAuth)
+	auth, diags := identity.BuildAuth(ctx, plan.Authentication, wo, currentAuth)
 	spec.Authentication = auth
 	return spec, diags
 }

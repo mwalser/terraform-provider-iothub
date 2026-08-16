@@ -227,3 +227,24 @@ func TestTimeOrNull(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteOnlyKeys_ForUpdate(t *testing.T) {
+	v := func(n int64) types.Int64 { return types.Int64Value(n) }
+	k := types.StringValue("k")
+	cases := []struct {
+		name         string
+		now, prior   WriteOnlyKeys
+		sendP, sendS bool
+	}{
+		{"same versions: nothing sent", WriteOnlyKeys{k, v(1), k, v(1)}, WriteOnlyKeys{types.StringNull(), v(1), types.StringNull(), v(1)}, false, false},
+		{"primary bumped", WriteOnlyKeys{k, v(2), k, v(1)}, WriteOnlyKeys{types.StringNull(), v(1), types.StringNull(), v(1)}, true, false},
+		{"not write-only before", WriteOnlyKeys{k, v(1), k, v(1)}, WriteOnlyKeys{}, true, true},
+		{"prior versions null (import)", WriteOnlyKeys{k, v(1), k, v(1)}, WriteOnlyKeys{types.StringNull(), types.Int64Null(), types.StringNull(), types.Int64Null()}, true, true},
+	}
+	for _, tc := range cases {
+		got := tc.now.ForUpdate(tc.prior)
+		if known(got.Primary) != tc.sendP || known(got.Secondary) != tc.sendS {
+			t.Errorf("%s: primary sent=%v secondary sent=%v, want %v/%v", tc.name, known(got.Primary), known(got.Secondary), tc.sendP, tc.sendS)
+		}
+	}
+}

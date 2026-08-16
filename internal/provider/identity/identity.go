@@ -237,6 +237,27 @@ func (w WriteOnlyKeys) KeysInState() (primary, secondary bool) {
 	return w.PrimaryVersion.IsNull(), w.SecondaryVersion.IsNull()
 }
 
+// ForUpdate returns the write-only keys to send on an update: a slot's value
+// goes out only when its version marker differs from prior (the state), or
+// the slot was not write-only before. Write-only values are re-supplied on
+// every apply and ephemeral sources such as random_bytes are fresh each run,
+// so sending them unconditionally would rotate the keys on any unrelated
+// change; the version marker is the contract.
+func (w WriteOnlyKeys) ForUpdate(prior WriteOnlyKeys) WriteOnlyKeys {
+	out := w
+	if sameVersion(w.PrimaryVersion, prior.PrimaryVersion) {
+		out.Primary = types.StringNull()
+	}
+	if sameVersion(w.SecondaryVersion, prior.SecondaryVersion) {
+		out.Secondary = types.StringNull()
+	}
+	return out
+}
+
+func sameVersion(a, b types.Int64) bool {
+	return !a.IsNull() && !a.IsUnknown() && !b.IsNull() && !b.IsUnknown() && a.ValueInt64() == b.ValueInt64()
+}
+
 // ---- validate / plan / write ------------------------------------------------
 
 func known(s types.String) bool { return !s.IsNull() && !s.IsUnknown() }

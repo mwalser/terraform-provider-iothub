@@ -15,6 +15,7 @@ import (
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/identity"
 )
 
 var (
@@ -41,7 +42,7 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Lists module identities for `terraform query`, for example to generate `import` blocks for an existing fleet. " +
-			"The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them.",
+			"The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them. Results carry no keys.",
 		Attributes: map[string]schema.Attribute{
 			"device_id": schema.StringAttribute{MarkdownDescription: "Only modules of this device.", Optional: true},
 			"query_condition": schema.StringAttribute{
@@ -119,11 +120,15 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 			result.DisplayName = common.ModuleID(mod.DeviceID, mod.ModuleID)
 			result.Diagnostics.Append(setIdentity(ctx, result.Identity, mod.DeviceID, mod.ModuleID)...)
 			if req.IncludeResource {
+				// No key material in list results (they are printed and
+				// generated into config); the first refresh after an import
+				// fills the keys in as usual.
 				m := resourceModel{
 					PrimaryKeyWO: types.StringNull(), SecondaryKeyWO: types.StringNull(),
 					PrimaryKeyWOVersion: types.Int64Null(), SecondaryKeyWOVersion: types.Int64Null(),
 				}
 				setState(&m, mod, m.writeOnlyKeys())
+				m.Authentication = withoutKeys(ctx, m.Authentication)
 				result.Diagnostics.Append(result.Resource.Set(ctx, &m)...)
 			}
 			n++
@@ -132,4 +137,15 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 			}
 		}
 	}
+}
+
+// withoutKeys returns the authentication object with both symmetric keys
+// null.
+func withoutKeys(ctx context.Context, o types.Object) types.Object {
+	a, ok, _ := identity.AuthFromObject(ctx, o)
+	if !ok {
+		return o
+	}
+	a.PrimaryKey, a.SecondaryKey = types.StringNull(), types.StringNull()
+	return a.Object()
 }

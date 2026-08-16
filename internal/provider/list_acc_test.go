@@ -188,7 +188,13 @@ list "iothub_edge_deployment" "all" {
 					}),
 					querycheck.ExpectResourceKnownValues("iothub_module.of_device",
 						queryfilter.ByResourceIdentity(map[string]knownvalue.Check{"device_id": knownvalue.StringExact(dev), "module_id": knownvalue.StringExact("telemetry")}),
-						[]querycheck.KnownValueCheck{{Path: tfjsonpath.New("managed_by"), KnownValue: knownvalue.StringExact("tfacc")}}),
+						[]querycheck.KnownValueCheck{
+							{Path: tfjsonpath.New("managed_by"), KnownValue: knownvalue.StringExact("tfacc")},
+							// list results carry no key material
+							{Path: tfjsonpath.New("authentication").AtMapKey("type"), KnownValue: knownvalue.StringExact("sas")},
+							{Path: tfjsonpath.New("authentication").AtMapKey("primary_key"), KnownValue: knownvalue.Null()},
+							{Path: tfjsonpath.New("authentication").AtMapKey("secondary_key"), KnownValue: knownvalue.Null()},
+						}),
 					querycheck.ExpectLength("iothub_module.managed", 1),
 					// configurations and deployments are separated by content kind
 					querycheck.ExpectIdentity("iothub_configuration.all", hubID(marker+"-cfg")),

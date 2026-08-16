@@ -84,7 +84,7 @@ func TestAccModule_writeOnlyKeysCredentialsAndList(t *testing.T) {
 	res := "iothub_module.test"
 	k1 := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	k2 := "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA="
-	config := func(key string, version int) string {
+	config := func(key string, version int, managedBy string) string {
 		return iotacc.ProviderConfig() + fmt.Sprintf(`
 resource "iothub_device" "test" {
   device_id = %q
@@ -92,6 +92,7 @@ resource "iothub_device" "test" {
 resource "iothub_module" "test" {
   device_id                = iothub_device.test.device_id
   module_id                = "m1"
+  managed_by               = %q
   primary_key_wo           = %q
   primary_key_wo_version   = %d
   secondary_key_wo         = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA="
@@ -123,7 +124,7 @@ data "iothub_module" "other" {
   device_id = iothub_module.other.device_id
   module_id = iothub_module.other.module_id
 }
-`, dev, key, version)
+`, dev, managedBy, key, version)
 	}
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { iotacc.PreCheck(t) },
@@ -131,7 +132,7 @@ data "iothub_module" "other" {
 		CheckDestroy:             iotacc.CheckDeviceDestroyed(dev),
 		Steps: []resource.TestStep{
 			{
-				Config: config(k1, 1),
+				Config: config(k1, 1, "platform"),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("primary_key_wo"), knownvalue.Null()),
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("primary_key"), knownvalue.Null()),
@@ -147,11 +148,11 @@ data "iothub_module" "other" {
 				},
 			},
 			{
-				Config:           config(k1, 1),
+				Config:           config(k1, 1, "platform"),
 				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionNoop)}},
 			},
 			{ // rotate; verified against the API
-				Config:           config(k2, 2),
+				Config:           config(k2, 2, "platform"),
 				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionUpdate)}},
 				Check: func(_ *terraform.State) error {
 					mod, err := iotacc.Client(t).GetModule(context.Background(), dev, "m1")
@@ -160,6 +161,20 @@ data "iothub_module" "other" {
 					}
 					if got := mod.Authentication.SymmetricKey.PrimaryKey; got != k2 {
 						return fmt.Errorf("primary key after rotation = %q, want %q", got, k2)
+					}
+					return nil
+				},
+			},
+			{ // unrelated update with a changed write-only value but the same version: the hub key must stay
+				Config:           config(k1, 2, "operator"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionUpdate)}},
+				Check: func(_ *terraform.State) error {
+					mod, err := iotacc.Client(t).GetModule(context.Background(), dev, "m1")
+					if err != nil {
+						return err
+					}
+					if got := mod.Authentication.SymmetricKey.PrimaryKey; got != k2 {
+						return fmt.Errorf("primary key after an unrelated update = %q, want the unchanged %q", got, k2)
 					}
 					return nil
 				},

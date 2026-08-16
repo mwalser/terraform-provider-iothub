@@ -37,7 +37,7 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet.",
+		MarkdownDescription: "Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet. Results carry no keys.",
 		Attributes: map[string]schema.Attribute{
 			"query_condition": schema.StringAttribute{
 				MarkdownDescription: "`WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, for example `tags.site = 'munich'` or " +
@@ -96,10 +96,13 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 			result.DisplayName = dev.DeviceID
 			result.Diagnostics.Append(setIdentity(ctx, result.Identity, dev.DeviceID)...)
 			if req.IncludeResource {
+				// No key material in list results (they are printed and
+				// generated into config); the first refresh after an import
+				// fills the keys in as usual.
 				m := resourceModel{}
 				m.PrimaryKeyWO, m.SecondaryKeyWO = types.StringNull(), types.StringNull()
 				m.PrimaryKeyWOVersion, m.SecondaryKeyWOVersion = types.Int64Null(), types.Int64Null()
-				setState(&m, dev, true, true)
+				setState(&m, dev, false, false)
 				result.Diagnostics.Append(result.Resource.Set(ctx, &m)...)
 			}
 			n++

@@ -226,10 +226,11 @@ func TestAccDevice_writeOnlyKeysAndCredentials(t *testing.T) {
 	k1 := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	k2 := "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA="
 	ks := "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA="
-	config := func(key string, version int) string {
+	config := func(key string, version int, statusReason string) string {
 		return iotacc.ProviderConfig() + fmt.Sprintf(`
 resource "iothub_device" "test" {
   device_id                = %q
+  status_reason            = %q
   primary_key_wo           = %q
   primary_key_wo_version   = %d
   secondary_key_wo         = %q
@@ -245,7 +246,7 @@ provider "echo" {
 }
 
 resource "echo" "creds" {}
-`, id, key, version, ks)
+`, id, statusReason, key, version, ks)
 	}
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { iotacc.PreCheck(t) },
@@ -253,7 +254,7 @@ resource "echo" "creds" {}
 		CheckDestroy:             iotacc.CheckDeviceDestroyed(id),
 		Steps: []resource.TestStep{
 			{
-				Config: config(k1, 1),
+				Config: config(k1, 1, "commissioning"),
 				ConfigStateChecks: []statecheck.StateCheck{
 					// write-only: neither key is in the wo attributes nor in authentication
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("primary_key_wo"), knownvalue.Null()),
@@ -269,13 +270,13 @@ resource "echo" "creds" {}
 				},
 			},
 			{ // same version: no diff even though the plan cannot see the key
-				Config:           config(k1, 1),
+				Config:           config(k1, 1, "commissioning"),
 				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionNoop)}},
 			},
 			{ // rotate: bump the primary version with a new key; the secondary is kept.
 				// (Verified against the API rather than through the echo provider,
 				// whose provider block may be configured before the update applies.)
-				Config:           config(k2, 2),
+				Config:           config(k2, 2, "commissioning"),
 				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionUpdate)}},
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(res, tfjsonpath.New("authentication").AtMapKey("primary_key"), knownvalue.Null()),
@@ -291,6 +292,27 @@ resource "echo" "creds" {}
 					}
 					if got := dev.Authentication.SymmetricKey.SecondaryKey; got != ks {
 						return fmt.Errorf("secondary key after rotation = %q, want %q", got, ks)
+					}
+					return nil
+				},
+			},
+			{ // unrelated update with a changed write-only value but the same version: the hub key must stay
+				// (ephemeral sources yield a fresh value on every run; only the version marker rotates)
+				Config:           config(k1, 2, "in service"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{PreApply: []plancheck.PlanCheck{plancheck.ExpectResourceAction(res, plancheck.ResourceActionUpdate)}},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(res, tfjsonpath.New("status_reason"), knownvalue.StringExact("in service")),
+				},
+				Check: func(_ *terraform.State) error {
+					dev, err := iotacc.Client(t).GetDevice(context.Background(), id)
+					if err != nil {
+						return err
+					}
+					if got := dev.Authentication.SymmetricKey.PrimaryKey; got != k2 {
+						return fmt.Errorf("primary key after an unrelated update = %q, want the unchanged %q", got, k2)
+					}
+					if got := dev.Authentication.SymmetricKey.SecondaryKey; got != ks {
+						return fmt.Errorf("secondary key after an unrelated update = %q, want %q", got, ks)
 					}
 					return nil
 				},

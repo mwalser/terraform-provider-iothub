@@ -216,7 +216,7 @@ resource "iothub_device" "sensor" {
 }
 ```
 
-Implementation notes (Phase 0): `authentication` is a nested *attribute* (`= { … }`), Optional+Computed, so an omitted block means "leave the hub's credentials alone" (imports keep their auth) instead of a perpetual diff; the write-only keys live at the top level because Terraform forbids write-only children under a Computed nested attribute. When only one of the two keys is supplied, the provider generates the counterpart (the service insists on both or neither).
+Implementation notes (Phase 0): `authentication` is a nested *attribute* (`= { … }`), Optional+Computed, so an omitted block means "leave the hub's credentials alone" (imports keep their auth) instead of a perpetual diff; the write-only keys live at the top level because Terraform forbids write-only children under a Computed nested attribute. When only one of the two keys is supplied, the provider generates the counterpart (the service insists on both or neither). On update, a write-only value is sent only when its `*_wo_version` differs from the state (or the slot was not write-only before): Terraform re-supplies write-only values on every apply and `ephemeral "random_bytes"` yields a fresh value each run, so an unrelated change (say `status_reason`) would otherwise rotate the keys silently — the version marker is the contract (found in review, 2026-08-16; acceptance-tested for devices and modules).
 
 Computed: `id`, `etag`, `generation_id`, `device_scope`, `connection_state`, `connection_state_updated_time`, `last_activity_time`, `status_updated_time`, `cloud_to_device_message_count`.
 
@@ -409,7 +409,7 @@ list "iothub_device" "munich" {
   config { query_condition = "tags.site='munich'" }
 }
 ```
-`terraform query` then discovers device IDs (via `POST /devices/query`, `SELECT deviceId, … FROM devices WHERE …`, paged with `x-ms-max-item-count`/`x-ms-continuation`; `x-ms-item-type` is `Raw` for projections, `Twin` for `SELECT *`, `DeviceJob` for `FROM devices.jobs`) and can generate `import` blocks — the migration path for existing fleets. Also `iothub_module`, `iothub_configuration`, `iothub_edge_deployment`. The query index is eventually consistent and can list **ghosts** — devices deleted long ago (25 min observed) that `GET /devices/{id}` no longer knows — so list results are confirmed with a `GET` and ghosts are dropped silently.
+`terraform query` then discovers device IDs (via `POST /devices/query`, `SELECT deviceId, … FROM devices WHERE …`, paged with `x-ms-max-item-count`/`x-ms-continuation`; `x-ms-item-type` is `Raw` for projections, `Twin` for `SELECT *`, `DeviceJob` for `FROM devices.jobs`) and can generate `import` blocks — the migration path for existing fleets. Also `iothub_module`, `iothub_configuration`, `iothub_edge_deployment`. The query index is eventually consistent and can list **ghosts** — devices deleted long ago (25 min observed) that `GET /devices/{id}` no longer knows — so list results are confirmed with a `GET` and ghosts are dropped silently. With `include_resource`, the resource object carries no symmetric keys (same posture as the data sources: `terraform query` output is printed and generated into config); the first refresh after the import fills them in.
 
 No provider-defined functions: connection strings come from the ephemeral credentials resource, and anything else is plain string interpolation.
 

@@ -3,12 +3,12 @@
 page_title: "iothub_module List Resource - iothub"
 subcategory: "Devices and modules"
 description: |-
-  Lists module identities for terraform query, for example to generate import blocks for an existing fleet. The hub's system modules ($edgeAgent, $edgeHub) are skipped because iothub_module cannot manage them.
+  Lists module identities for terraform query, for example to generate import blocks for an existing fleet. The hub's system modules ($edgeAgent, $edgeHub) are skipped because iothub_module cannot manage them. Results carry no keys.
 ---
 
 # iothub_module (List Resource)
 
-Lists module identities for `terraform query`, for example to generate `import` blocks for an existing fleet. The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them.
+Lists module identities for `terraform query`, for example to generate `import` blocks for an existing fleet. The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them. Results carry no keys.
 
 ## Example Usage
 
