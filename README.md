@@ -67,6 +67,7 @@ resource "iothub_device" "sensor" {
 }
 
 # Manage exactly these keys of the twin. Anything else in it is left alone.
+# A changed twin triggers the reboot action below.
 resource "iothub_device_twin" "sensor" {
   device_id = iothub_device.sensor.device_id
   tags      = jsonencode({ site = "munich", fleet = { ring = 2 } })
@@ -74,6 +75,13 @@ resource "iothub_device_twin" "sensor" {
     telemetryIntervalSec = 60
     firmware             = { channel = "stable" }
   })
+
+  lifecycle {
+    action_trigger {
+      events  = [after_update]
+      actions = [action.iothub_direct_method.reboot]
+    }
+  }
 }
 
 # Set the maintenance window for the whole EU fleet. Configurations and twin
@@ -85,7 +93,6 @@ resource "iothub_configuration" "maintenance" {
   device_content   = jsonencode({ "properties.desired.maintenance" = { window = "02:00-04:00" } })
 }
 
-# Reboot the sensor whenever its twin changes.
 action "iothub_direct_method" "reboot" {
   config {
     device_id   = iothub_device.sensor.device_id
@@ -93,7 +100,8 @@ action "iothub_direct_method" "reboot" {
   }
 }
 
-# Keys never touch state: read them at apply time into a write-only argument.
+# The connection string reaches Key Vault through a write-only argument
+# without passing through state.
 ephemeral "iothub_device_credentials" "sensor" {
   device_id = iothub_device.sensor.device_id
 }
@@ -185,9 +193,11 @@ job test.
 
 ## Releasing
 
-Releases are cut by pushing a tag `vX.Y.Z`. The `Release` workflow builds
-all platforms with GoReleaser, signs the checksums and publishes a GitHub
-release. It needs the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` for the key
+Releases are cut by pushing a tag `vX.Y.Z`. The `Release` workflow first
+runs the `Tests` workflow on that commit (build, lint, docs freshness, unit
+tests, and the acceptance suite when the test hub is configured) and only
+then builds all platforms with GoReleaser, signs the checksums and publishes
+a GitHub release. It needs the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` for the key
 whose public part is registered with the Terraform Registry. Bump
 `CHANGELOG.md` before tagging.
 

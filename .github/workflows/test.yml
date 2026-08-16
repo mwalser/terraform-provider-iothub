@@ -1,8 +1,10 @@
-# Build, lint, docs-freshness and unit tests on every push / PR.
+# Build, lint, docs-freshness and unit tests on every push / PR, and as the
+# gate of the Release workflow (workflow_call on a v* tag).
 #
 # Acceptance tests need a real IoT Hub. They run
-#   - on demand (workflow_dispatch), and
-#   - on pushes to main when the repository variable IOTHUB_TEST_HOSTNAME is set,
+#   - on demand (workflow_dispatch),
+#   - on pushes to main and on release tags when the repository variable
+#     IOTHUB_TEST_HOSTNAME is set,
 # and authenticate either with a shared access policy (secret
 # IOTHUB_CONNECTION_STRING) or with Entra ID through azure/login and an OIDC
 # federated credential (secrets AZURE_CLIENT_ID, AZURE_TENANT_ID,
@@ -15,10 +17,12 @@ on:
       - 'README.md'
       - 'CONCEPT.md'
   push:
+    branches: ['**'] # tags run through the Release workflow instead
     paths-ignore:
       - 'README.md'
       - 'CONCEPT.md'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -76,7 +80,7 @@ jobs:
 
   acceptance:
     name: 'Acceptance tests: Terraform ${{ matrix.terraform }}'
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.IOTHUB_TEST_HOSTNAME != '')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && vars.IOTHUB_TEST_HOSTNAME != '')
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 60
