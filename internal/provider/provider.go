@@ -291,6 +291,19 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 // newClient wires the resolved settings into the service client: Entra ID
 // credential or SAS key, provider version for the User-Agent, and tflog as
 // the client's debug logger.
+// NewClientFromEnvironment builds a client for hostname with the credentials
+// the provider itself resolves from the environment (ARM_*/AZURE_* variables
+// or IOTHUB_CONNECTION_STRING). The acceptance harness uses it for its
+// out-of-band reads and checks, so those follow the same rules as the
+// provider under test (use_cli, no probing of IMDS or other sources).
+func NewClientFromEnvironment(hostname, version string) (*client.Client, error) {
+	s, err := resolve(rawConfig{Hostname: hostname}, nil)
+	if err != nil {
+		return nil, err
+	}
+	return newClient(s, version)
+}
+
 func newClient(s common.Settings, version string) (*client.Client, error) {
 	cfg := client.Config{
 		Hostname: s.Hostname,

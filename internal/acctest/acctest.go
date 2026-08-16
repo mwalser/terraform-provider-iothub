@@ -12,10 +12,8 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/echoprovider"
@@ -74,27 +72,11 @@ var ProtoV6ProviderFactoriesWithEcho = map[string]func() (tfprotov6.ProviderServ
 	"echo":   echoprovider.NewProviderServer(),
 }
 
-// NewClient returns a service client for the test hub using the same
-// credentials the provider under test uses (Entra ID via the azidentity
-// default chain, or IOTHUB_CONNECTION_STRING).
+// NewClient returns a service client for the test hub with exactly the
+// credentials the provider under test resolves from the environment
+// (ARM_*/AZURE_* variables, IOTHUB_CONNECTION_STRING).
 func NewClient() (*client.Client, error) {
-	cfg := client.Config{Hostname: Hostname(), Version: "acctest"}
-	if cs := os.Getenv("IOTHUB_CONNECTION_STRING"); cs != "" {
-		parts := map[string]string{}
-		for _, p := range strings.Split(cs, ";") {
-			if k, v, ok := strings.Cut(p, "="); ok {
-				parts[k] = v
-			}
-		}
-		cfg.SharedAccessKey = &client.SharedAccessKey{HostName: parts["HostName"], KeyName: parts["SharedAccessKeyName"], Key: parts["SharedAccessKey"]}
-	} else {
-		cred, err := azidentity.NewDefaultAzureCredential(nil)
-		if err != nil {
-			return nil, fmt.Errorf("credential: %w", err)
-		}
-		cfg.Credential = cred
-	}
-	return client.New(cfg)
+	return provider.NewClientFromEnvironment(Hostname(), "acctest")
 }
 
 // Client is NewClient for tests: failures end the test.

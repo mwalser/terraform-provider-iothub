@@ -180,9 +180,10 @@ Everything else runs against the hub alone.
 
 ### Acceptance tests in CI
 
-The `Tests` workflow runs the acceptance suite on `workflow_dispatch`, and on
-every push to `main` once the repository **variable** `IOTHUB_TEST_HOSTNAME`
-is set. Credentials come from repository **secrets**, either
+The `Tests` workflow runs the acceptance suite on `workflow_dispatch`, on
+every push to `main` and on release tags once the repository **variable**
+`IOTHUB_TEST_HOSTNAME` is set. The job runs in the GitHub environment
+`acceptance`; credentials come from that environment's **secrets**, either
 
 - `IOTHUB_CONNECTION_STRING` — a shared access policy of the test hub, or
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — an Entra ID

@@ -8,8 +8,8 @@
 # and authenticate either with a shared access policy (secret
 # IOTHUB_CONNECTION_STRING) or with Entra ID through azure/login and an OIDC
 # federated credential (secrets AZURE_CLIENT_ID, AZURE_TENANT_ID,
-# AZURE_SUBSCRIPTION_ID). The job runs in the GitHub environment
-# "acceptance", so the OIDC subject is
+# AZURE_SUBSCRIPTION_ID, held by the GitHub environment "acceptance"). The
+# job runs in that environment, so the OIDC subject is
 # repo:<owner>@<id>/<repo>@<id>:environment:acceptance on every ref and event
 # and a single federated credential covers pushes, tags and manual runs.
 # See README.md "Acceptance tests in CI".
