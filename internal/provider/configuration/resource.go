@@ -191,7 +191,7 @@ func (r *configResource) Configure(_ context.Context, req resource.ConfigureRequ
 
 // ModifyPlan defers when the hub is not known yet, sets the ID, and validates
 // target_condition / metrics against the hub when they change (fixed
-// behaviour, CONCEPT.md §15 row 11).
+// behaviour, CONCEPT.md §14 row 11).
 func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	if req.Plan.Raw.IsNull() { // destroy
 		return

@@ -38,7 +38,7 @@ func TestProvider_Schema(t *testing.T) {
 			t.Errorf("provider schema is missing attribute %q", name)
 		}
 	}
-	// No behaviour knobs (CONCEPT.md §15 rows 5, 8, 9).
+	// No behaviour knobs (CONCEPT.md §14 rows 5, 8, 9).
 	for _, forbidden := range []string{"api_version", "optimistic_locking", "registry_ops_per_minute"} {
 		if _, ok := resp.Schema.Attributes[forbidden]; ok {
 			t.Errorf("provider schema must not expose behaviour knob %q", forbidden)
