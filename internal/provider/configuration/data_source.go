@@ -2,7 +2,6 @@ package configuration
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
-	"github.com/mwalser/terraform-provider-iothub/internal/twinpatch"
 )
 
 var (
@@ -173,24 +171,13 @@ func (d *configDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	if d.kind.isEdge() {
 		resp.Diagnostics.Append(resp.State.Set(ctx, &edgeDSModel{
 			ID: base.ID, DeploymentID: base.ConfigurationID, TargetCondition: base.TargetCondition, Priority: base.Priority,
-			Labels: base.Labels, ModulesContent: rawString(cfg.Content.ModulesContent), Metrics: base.Metrics, SchemaVersion: base.SchemaVersion,
+			Labels: base.Labels, ModulesContent: common.RawJSONString(cfg.Content.ModulesContent), Metrics: base.Metrics, SchemaVersion: base.SchemaVersion,
 			ETag: base.ETag, CreatedTime: base.CreatedTime, LastUpdatedTime: base.LastUpdatedTime, SystemMetrics: base.SystemMetrics,
 			MetricResults: base.MetricResults,
 		})...)
 		return
 	}
-	base.DeviceContent = rawString(cfg.Content.DeviceContent)
-	base.ModuleContent = rawString(cfg.Content.ModuleContent)
+	base.DeviceContent = common.RawJSONString(cfg.Content.DeviceContent)
+	base.ModuleContent = common.RawJSONString(cfg.Content.ModuleContent)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &base)...)
-}
-
-// rawString renders a raw content section compactly, null when absent.
-func rawString(raw json.RawMessage) types.String {
-	if len(raw) == 0 || string(raw) == "null" {
-		return types.StringNull()
-	}
-	if doc, err := twinpatch.Decode(string(raw)); err == nil {
-		return types.StringValue(twinpatch.Encode(doc))
-	}
-	return types.StringValue(string(raw))
 }

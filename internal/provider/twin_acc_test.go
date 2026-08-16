@@ -68,7 +68,7 @@ func patchTwin(t *testing.T, deviceID, tags, desired string) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := iotacc.Client(t).PatchDeviceTwin(context.Background(), deviceID, p, "*"); err != nil {
+	if _, err := iotacc.Client(t).PatchDeviceTwin(context.Background(), deviceID, p); err != nil {
 		t.Fatalf("out-of-band twin patch: %v", err)
 	}
 }

@@ -195,11 +195,7 @@ func (r *moduleResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 		stateAuth = state.Authentication
 	}
 
-	if r.pd != nil {
-		if _, ok, diags := r.pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
-		}
-	}
+	common.DeferIfHubUnknown(r.pd, req, resp)
 	if !plan.DeviceID.IsUnknown() && !plan.ModuleID.IsUnknown() {
 		plan.ID = types.StringValue(common.ModuleID(plan.DeviceID.ValueString(), plan.ModuleID.ValueString()))
 	}
@@ -228,11 +224,12 @@ func (r *moduleResource) Create(ctx context.Context, req resource.CreateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	hostname := c.Hostname()
 	spec, diags := r.spec(ctx, plan, config, nil)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -328,7 +325,7 @@ func (r *moduleResource) Update(ctx context.Context, req resource.UpdateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -395,7 +392,7 @@ func (r *moduleResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -437,15 +434,6 @@ func (r *moduleResource) ImportState(ctx context.Context, req resource.ImportSta
 
 func (m resourceModel) writeOnlyKeys() identity.WriteOnlyKeys {
 	return identity.WriteOnlyKeys{Primary: m.PrimaryKeyWO, PrimaryVersion: m.PrimaryKeyWOVersion, Secondary: m.SecondaryKeyWO, SecondaryVersion: m.SecondaryKeyWOVersion}
-}
-
-// client returns the hub client and hostname for an apply-time operation.
-func (r *moduleResource) client() (*client.Client, string, diag.Diagnostics) {
-	c, diags := r.pd.HubOrError()
-	if diags.HasError() {
-		return nil, "", diags
-	}
-	return c, c.Hostname(), nil
 }
 
 // spec builds the full module identity to write.

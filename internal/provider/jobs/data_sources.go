@@ -15,7 +15,6 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/identity"
-	"github.com/mwalser/terraform-provider-iothub/internal/twinpatch"
 )
 
 var (
@@ -132,8 +131,8 @@ func (d *scheduledJobDataSource) Read(ctx context.Context, req datasource.ReadRe
 	data.StartTime = identity.TimeOrNull(job.StartTime)
 	data.EndTime = identity.TimeOrNull(job.EndTime)
 	data.MaxExecutionTimeSeconds = types.Int64Value(job.MaxExecutionTimeInSeconds)
-	data.TwinPatch = rawJSON(job.UpdateTwin)
-	data.Method = rawJSON(job.CloudToDeviceMethod)
+	data.TwinPatch = common.RawJSONString(job.UpdateTwin)
+	data.Method = common.RawJSONString(job.CloudToDeviceMethod)
 	data.FailureReason = identity.StringOrNull(job.FailureReason)
 	data.StatusMessage = identity.StringOrNull(job.StatusMessage)
 	data.DeviceJobStatistics = types.ObjectNull(statsAttrTypes)
@@ -144,16 +143,6 @@ func (d *scheduledJobDataSource) Read(ctx context.Context, req datasource.ReadRe
 		})
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-func rawJSON(raw []byte) types.String {
-	if len(raw) == 0 || string(raw) == "null" {
-		return types.StringNull()
-	}
-	if doc, err := twinpatch.Decode(string(raw)); err == nil {
-		return types.StringValue(twinpatch.Encode(doc))
-	}
-	return types.StringValue(string(raw))
 }
 
 // ---- import/export job -----------------------------------------------------------------

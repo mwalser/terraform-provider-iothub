@@ -99,14 +99,13 @@ func New(cfg Config) (*Client, error) {
 		Telemetry: policy.TelemetryOptions{ApplicationID: moduleName + "/" + version},
 		Transport: cfg.Transport,
 	}
-	return &Client{hostname: host, pipeline: runtime.NewPipeline(moduleName, version, plOpts, clOpts), log: cfg.Logger, sasAuth: cfg.SharedAccessKey != nil}, nil
+	return &Client{hostname: host, pipeline: runtime.NewPipeline(moduleName, version, plOpts, clOpts), sasAuth: cfg.SharedAccessKey != nil}, nil
 }
 
 // Client talks to one IoT Hub.
 type Client struct {
 	hostname string
 	pipeline runtime.Pipeline
-	log      Logger
 	sasAuth  bool // shared access policy rather than Entra ID
 }
 
@@ -144,8 +143,6 @@ type result struct {
 
 // do performs the request and decodes a JSON body into out (if non-nil).
 // Non-2xx responses become *Error.
-//
-//nolint:unparam // the result (ETag, headers) is consumed by the identity operations added next.
 func (c *Client) do(ctx context.Context, r request, out any) (*result, error) {
 	u := url.URL{Scheme: "https", Host: c.hostname, Path: r.path}
 	if len(r.query) > 0 {

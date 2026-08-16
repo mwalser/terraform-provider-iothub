@@ -3,8 +3,6 @@ package configuration
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/list"
 	"github.com/hashicorp/terraform-plugin-framework/list/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -81,9 +79,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				m := model{
 					Labels: types.MapNull(types.StringType), Metrics: types.MapNull(types.StringType),
 					DeviceContent: jsondoc.NewNull(ContentType), ModuleContent: jsondoc.NewNull(ContentType), ModulesContent: jsondoc.NewNull(ModulesContentType),
-					Timeouts: timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{
-						"create": types.StringType, "read": types.StringType, "update": types.StringType, "delete": types.StringType,
-					})},
+					Timeouts: common.NullTimeouts(),
 				}
 				l.kind.fromHub(&m, cfg, m)
 				result.Diagnostics.Append(l.kind.set(ctx, result.Resource, m)...)

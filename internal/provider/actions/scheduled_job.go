@@ -50,6 +50,10 @@ type scheduledJobModel struct {
 	Timeout                 types.String `tfsdk:"timeout"`
 }
 
+// maxScheduleAhead is the hub's limit for a scheduled job's start_time
+// (verified: "Must be within 168 hours").
+const maxScheduleAhead = 168 * time.Hour
+
 // scheduledJobIDPattern is the hub's job ID charset (verified: uppercase,
 // underscores, dots and other punctuation are rejected; 64 characters at most).
 var scheduledJobIDPattern = regexp.MustCompile(`^[a-z0-9\-']{1,64}$`)
@@ -284,8 +288,8 @@ func (a *scheduledJobAction) Invoke(ctx context.Context, req action.InvokeReques
 }
 
 // waitScheduledJob polls a job to a terminal state, reporting status changes.
-func waitScheduledJob(ctx context.Context, c *client.Client, id string, resp *action.InvokeResponse) (*client.ScheduledJob, diagnostics) {
-	var diags diagnostics
+func waitScheduledJob(ctx context.Context, c *client.Client, id string, resp *action.InvokeResponse) (*client.ScheduledJob, diag.Diagnostics) {
+	var diags diag.Diagnostics
 	last := ""
 	unknown := 0
 	for {

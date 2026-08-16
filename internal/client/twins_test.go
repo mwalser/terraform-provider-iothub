@@ -16,14 +16,11 @@ func TestTwins_GetAndPatch(t *testing.T) {
 	if tw.Version != 5 || string(tw.Tags) != `{"site":"munich","n":12345678901234567890}` || string(tw.Properties.Desired) != `{"$metadata":{},"$version":2,"a":1}` {
 		t.Errorf("decoded %+v", tw)
 	}
-	if tw.X509Thumbprint == nil || tw.X509Thumbprint.PrimaryThumbprint != "AB" {
-		t.Errorf("capitalised thumbprint keys must decode: %+v", tw.X509Thumbprint)
-	}
 	if p := (*calls)[0].path; p != "/twins/d%201/modules/m1" {
 		t.Errorf("path %q", p)
 	}
 
-	_, err = c.PatchDeviceTwin(context.Background(), "d1", TwinPatch{Tags: map[string]any{"site": nil}, Desired: map[string]any{"a": map[string]any{"b": 2}}}, "")
+	_, err = c.PatchDeviceTwin(context.Background(), "d1", TwinPatch{Tags: map[string]any{"site": nil}, Desired: map[string]any{"a": map[string]any{"b": 2}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,9 +38,9 @@ func TestTwins_GetAndPatch(t *testing.T) {
 		t.Errorf("desired: %v", call.body)
 	}
 	// only the sections given are sent
-	_, _ = c.PatchDeviceTwin(context.Background(), "d1", TwinPatch{Tags: map[string]any{"x": 1}}, "AAAAAAAAAAE=")
+	_, _ = c.PatchDeviceTwin(context.Background(), "d1", TwinPatch{Tags: map[string]any{"x": 1}})
 	call = (*calls)[2]
-	if _, ok := call.body["properties"]; ok || call.ifMatch != `"AAAAAAAAAAE="` {
+	if _, ok := call.body["properties"]; ok || call.ifMatch != "*" {
 		t.Errorf("tags-only patch: %+v", call)
 	}
 	if !(TwinPatch{}).IsEmpty() || (TwinPatch{Tags: map[string]any{}}).IsEmpty() {

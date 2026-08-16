@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 )
 
 // ---- scheduled jobs (/jobs/v2) ------------------------------------------------
@@ -146,36 +145,6 @@ func (c *Client) CancelScheduledJob(ctx context.Context, id string) (*ScheduledJ
 	return &out, nil
 }
 
-// QueryScheduledJobs lists jobs, optionally filtered by type and status,
-// following continuation tokens.
-func (c *Client) QueryScheduledJobs(ctx context.Context, jobType, jobStatus string) ([]ScheduledJob, error) {
-	q := url.Values{}
-	if jobType != "" {
-		q.Set("jobType", jobType)
-	}
-	if jobStatus != "" {
-		q.Set("jobStatus", jobStatus)
-	}
-	var all []ScheduledJob
-	continuation := ""
-	for {
-		h := http.Header{}
-		if continuation != "" {
-			h.Set("X-Ms-Continuation", continuation)
-		}
-		var page []ScheduledJob
-		res, err := c.do(ctx, request{method: http.MethodGet, path: "/jobs/v2/query", query: q, headers: h}, &page)
-		if err != nil {
-			return nil, err
-		}
-		all = append(all, page...)
-		continuation = res.Headers.Get("X-Ms-Continuation")
-		if continuation == "" {
-			return all, nil
-		}
-	}
-}
-
 // ---- import/export jobs (/jobs) --------------------------------------------------
 
 // Import/export job types and storage authentication types.
@@ -286,15 +255,6 @@ func (c *Client) GetImportExportJob(ctx context.Context, id string) (*ImportExpo
 func (c *Client) CancelImportExportJob(ctx context.Context, id string) error {
 	_, err := c.do(ctx, request{method: http.MethodDelete, path: "/jobs/" + id}, nil)
 	return err
-}
-
-// ListImportExportJobs returns the hub's bulk job history.
-func (c *Client) ListImportExportJobs(ctx context.Context) ([]ImportExportJob, error) {
-	var out []ImportExportJob
-	if _, err := c.do(ctx, request{method: http.MethodGet, path: "/jobs"}, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 // IsJobQuotaExceeded reports the 403 for a second concurrent import/export

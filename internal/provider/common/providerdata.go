@@ -6,11 +6,15 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
+	"github.com/mwalser/terraform-provider-iothub/internal/twinpatch"
 )
 
 // ProviderData is handed to every construct via the framework's
@@ -53,6 +57,18 @@ func (pd *ProviderData) HubOrError() (*client.Client, diag.Diagnostics) {
 		return nil, diags
 	}
 	return c, diags
+}
+
+// DeferIfHubUnknown marks a resource plan as deferred when the hub is not
+// known yet and Terraform allows deferral; otherwise the plan proceeds
+// without contacting the hub.
+func DeferIfHubUnknown(pd *ProviderData, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if pd == nil {
+		return
+	}
+	if _, ok, diags := pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
+		resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
+	}
 }
 
 // DataSourceHub returns the hub client for a data source read. A data source
@@ -118,6 +134,19 @@ func ExpectProviderData(raw any) (*ProviderData, diag.Diagnostics) {
 	return pd, nil
 }
 
+// RawJSONString renders a raw JSON section from the hub as a compact string
+// value, null when the section is absent or JSON null. Objects are
+// re-encoded canonically so equal documents compare equal.
+func RawJSONString(raw []byte) types.String {
+	if len(raw) == 0 || string(raw) == "null" {
+		return types.StringNull()
+	}
+	if doc, err := twinpatch.Decode(string(raw)); err == nil {
+		return types.StringValue(twinpatch.Encode(doc))
+	}
+	return types.StringValue(string(raw))
+}
+
 // QueryIDs runs a projection query and returns the values of column (a
 // string) from every row, in order. Rows without the column are skipped.
 func QueryIDs(ctx context.Context, c *client.Client, query, column string) ([]string, diag.Diagnostics) {
@@ -138,6 +167,14 @@ func QueryIDs(ctx context.Context, c *client.Client, query, column string) ([]st
 		}
 	}
 	return out, diags
+}
+
+// NullTimeouts is the timeouts block value of resources that were listed
+// rather than configured.
+func NullTimeouts() timeouts.Value {
+	return timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{
+		"create": types.StringType, "read": types.StringType, "update": types.StringType, "delete": types.StringType,
+	})}
 }
 
 // TimeoutsOpts is the timeouts block every resource declares: all four

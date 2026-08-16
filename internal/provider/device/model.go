@@ -5,6 +5,8 @@
 package device
 
 import (
+	"regexp"
+
 	"fmt"
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
@@ -13,6 +15,9 @@ import (
 
 // parentScopePrefix is how edge device scopes look (ms-azure-iot-edge://<id>-<gen>).
 const parentScopePrefix = "ms-azure-iot-edge://"
+
+// parentScopePattern accepts values with that prefix.
+var parentScopePattern = regexp.MustCompile("^" + regexp.QuoteMeta(parentScopePrefix))
 
 // parentScopeOf derives the single parent relationship the resource exposes:
 // edge devices carry it in parentScopes, leaf devices in deviceScope.

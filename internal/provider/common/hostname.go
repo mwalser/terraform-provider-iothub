@@ -34,7 +34,7 @@ func ValidateHostname(h string) error {
 	return nil
 }
 
-// HostnameValidators is the validator list for every `hostname` attribute.
+// HostnameValidators is the validator list of the provider's `hostname`.
 func HostnameValidators() []validator.String { return []validator.String{hostnameValidator{}} }
 
 type hostnameValidator struct{}

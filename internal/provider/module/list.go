@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/list"
 	"github.com/hashicorp/terraform-plugin-framework/list/schema"
@@ -124,9 +122,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				m := resourceModel{
 					PrimaryKeyWO: types.StringNull(), SecondaryKeyWO: types.StringNull(),
 					PrimaryKeyWOVersion: types.Int64Null(), SecondaryKeyWOVersion: types.Int64Null(),
-					Timeouts: timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{
-						"create": types.StringType, "read": types.StringType, "update": types.StringType, "delete": types.StringType,
-					})},
+					Timeouts: common.NullTimeouts(),
 				}
 				setState(&m, mod, m.writeOnlyKeys())
 				result.Diagnostics.Append(result.Resource.Set(ctx, &m)...)

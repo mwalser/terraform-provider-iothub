@@ -90,12 +90,6 @@ func Encode(doc map[string]any) string {
 	return strings.TrimSuffix(buf.String(), "\n")
 }
 
-// IsLeaf reports whether v is a leaf (anything but a non-empty object).
-func IsLeaf(v any) bool {
-	obj, ok := v.(map[string]any)
-	return !ok || len(obj) == 0
-}
-
 // Leaves returns the leaves of doc keyed by their dotted path. A nil or
 // empty doc has no leaves.
 func Leaves(doc map[string]any) map[string]Leaf {

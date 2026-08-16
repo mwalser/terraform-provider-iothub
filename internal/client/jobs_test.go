@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -49,29 +47,6 @@ func TestScheduledJobs_CreateBodyAndStatuses(t *testing.T) {
 	}
 	if call = (*calls)[2]; call.method != "POST" || call.path != "/jobs/v2/j1/cancel" {
 		t.Errorf("cancel %+v", call)
-	}
-}
-
-func TestScheduledJobs_QueryPaginates(t *testing.T) {
-	var reqs []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reqs = append(reqs, r.URL.RawQuery+"|"+r.Header.Get("x-ms-continuation"))
-		w.Header().Set("Content-Type", "application/json")
-		if r.Header.Get("x-ms-continuation") == "" {
-			w.Header().Set("x-ms-continuation", "next")
-			_, _ = w.Write([]byte(`[{"jobId":"a","type":"scheduleUpdateTwin","status":"completed"}]`))
-			return
-		}
-		_, _ = w.Write([]byte(`[{"jobId":"b","type":"scheduleUpdateTwin","status":"failed"}]`))
-	}))
-	defer srv.Close()
-	c, _ := newTestClient(t, srv, nil)
-	jobs, err := c.QueryScheduledJobs(context.Background(), JobTypeScheduleUpdateTwin, "")
-	if err != nil || len(jobs) != 2 || jobs[1].JobID != "b" {
-		t.Fatalf("query: %v %+v", err, jobs)
-	}
-	if len(reqs) != 2 || reqs[0] != "api-version="+APIVersion+"&jobType=scheduleUpdateTwin|" || reqs[1] != "api-version="+APIVersion+"&jobType=scheduleUpdateTwin|next" {
-		t.Errorf("requests %v", reqs)
 	}
 }
 

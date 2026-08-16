@@ -210,15 +210,6 @@ func (r *twinResource) name(m resourceModel) string {
 	return fmt.Sprintf("twin of device %q", m.DeviceID.ValueString())
 }
 
-// client returns the hub client and hostname for an apply-time operation.
-func (r *twinResource) client() (*client.Client, string, diag.Diagnostics) {
-	c, diags := r.pd.HubOrError()
-	if diags.HasError() {
-		return nil, "", diags
-	}
-	return c, c.Hostname(), nil
-}
-
 func (r *twinResource) getTwin(ctx context.Context, c *client.Client, m resourceModel) (*client.Twin, error) {
 	if r.kind.isModule() {
 		return c.GetModuleTwin(ctx, m.DeviceID.ValueString(), m.ModuleID.ValueString())
@@ -228,9 +219,9 @@ func (r *twinResource) getTwin(ctx context.Context, c *client.Client, m resource
 
 func (r *twinResource) patchTwin(ctx context.Context, c *client.Client, m resourceModel, patch client.TwinPatch) (*client.Twin, error) {
 	if r.kind.isModule() {
-		return c.PatchModuleTwin(ctx, m.DeviceID.ValueString(), m.ModuleID.ValueString(), patch, "*")
+		return c.PatchModuleTwin(ctx, m.DeviceID.ValueString(), m.ModuleID.ValueString(), patch)
 	}
-	return c.PatchDeviceTwin(ctx, m.DeviceID.ValueString(), patch, "*")
+	return c.PatchDeviceTwin(ctx, m.DeviceID.ValueString(), patch)
 }
 
 // ---- plan ------------------------------------------------------------------
@@ -244,11 +235,7 @@ func (r *twinResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if r.pd != nil {
-		if _, ok, diags := r.pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
-		}
-	}
+	common.DeferIfHubUnknown(r.pd, req, resp)
 	if !plan.DeviceID.IsUnknown() && !plan.ModuleID.IsUnknown() {
 		plan.ID = types.StringValue(r.resourceID(plan.DeviceID.ValueString(), plan.ModuleID.ValueString()))
 	}
@@ -357,16 +344,10 @@ func (r *twinResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	defer cancel()
 
 	// Destroy = remove every owned leaf. A twin whose identity is already
-	// gone needs nothing.
+	// gone needs nothing (write treats that as done for op "delete").
 	next := state
 	next.Tags, next.DesiredProperties = NewDocumentNull(), NewDocumentNull()
-	diags = r.write(ctx, &next, state, "delete")
-	for _, d := range diags {
-		if d.Severity() == diag.SeverityError && strings.Contains(d.Summary(), "no longer exists") {
-			return
-		}
-	}
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(r.write(ctx, &next, state, "delete")...)
 }
 
 func (r *twinResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -402,18 +383,22 @@ func (r *twinResource) ImportState(ctx context.Context, req resource.ImportState
 // attributes of plan.
 func (r *twinResource) write(ctx context.Context, plan *resourceModel, prior resourceModel, op string) diag.Diagnostics {
 	var diags diag.Diagnostics
-	c, hostname, d := r.client()
+	c, d := r.pd.HubOrError()
 	diags.Append(d...)
 	if diags.HasError() {
 		return diags
 	}
+	hostname := c.Hostname()
 	remote, err := r.getTwin(ctx, c, *plan)
 	if err != nil {
 		if client.IsNotFound(err) {
-			if op == "create" {
+			switch op {
+			case "create":
 				diags.AddAttributeError(path.Root("device_id"), r.kind.noun()+" not found",
 					fmt.Sprintf("The %s does not exist in %s: the identity must exist before its twin can be managed (create it with iothub_device / iothub_module, or check the IDs).", r.name(*plan), hostname))
-			} else {
+			case "delete":
+				// the identity is gone, and its twin with it: nothing to remove
+			default:
 				diags.AddError(r.kind.noun()+" no longer exists",
 					fmt.Sprintf("The %s is gone (the identity was deleted). Run `terraform plan` again.", r.name(*plan)))
 			}
@@ -448,7 +433,9 @@ func (r *twinResource) write(ctx context.Context, plan *resourceModel, prior res
 		result, err = r.patchTwin(ctx, c, *plan, patch)
 		if err != nil {
 			if client.IsNotFound(err) {
-				diags.AddError(r.kind.noun()+" no longer exists", fmt.Sprintf("The %s disappeared while updating it. Run `terraform plan` again.", r.name(*plan)))
+				if op != "delete" {
+					diags.AddError(r.kind.noun()+" no longer exists", fmt.Sprintf("The %s disappeared while updating it. Run `terraform plan` again.", r.name(*plan)))
+				}
 				return diags
 			}
 			diags.AddError("Cannot update IoT Hub "+r.kind.noun(), common.DescribeError(err))

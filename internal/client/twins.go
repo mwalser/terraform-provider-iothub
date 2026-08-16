@@ -20,18 +20,12 @@ type Twin struct {
 	Properties                TwinProperties  `json:"properties"`
 	ModelID                   string          `json:"modelId,omitempty"`
 	Status                    string          `json:"status,omitempty"`
-	StatusReason              *string         `json:"statusReason,omitempty"`
-	StatusUpdateTime          string          `json:"statusUpdateTime,omitempty"`
 	ConnectionState           string          `json:"connectionState,omitempty"`
 	LastActivityTime          string          `json:"lastActivityTime,omitempty"`
 	CloudToDeviceMessageCount int64           `json:"cloudToDeviceMessageCount,omitempty"`
-	AuthenticationType        string          `json:"authenticationType,omitempty"`
-	// X509Thumbprint decodes the twin's capitalised `PrimaryThumbprint` too
-	// (encoding/json matches keys case-insensitively).
-	X509Thumbprint *X509Thumbprint     `json:"x509Thumbprint,omitempty"`
-	Capabilities   *DeviceCapabilities `json:"capabilities,omitempty"`
-	DeviceScope    string              `json:"deviceScope,omitempty"`
-	ParentScopes   []string            `json:"parentScopes,omitempty"`
+	// The twin also mirrors statusReason, statusUpdateTime, authenticationType,
+	// x509Thumbprint (capitalised keys), capabilities and scopes; the provider
+	// reads those from the identity registry, so they are not decoded here.
 }
 
 // TwinProperties are the desired and reported sections, raw.
@@ -78,16 +72,17 @@ func (c *Client) GetModuleTwin(ctx context.Context, deviceID, moduleID string) (
 	return c.getTwin(ctx, moduleTwinPath(deviceID, moduleID))
 }
 
-// PatchDeviceTwin merge-patches tags and/or desired properties. etag "" or
-// "*" skips the precondition (the provider's choice for twins, CONCEPT.md
-// §11.1); a stale value answers 412. Returns the updated twin.
-func (c *Client) PatchDeviceTwin(ctx context.Context, deviceID string, patch TwinPatch, etag string) (*Twin, error) {
-	return c.patchTwin(ctx, deviceTwinPath(deviceID), patch, etag)
+// PatchDeviceTwin merge-patches tags and/or desired properties with
+// `If-Match: *` (the provider's fixed choice for twins, CONCEPT.md §11.1:
+// leaf-path ownership makes concurrent patches of different keys safe).
+// Returns the updated twin.
+func (c *Client) PatchDeviceTwin(ctx context.Context, deviceID string, patch TwinPatch) (*Twin, error) {
+	return c.patchTwin(ctx, deviceTwinPath(deviceID), patch)
 }
 
 // PatchModuleTwin is PatchDeviceTwin for a module twin.
-func (c *Client) PatchModuleTwin(ctx context.Context, deviceID, moduleID string, patch TwinPatch, etag string) (*Twin, error) {
-	return c.patchTwin(ctx, moduleTwinPath(deviceID, moduleID), patch, etag)
+func (c *Client) PatchModuleTwin(ctx context.Context, deviceID, moduleID string, patch TwinPatch) (*Twin, error) {
+	return c.patchTwin(ctx, moduleTwinPath(deviceID, moduleID), patch)
 }
 
 func (c *Client) getTwin(ctx context.Context, path string) (*Twin, error) {
@@ -98,12 +93,9 @@ func (c *Client) getTwin(ctx context.Context, path string) (*Twin, error) {
 	return &out, nil
 }
 
-func (c *Client) patchTwin(ctx context.Context, path string, patch TwinPatch, etag string) (*Twin, error) {
-	if etag == "" {
-		etag = "*"
-	}
+func (c *Client) patchTwin(ctx context.Context, path string, patch TwinPatch) (*Twin, error) {
 	var out Twin
-	r := request{method: http.MethodPatch, path: path, body: patch.body(), headers: ifMatch(etag)}
+	r := request{method: http.MethodPatch, path: path, body: patch.body(), headers: ifMatch("*")}
 	if _, err := c.do(ctx, r, &out); err != nil {
 		return nil, err
 	}

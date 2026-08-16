@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/list"
 	"github.com/hashicorp/terraform-plugin-framework/list/schema"
@@ -56,13 +54,6 @@ func (l *listResource) Configure(_ context.Context, req resource.ConfigureReques
 	l.pd = pd
 }
 
-// nullTimeouts is the timeouts block value of listed resources.
-func nullTimeouts() timeouts.Value {
-	return timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{
-		"create": types.StringType, "read": types.StringType, "update": types.StringType, "delete": types.StringType,
-	})}
-}
-
 func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *list.ListResultsStream) {
 	var cfg listModel
 	if diags := req.Config.Get(ctx, &cfg); diags.HasError() {
@@ -105,7 +96,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 			result.DisplayName = dev.DeviceID
 			result.Diagnostics.Append(setIdentity(ctx, result.Identity, dev.DeviceID)...)
 			if req.IncludeResource {
-				m := resourceModel{Timeouts: nullTimeouts()}
+				m := resourceModel{Timeouts: common.NullTimeouts()}
 				m.PrimaryKeyWO, m.SecondaryKeyWO = types.StringNull(), types.StringNull()
 				m.PrimaryKeyWOVersion, m.SecondaryKeyWOVersion = types.Int64Null(), types.Int64Null()
 				setState(&m, dev, true, true)

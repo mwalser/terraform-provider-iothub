@@ -58,8 +58,5 @@ func (c *configured) Configure(_ context.Context, req action.ConfigureRequest, r
 	c.pd = pd
 }
 
-// diagnostics is a local alias to keep signatures short.
-type diagnostics = diag.Diagnostics
-
 // objectAsOptions tolerates null/unknown nested values when decoding.
 var objectAsOptions = basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true}

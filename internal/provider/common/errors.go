@@ -33,7 +33,11 @@ func DescribeError(err error) string {
 				"Owner and Contributor do not include data-plane actions.")
 		}
 	case http.StatusTooManyRequests:
-		b.WriteString("\n\nThe hub throttled the request for the whole operation timeout. Throttling limits scale with the " +
+		what := "the request"
+		if e.Operation != "" {
+			what = e.Operation + " requests"
+		}
+		b.WriteString("\n\nThe hub throttled " + what + " for the whole operation timeout. Throttling limits scale with the " +
 			"hub's tier and unit count; consider more units, spreading applies, or -parallelism.")
 	case http.StatusPreconditionFailed:
 		b.WriteString("\n\nThe object changed outside Terraform since the last refresh. Run `terraform plan` again.")

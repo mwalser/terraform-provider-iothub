@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
 	"github.com/hashicorp/terraform-plugin-framework/list"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -193,7 +194,7 @@ func (p *IoTHubProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 	for _, a := range mustBeKnown {
 		if a.v.IsUnknown() {
-			resp.Diagnostics.AddAttributeError(pathRoot(a.name), "Unknown provider configuration value",
+			resp.Diagnostics.AddAttributeError(path.Root(a.name), "Unknown provider configuration value",
 				"The provider cannot authenticate while \""+a.name+"\" is unknown. Give it a value that is known at plan "+
 					"time (a literal, variable or output of an already-applied resource); only \"hostname\" and "+
 					"\"connection_string\" may be unknown.")

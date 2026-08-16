@@ -218,11 +218,7 @@ func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 		}
 		state = &s
 	}
-	if r.pd != nil {
-		if _, ok, diags := r.pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
-		}
-	}
+	common.DeferIfHubUnknown(r.pd, req, resp)
 	if !plan.ConfigurationID.IsUnknown() {
 		plan.ID = plan.ConfigurationID
 	}
@@ -305,11 +301,12 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	hostname := c.Hostname()
 	spec, diags := r.kind.spec(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -406,7 +403,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -469,7 +466,7 @@ func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -499,15 +496,6 @@ func (r *configResource) ImportState(ctx context.Context, req resource.ImportSta
 }
 
 // ---- helpers ------------------------------------------------------------------
-
-// client returns the hub client and hostname for an apply-time operation.
-func (r *configResource) client() (*client.Client, string, diag.Diagnostics) {
-	c, diags := r.pd.HubOrError()
-	if diags.HasError() {
-		return nil, "", diags
-	}
-	return c, c.Hostname(), nil
-}
 
 // ---- kind-specific attribute texts ------------------------------------------
 

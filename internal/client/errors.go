@@ -76,10 +76,6 @@ func IsConflict(err error) bool { return hasStatus(err, http.StatusConflict) }
 // IsPreconditionFailed reports whether err is a 412 (ETag mismatch or missing).
 func IsPreconditionFailed(err error) bool { return hasStatus(err, http.StatusPreconditionFailed) }
 
-// IsThrottled reports whether err is a 429 (ThrottlingBacklogTimeout /
-// ThrottlingException).
-func IsThrottled(err error) bool { return hasStatus(err, http.StatusTooManyRequests) }
-
 // IsUnauthorized reports whether err is a 401/403.
 func IsUnauthorized(err error) bool {
 	return hasStatus(err, http.StatusUnauthorized) || hasStatus(err, http.StatusForbidden)

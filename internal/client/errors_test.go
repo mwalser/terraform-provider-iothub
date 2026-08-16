@@ -114,8 +114,8 @@ func TestErrorPredicates(t *testing.T) {
 	if !IsNotFound(mk(404)) || IsNotFound(mk(409)) {
 		t.Error("IsNotFound")
 	}
-	if !IsConflict(mk(409)) || !IsPreconditionFailed(mk(412)) || !IsThrottled(mk(429)) {
-		t.Error("IsConflict/IsPreconditionFailed/IsThrottled")
+	if !IsConflict(mk(409)) || !IsPreconditionFailed(mk(412)) {
+		t.Error("IsConflict/IsPreconditionFailed")
 	}
 	if !IsUnauthorized(mk(401)) || !IsUnauthorized(mk(403)) || IsUnauthorized(mk(404)) {
 		t.Error("IsUnauthorized")

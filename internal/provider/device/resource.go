@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/identityschema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -115,17 +114,16 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"edge_enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the device is an IoT Edge device (default `false`). Edge devices get a hub-generated " +
 					"`device_scope` and the `$edgeAgent` and `$edgeHub` module identities.",
-				Optional:      true,
-				Computed:      true,
-				Default:       booldefault.StaticBool(false),
-				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
 			},
 			"parent_scope": schema.StringAttribute{
 				MarkdownDescription: "The `device_scope` of the parent IoT Edge device. Setting it makes this device a child of " +
 					"that gateway, either as a leaf device or as a nested edge device. Remove it to detach the device from its " +
 					"parent. A device has at most one parent.",
 				Optional:   true,
-				Validators: []validator.String{stringvalidator.RegexMatches(regexpPrefix(parentScopePrefix), "must be an edge device scope starting with "+parentScopePrefix)},
+				Validators: []validator.String{stringvalidator.RegexMatches(parentScopePattern, "must be an edge device scope starting with "+parentScopePrefix)},
 			},
 			"authentication": identity.AuthAttribute("device"),
 			// ---- computed ----
@@ -217,11 +215,7 @@ func (r *deviceResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 		}
 	}
 
-	if r.pd != nil {
-		if _, ok, diags := r.pd.Hub(); !ok && !diags.HasError() && req.ClientCapabilities.DeferralAllowed {
-			resp.Deferred = &resource.Deferred{Reason: resource.DeferredReasonProviderConfigUnknown}
-		}
-	}
+	common.DeferIfHubUnknown(r.pd, req, resp)
 	if !plan.DeviceID.IsUnknown() {
 		plan.ID = plan.DeviceID
 	}
@@ -255,11 +249,12 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, hostname, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	hostname := c.Hostname()
 
 	spec, diags := r.spec(ctx, plan, config, nil)
 	resp.Diagnostics.Append(diags...)
@@ -354,7 +349,7 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -444,7 +439,7 @@ func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c, _, diags := r.client()
+	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -484,15 +479,6 @@ func (m resourceModel) writeOnlyKeys() identity.WriteOnlyKeys {
 // (true) or write-only arguments are in use for the respective slot (false).
 func (m resourceModel) keysInState() (primary, secondary bool) {
 	return m.writeOnlyKeys().KeysInState()
-}
-
-// client returns the hub client and hostname for an apply-time operation.
-func (r *deviceResource) client() (*client.Client, string, diag.Diagnostics) {
-	c, diags := r.pd.HubOrError()
-	if diags.HasError() {
-		return nil, "", diags
-	}
-	return c, c.Hostname(), nil
 }
 
 // spec builds the full identity to write from plan + config (+ the current

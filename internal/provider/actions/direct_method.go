@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
@@ -49,9 +48,6 @@ type directMethodModel struct {
 const (
 	defaultResponseTimeout = 30
 	defaultConnectTimeout  = 0
-	// maxScheduleAhead is the hub's limit for a scheduled job's start_time
-	// (verified: "Must be within 168 hours").
-	maxScheduleAhead = 168 * time.Hour
 )
 
 func (a *directMethodAction) Metadata(_ context.Context, req action.MetadataRequest, resp *action.MetadataResponse) {
