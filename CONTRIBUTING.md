@@ -19,7 +19,11 @@ behaviour; record newly verified service facts in its Appendix D.
 ## Documentation rules
 
 User-facing documentation is generated from the schema descriptions
-(`MarkdownDescription`), `templates/` and `examples/`. It describes the
+(`MarkdownDescription`), `templates/` and `examples/`. The Registry
+subcategory of every page comes from the `if` chain in the per-type fallback
+templates (`templates/resources.md.tmpl` and siblings, identical chains);
+a new construct that does not belong under "Devices and modules" must be
+added to all five. It describes the
 **contract** the provider offers — not how it is implemented, and not how we
 know the service behaves the way it does. Both of those belong in `CONCEPT.md`.
 
