@@ -8,7 +8,11 @@
 # and authenticate either with a shared access policy (secret
 # IOTHUB_CONNECTION_STRING) or with Entra ID through azure/login and an OIDC
 # federated credential (secrets AZURE_CLIENT_ID, AZURE_TENANT_ID,
-# AZURE_SUBSCRIPTION_ID). See README.md "Acceptance tests in CI".
+# AZURE_SUBSCRIPTION_ID). The job runs in the GitHub environment
+# "acceptance", so the OIDC subject is
+# repo:<owner>/<repo>:environment:acceptance on every ref and event and a
+# single federated credential covers pushes, tags and manual runs.
+# See README.md "Acceptance tests in CI".
 name: Tests
 
 on:
@@ -84,6 +88,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: acceptance
     # Serialise: the tests share one hub and the free tier allows few concurrent operations.
     concurrency:
       group: acceptance-${{ vars.IOTHUB_TEST_HOSTNAME }}

@@ -187,8 +187,11 @@ is set. Credentials come from repository **secrets**, either
 - `IOTHUB_CONNECTION_STRING` — a shared access policy of the test hub, or
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — an Entra ID
   application with a [federated credential for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust?pivots=identity-wif-apps-methods-azp#github-actions)
-  and *IoT Hub Data Contributor* on the hub. The workflow logs in with
-  `azure/login` and the provider uses that CLI session.
+  whose subject is `repo:<owner>/<repo>:environment:acceptance` (the job runs
+  in the `acceptance` environment, so one credential covers pushes to `main`,
+  release tags and manual runs) and *IoT Hub Data Contributor* on the hub.
+  The workflow logs in with `azure/login` and the provider uses that CLI
+  session.
 
 Optionally, `IOTHUB_TEST_BLOB_CONTAINER_SAS_URI` enables the import/export
 job test.
