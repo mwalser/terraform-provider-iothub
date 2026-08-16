@@ -122,7 +122,6 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				m := resourceModel{
 					PrimaryKeyWO: types.StringNull(), SecondaryKeyWO: types.StringNull(),
 					PrimaryKeyWOVersion: types.Int64Null(), SecondaryKeyWOVersion: types.Int64Null(),
-					Timeouts: common.NullTimeouts(),
 				}
 				setState(&m, mod, m.writeOnlyKeys())
 				result.Diagnostics.Append(result.Resource.Set(ctx, &m)...)

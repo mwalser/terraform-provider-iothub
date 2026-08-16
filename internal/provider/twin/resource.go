@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,27 +60,23 @@ type twinResource struct {
 // resourceModel is shared by both kinds; ModuleID is absent from the device
 // twin schema and stays null there.
 type resourceModel struct {
-	ID                types.String   `tfsdk:"id"`
-	DeviceID          types.String   `tfsdk:"device_id"`
-	ModuleID          types.String   `tfsdk:"module_id"`
-	Tags              Document       `tfsdk:"tags"`
-	DesiredProperties Document       `tfsdk:"desired_properties"`
-	ETag              types.String   `tfsdk:"etag"`
-	Version           types.Int64    `tfsdk:"version"`
-	Timeouts          timeouts.Value `tfsdk:"timeouts"`
+	ID                types.String `tfsdk:"id"`
+	DeviceID          types.String `tfsdk:"device_id"`
+	ModuleID          types.String `tfsdk:"module_id"`
+	Tags              Document     `tfsdk:"tags"`
+	DesiredProperties Document     `tfsdk:"desired_properties"`
+	ETag              types.String `tfsdk:"etag"`
+	Version           types.Int64  `tfsdk:"version"`
 }
 
 type deviceModel struct {
-	ID                types.String   `tfsdk:"id"`
-	DeviceID          types.String   `tfsdk:"device_id"`
-	Tags              Document       `tfsdk:"tags"`
-	DesiredProperties Document       `tfsdk:"desired_properties"`
-	ETag              types.String   `tfsdk:"etag"`
-	Version           types.Int64    `tfsdk:"version"`
-	Timeouts          timeouts.Value `tfsdk:"timeouts"`
+	ID                types.String `tfsdk:"id"`
+	DeviceID          types.String `tfsdk:"device_id"`
+	Tags              Document     `tfsdk:"tags"`
+	DesiredProperties Document     `tfsdk:"desired_properties"`
+	ETag              types.String `tfsdk:"etag"`
+	Version           types.Int64  `tfsdk:"version"`
 }
-
-const defaultTimeout = 20 * time.Minute
 
 func (r *twinResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	if r.kind.isModule() {
@@ -154,9 +148,6 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 			"count as equal, so they never show as drift from the hub. Reformatting a value in your own configuration still " +
 			"appears in the plan as an update, but that update writes nothing.",
 		Attributes: attrs,
-		Blocks: map[string]schema.Block{
-			"timeouts": timeouts.Block(ctx, common.TimeoutsOpts("20m")),
-		},
 	}
 }
 
@@ -185,7 +176,7 @@ func (r *twinResource) get(ctx context.Context, src getter) (resourceModel, diag
 	var d deviceModel
 	diags := src.Get(ctx, &d)
 	return resourceModel{ID: d.ID, DeviceID: d.DeviceID, ModuleID: types.StringNull(), Tags: d.Tags,
-		DesiredProperties: d.DesiredProperties, ETag: d.ETag, Version: d.Version, Timeouts: d.Timeouts}, diags
+		DesiredProperties: d.DesiredProperties, ETag: d.ETag, Version: d.Version}, diags
 }
 
 func (r *twinResource) set(ctx context.Context, dst setter, m resourceModel) diag.Diagnostics {
@@ -193,7 +184,7 @@ func (r *twinResource) set(ctx context.Context, dst setter, m resourceModel) dia
 		return dst.Set(ctx, &m)
 	}
 	return dst.Set(ctx, &deviceModel{ID: m.ID, DeviceID: m.DeviceID, Tags: m.Tags,
-		DesiredProperties: m.DesiredProperties, ETag: m.ETag, Version: m.Version, Timeouts: m.Timeouts})
+		DesiredProperties: m.DesiredProperties, ETag: m.ETag, Version: m.Version})
 }
 
 func (r *twinResource) resourceID(deviceID, moduleID string) string {
@@ -250,14 +241,6 @@ func (r *twinResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Create(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	// Nothing owned yet: the prior sections are empty, so every configured
 	// leaf is set (unless the twin already holds it — adoption).
 	prior := resourceModel{Tags: NewDocumentNull(), DesiredProperties: NewDocumentNull()}
@@ -274,14 +257,6 @@ func (r *twinResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Read(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, ok, diags := r.pd.Hub()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() || !ok {
@@ -314,14 +289,6 @@ func (r *twinResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Update(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	resp.Diagnostics.Append(r.write(ctx, &plan, state, "update")...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -335,14 +302,6 @@ func (r *twinResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Delete(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	// Destroy = remove every owned leaf. A twin whose identity is already
 	// gone needs nothing (write treats that as done for op "delete").
 	next := state

@@ -68,23 +68,12 @@ resource "iothub_device_twin" "sensor_ops" {
 
 - `desired_properties` (String) The desired properties this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no desired properties.
 - `tags` (String) The tags this resource manages, as a JSON object (use `jsonencode`). Only the keys declared here are managed. Keys written by other systems next to them are left alone. Omit to manage no tags.
-- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
 - `etag` (String) ETag of the twin.
 - `id` (String) The device ID. Also the import ID. Every twin resource that manages the same twin has the same `id`.
 - `version` (Number) Version of the twin.
-
-<a id="nestedblock--timeouts"></a>
-### Nested Schema for `timeouts`
-
-Optional:
-
-- `create` (String) How long to wait for the create to finish, including retries of throttled requests (default `20m`), for example `30m`.
-- `delete` (String) How long to wait for the delete to finish, including retries of throttled requests (default `20m`), for example `30m`.
-- `read` (String) How long to wait for the read to finish, including retries of throttled requests (default `20m`), for example `30m`.
-- `update` (String) How long to wait for the update to finish, including retries of throttled requests (default `20m`), for example `30m`.
 
 ## Import
 

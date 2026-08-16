@@ -5,7 +5,7 @@ description: |-
   Requirements:
   Terraform 1.14 or later.An IoT Hub in the Azure public cloud. Sovereign clouds are not supported.Either an Entra ID identity with an IoT Hub data-plane role on the hub, or a shared access policy connection string (see Permissions below).
   Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, and Device Provisioning Service enrollments.
-  Authentication is Microsoft Entra ID by default, with the same arguments and environment variables as the azurerm provider. Setting connection_string switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically until the operation's timeout. The provider is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every such change.
+  Authentication is Microsoft Entra ID by default, with the same arguments and environment variables as the azurerm provider. Setting connection_string switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically for up to 20 minutes per request; actions bound their whole invocation with timeout. The provider is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every such change.
 ---
 
 # iothub Provider
@@ -20,7 +20,7 @@ Requirements:
 
 Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, and Device Provisioning Service enrollments.
 
-Authentication is Microsoft Entra ID by default, with the same arguments and environment variables as the `azurerm` provider. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically until the operation's timeout. The provider is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every such change.
+Authentication is Microsoft Entra ID by default, with the same arguments and environment variables as the `azurerm` provider. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled requests are retried automatically for up to 20 minutes per request; actions bound their whole invocation with `timeout`. The provider is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every such change.
 
 ## Example Usage
 

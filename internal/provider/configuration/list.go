@@ -79,7 +79,6 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 				m := model{
 					Labels: types.MapNull(types.StringType), Metrics: types.MapNull(types.StringType),
 					DeviceContent: jsondoc.NewNull(ContentType), ModuleContent: jsondoc.NewNull(ContentType), ModulesContent: jsondoc.NewNull(ModulesContentType),
-					Timeouts: common.NullTimeouts(),
 				}
 				l.kind.fromHub(&m, cfg, m)
 				result.Diagnostics.Append(l.kind.set(ctx, result.Resource, m)...)

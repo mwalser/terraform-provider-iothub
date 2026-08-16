@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -49,8 +48,6 @@ type configResource struct {
 
 // planValidationTimeout bounds the plan-time testQueries call.
 const planValidationTimeout = 30 * time.Second
-
-const defaultTimeout = 20 * time.Minute
 
 func (r *configResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + r.kind.typeSuffix()
@@ -169,9 +166,6 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		MarkdownDescription: description,
 		Attributes:          attrs,
-		Blocks: map[string]schema.Block{
-			"timeouts": timeouts.Block(ctx, common.TimeoutsOpts("20m")),
-		},
 	}
 }
 
@@ -293,14 +287,6 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Create(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -335,14 +321,6 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Read(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, ok, diags := r.pd.Hub()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -395,14 +373,6 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Update(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -458,14 +428,6 @@ func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Delete(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

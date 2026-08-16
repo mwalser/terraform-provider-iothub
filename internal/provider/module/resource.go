@@ -9,9 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -47,25 +45,22 @@ type moduleResource struct {
 }
 
 type resourceModel struct {
-	ID                         types.String   `tfsdk:"id"`
-	DeviceID                   types.String   `tfsdk:"device_id"`
-	ModuleID                   types.String   `tfsdk:"module_id"`
-	ManagedBy                  types.String   `tfsdk:"managed_by"`
-	Authentication             types.Object   `tfsdk:"authentication"`
-	PrimaryKeyWO               types.String   `tfsdk:"primary_key_wo"`
-	PrimaryKeyWOVersion        types.Int64    `tfsdk:"primary_key_wo_version"`
-	SecondaryKeyWO             types.String   `tfsdk:"secondary_key_wo"`
-	SecondaryKeyWOVersion      types.Int64    `tfsdk:"secondary_key_wo_version"`
-	ETag                       types.String   `tfsdk:"etag"`
-	GenerationID               types.String   `tfsdk:"generation_id"`
-	ConnectionState            types.String   `tfsdk:"connection_state"`
-	ConnectionStateUpdatedTime types.String   `tfsdk:"connection_state_updated_time"`
-	LastActivityTime           types.String   `tfsdk:"last_activity_time"`
-	CloudToDeviceMessageCount  types.Int64    `tfsdk:"cloud_to_device_message_count"`
-	Timeouts                   timeouts.Value `tfsdk:"timeouts"`
+	ID                         types.String `tfsdk:"id"`
+	DeviceID                   types.String `tfsdk:"device_id"`
+	ModuleID                   types.String `tfsdk:"module_id"`
+	ManagedBy                  types.String `tfsdk:"managed_by"`
+	Authentication             types.Object `tfsdk:"authentication"`
+	PrimaryKeyWO               types.String `tfsdk:"primary_key_wo"`
+	PrimaryKeyWOVersion        types.Int64  `tfsdk:"primary_key_wo_version"`
+	SecondaryKeyWO             types.String `tfsdk:"secondary_key_wo"`
+	SecondaryKeyWOVersion      types.Int64  `tfsdk:"secondary_key_wo_version"`
+	ETag                       types.String `tfsdk:"etag"`
+	GenerationID               types.String `tfsdk:"generation_id"`
+	ConnectionState            types.String `tfsdk:"connection_state"`
+	ConnectionStateUpdatedTime types.String `tfsdk:"connection_state_updated_time"`
+	LastActivityTime           types.String `tfsdk:"last_activity_time"`
+	CloudToDeviceMessageCount  types.Int64  `tfsdk:"cloud_to_device_message_count"`
 }
-
-const defaultTimeout = 20 * time.Minute
 
 func (r *moduleResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_module"
@@ -126,9 +121,6 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				MarkdownDescription: "Number of cloud-to-device messages queued for the module.",
 				Computed:            true,
 			},
-		},
-		Blocks: map[string]schema.Block{
-			"timeouts": timeouts.Block(ctx, common.TimeoutsOpts("20m")),
 		},
 	}
 	for name, a := range identity.WriteOnlyKeyAttributes() {
@@ -216,14 +208,6 @@ func (r *moduleResource) Create(ctx context.Context, req resource.CreateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Create(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -263,14 +247,6 @@ func (r *moduleResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Read(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, ok, diags := r.pd.Hub()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -317,14 +293,6 @@ func (r *moduleResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Update(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -384,14 +352,6 @@ func (r *moduleResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Delete(ctx, defaultTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

@@ -18,7 +18,7 @@ import (
 )
 
 // volatile identity attributes that a fresh read may legitimately change.
-var importIgnore = []string{"connection_state", "connection_state_updated_time", "last_activity_time", "cloud_to_device_message_count", "timeouts"}
+var importIgnore = []string{"connection_state", "connection_state_updated_time", "last_activity_time", "cloud_to_device_message_count"}
 
 func TestAccDevice_basic(t *testing.T) {
 	id := acctest.RandomWithPrefix("tf-acc")

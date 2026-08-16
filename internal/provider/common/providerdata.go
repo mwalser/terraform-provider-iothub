@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
@@ -167,24 +165,4 @@ func QueryIDs(ctx context.Context, c *client.Client, query, column string) ([]st
 		}
 	}
 	return out, diags
-}
-
-// NullTimeouts is the timeouts block value of resources that were listed
-// rather than configured.
-func NullTimeouts() timeouts.Value {
-	return timeouts.Value{Object: types.ObjectNull(map[string]attr.Type{
-		"create": types.StringType, "read": types.StringType, "update": types.StringType, "delete": types.StringType,
-	})}
-}
-
-// TimeoutsOpts is the timeouts block every resource declares: all four
-// operations, each with the same default and a description that names it.
-func TimeoutsOpts(def string) timeouts.Opts {
-	desc := func(op string) string {
-		return "How long to wait for the " + op + " to finish, including retries of throttled requests (default `" + def + "`), for example `30m`."
-	}
-	return timeouts.Opts{
-		Create: true, Read: true, Update: true, Delete: true,
-		CreateDescription: desc("create"), ReadDescription: desc("read"), UpdateDescription: desc("update"), DeleteDescription: desc("delete"),
-	}
 }

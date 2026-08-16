@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -44,34 +42,26 @@ type deviceResource struct {
 }
 
 type resourceModel struct {
-	ID                         types.String   `tfsdk:"id"`
-	DeviceID                   types.String   `tfsdk:"device_id"`
-	Status                     types.String   `tfsdk:"status"`
-	StatusReason               types.String   `tfsdk:"status_reason"`
-	EdgeEnabled                types.Bool     `tfsdk:"edge_enabled"`
-	ParentScope                types.String   `tfsdk:"parent_scope"`
-	Authentication             types.Object   `tfsdk:"authentication"`
-	PrimaryKeyWO               types.String   `tfsdk:"primary_key_wo"`
-	PrimaryKeyWOVersion        types.Int64    `tfsdk:"primary_key_wo_version"`
-	SecondaryKeyWO             types.String   `tfsdk:"secondary_key_wo"`
-	SecondaryKeyWOVersion      types.Int64    `tfsdk:"secondary_key_wo_version"`
-	ETag                       types.String   `tfsdk:"etag"`
-	GenerationID               types.String   `tfsdk:"generation_id"`
-	DeviceScope                types.String   `tfsdk:"device_scope"`
-	ConnectionState            types.String   `tfsdk:"connection_state"`
-	ConnectionStateUpdatedTime types.String   `tfsdk:"connection_state_updated_time"`
-	LastActivityTime           types.String   `tfsdk:"last_activity_time"`
-	StatusUpdatedTime          types.String   `tfsdk:"status_updated_time"`
-	CloudToDeviceMessageCount  types.Int64    `tfsdk:"cloud_to_device_message_count"`
-	Timeouts                   timeouts.Value `tfsdk:"timeouts"`
+	ID                         types.String `tfsdk:"id"`
+	DeviceID                   types.String `tfsdk:"device_id"`
+	Status                     types.String `tfsdk:"status"`
+	StatusReason               types.String `tfsdk:"status_reason"`
+	EdgeEnabled                types.Bool   `tfsdk:"edge_enabled"`
+	ParentScope                types.String `tfsdk:"parent_scope"`
+	Authentication             types.Object `tfsdk:"authentication"`
+	PrimaryKeyWO               types.String `tfsdk:"primary_key_wo"`
+	PrimaryKeyWOVersion        types.Int64  `tfsdk:"primary_key_wo_version"`
+	SecondaryKeyWO             types.String `tfsdk:"secondary_key_wo"`
+	SecondaryKeyWOVersion      types.Int64  `tfsdk:"secondary_key_wo_version"`
+	ETag                       types.String `tfsdk:"etag"`
+	GenerationID               types.String `tfsdk:"generation_id"`
+	DeviceScope                types.String `tfsdk:"device_scope"`
+	ConnectionState            types.String `tfsdk:"connection_state"`
+	ConnectionStateUpdatedTime types.String `tfsdk:"connection_state_updated_time"`
+	LastActivityTime           types.String `tfsdk:"last_activity_time"`
+	StatusUpdatedTime          types.String `tfsdk:"status_updated_time"`
+	CloudToDeviceMessageCount  types.Int64  `tfsdk:"cloud_to_device_message_count"`
 }
-
-const (
-	defaultCreateTimeout = 20 * time.Minute
-	defaultReadTimeout   = 20 * time.Minute
-	defaultUpdateTimeout = 20 * time.Minute
-	defaultDeleteTimeout = 20 * time.Minute
-)
 
 func (r *deviceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_device"
@@ -138,9 +128,6 @@ func (r *deviceResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 				MarkdownDescription: "Number of cloud-to-device messages queued for the device.",
 				Computed:            true,
 			},
-		},
-		Blocks: map[string]schema.Block{
-			"timeouts": timeouts.Block(ctx, common.TimeoutsOpts("20m")),
 		},
 	}
 	for name, a := range identity.WriteOnlyKeyAttributes() {
@@ -241,14 +228,6 @@ func (r *deviceResource) Create(ctx context.Context, req resource.CreateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Create(ctx, defaultCreateTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -286,14 +265,6 @@ func (r *deviceResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Read(ctx, defaultReadTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, ok, diags := r.pd.Hub()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -341,14 +312,6 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := plan.Timeouts.Update(ctx, defaultUpdateTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -431,14 +394,6 @@ func (r *deviceResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	timeout, diags := state.Timeouts.Delete(ctx, defaultDeleteTimeout)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	c, diags := r.pd.HubOrError()
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

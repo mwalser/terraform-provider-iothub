@@ -356,7 +356,7 @@ data "iothub_device_twin" "test" {
 				ResourceName:            res,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"desired_properties", "timeouts"}, // import owns nothing
+				ImportStateVerifyIgnore: []string{"desired_properties"}, // import owns nothing
 			},
 			{
 				Config: iotacc.ProviderConfig() + `

@@ -131,7 +131,7 @@ resource "iothub_configuration" "test" {
 				ResourceName:            res,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"timeouts", "system_metrics", "metric_results", "last_updated_time"},
+				ImportStateVerifyIgnore: []string{"system_metrics", "metric_results", "last_updated_time"},
 			},
 		},
 	})
@@ -379,7 +379,7 @@ data "iothub_edge_deployment" "layer" {
 				ResourceName:            res,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"timeouts", "system_metrics", "metric_results", "last_updated_time"},
+				ImportStateVerifyIgnore: []string{"system_metrics", "metric_results", "last_updated_time"},
 			},
 			{ // an edge deployment cannot be read as a configuration
 				Config: cfg(12, regexp.MustCompile(`7200`).ReplaceAllString(edgeManifest, "3600")) + `

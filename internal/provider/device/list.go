@@ -96,7 +96,7 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 			result.DisplayName = dev.DeviceID
 			result.Diagnostics.Append(setIdentity(ctx, result.Identity, dev.DeviceID)...)
 			if req.IncludeResource {
-				m := resourceModel{Timeouts: common.NullTimeouts()}
+				m := resourceModel{}
 				m.PrimaryKeyWO, m.SecondaryKeyWO = types.StringNull(), types.StringNull()
 				m.PrimaryKeyWOVersion, m.SecondaryKeyWOVersion = types.Int64Null(), types.Int64Null()
 				setState(&m, dev, true, true)

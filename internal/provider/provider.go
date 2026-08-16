@@ -82,7 +82,8 @@ func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 			"and Device Provisioning Service enrollments.\n\n" +
 			"Authentication is Microsoft Entra ID by default, with the same arguments and environment variables as the `azurerm` " +
 			"provider. Setting `connection_string` switches to SAS authentication with a hub shared access policy. Throttled " +
-			"requests are retried automatically until the operation's timeout. The provider " +
+			"requests are retried automatically for up to 20 minutes per request; actions bound their whole invocation with " +
+			"`timeout`. The provider " +
 			"is at version 0.x: minor releases may still change attribute names and behaviour, and the changelog lists every " +
 			"such change.",
 		Attributes: map[string]schema.Attribute{

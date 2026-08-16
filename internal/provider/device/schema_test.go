@@ -30,8 +30,8 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 			t.Errorf("resource schema is missing %q", name)
 		}
 	}
-	if _, ok := rs.Schema.Blocks["timeouts"]; !ok {
-		t.Error("resource schema is missing the timeouts block")
+	if len(rs.Schema.Blocks) != 0 {
+		t.Error("resource schema must not declare blocks (no timeouts block: throttling retries have a fixed budget)")
 	}
 	if !rs.Schema.Attributes["primary_key_wo"].IsWriteOnly() || !rs.Schema.Attributes["primary_key_wo"].IsSensitive() {
 		t.Error("primary_key_wo must be write-only and sensitive")

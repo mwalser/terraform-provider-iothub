@@ -76,7 +76,6 @@ resource "iothub_edge_deployment" "temp_sensor" {
 - `labels` (Map of String) Free-form labels (string map).
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200`. Results are in `metric_results`.
 - `priority` (Number) Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base.
-- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
@@ -87,16 +86,6 @@ resource "iothub_edge_deployment" "temp_sensor" {
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `schema_version` (String) Version string of the IoT Edge deployment document as the hub reports it, if any. Tools such as the Azure CLI write `1.0`.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
-
-<a id="nestedblock--timeouts"></a>
-### Nested Schema for `timeouts`
-
-Optional:
-
-- `create` (String) How long to wait for the create to finish, including retries of throttled requests (default `20m`), for example `30m`.
-- `delete` (String) How long to wait for the delete to finish, including retries of throttled requests (default `20m`), for example `30m`.
-- `read` (String) How long to wait for the read to finish, including retries of throttled requests (default `20m`), for example `30m`.
-- `update` (String) How long to wait for the update to finish, including retries of throttled requests (default `20m`), for example `30m`.
 
 ## Import
 
