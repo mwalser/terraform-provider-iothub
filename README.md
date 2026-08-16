@@ -187,9 +187,10 @@ is set. Credentials come from repository **secrets**, either
 - `IOTHUB_CONNECTION_STRING` — a shared access policy of the test hub, or
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — an Entra ID
   application with a [federated credential for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust?pivots=identity-wif-apps-methods-azp#github-actions)
-  whose subject is `repo:<owner>/<repo>:environment:acceptance` (the job runs
-  in the `acceptance` environment, so one credential covers pushes to `main`,
-  release tags and manual runs) and *IoT Hub Data Contributor* on the hub.
+  whose subject is `repo:<owner>@<owner id>/<repo>@<repo id>:environment:acceptance`
+  (GitHub's default subject carries the IDs; the job runs in the `acceptance`
+  environment, so one credential covers pushes to `main`, release tags and
+  manual runs) and *IoT Hub Data Contributor* on the hub.
   The workflow logs in with `azure/login` and the provider uses that CLI
   session.
 
@@ -202,8 +203,10 @@ Releases are cut by pushing a tag `vX.Y.Z`. The `Release` workflow first
 runs the `Tests` workflow on that commit (build, lint, docs freshness, unit
 tests, and the acceptance suite when the test hub is configured) and only
 then builds all platforms with GoReleaser, signs the checksums and publishes
-a GitHub release. It needs the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` for the key
-whose public part is registered with the Terraform Registry. Bump
+a GitHub release. The GoReleaser job runs in the `release` environment, which holds
+the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` for the key whose public part
+is registered with the Terraform Registry, admits `v*` tags only and waits
+for approval. Bump
 `CHANGELOG.md` before tagging.
 
 ## License
