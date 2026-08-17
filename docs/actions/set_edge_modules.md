@@ -6,7 +6,7 @@ description: |-
   Sets the modules of one IoT Edge device immediately from a deployment manifest's modulesContent. This bypasses iothub_edge_deployment targeting and is the equivalent of az iot edge set-modules. Fails for a device that is not an IoT Edge device.
   Useful for one-off tests on a single gateway. For fleets, use iothub_edge_deployment.
   -> You can build modules_content with provider::iothub::edge_manifest instead of reading it from a file.
-  ~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed.
+  ~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it.
 ---
 
 # iothub_set_edge_modules (Action)
@@ -17,7 +17,7 @@ Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deplo
 
 -> You can build `modules_content` with `provider::iothub::edge_manifest` instead of reading it from a file.
 
-~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for example when the deployment is changed.
+~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it.
 
 ## Example Usage
 

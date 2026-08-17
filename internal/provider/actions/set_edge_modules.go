@@ -49,8 +49,7 @@ func (a *setEdgeModulesAction) Schema(_ context.Context, _ action.SchemaRequest,
 			"Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`.\n\n" +
 			"-> You can build `modules_content` with `provider::iothub::edge_manifest` instead of reading it from a " +
 			"file.\n\n" +
-			"~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for " +
-			"example when the deployment is changed.",
+			"~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it.",
 		Attributes: map[string]schema.Attribute{
 			"device_id": schema.StringAttribute{MarkdownDescription: "ID of the IoT Edge device.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"modules_content": schema.StringAttribute{
