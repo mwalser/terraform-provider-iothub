@@ -1,10 +1,10 @@
 ---
-page_title: "iothub Provider"
+page_title: "Azure IoT Hub Provider"
 description: |-
   Manages the Azure IoT Hub data plane: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play.
 ---
 
-# iothub Provider
+# Azure IoT Hub Provider
 
 Manages the Azure IoT Hub **data plane**: device and module identities, twins, automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play.
 

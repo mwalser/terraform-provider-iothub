@@ -13,4 +13,4 @@ import (
 
 // Generate the registry documentation under ../docs from the provider schema,
 // ../examples and ../templates.
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-dir .. -provider-name iothub
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-dir .. -provider-name iothub -rendered-provider-name "Azure IoT Hub"
