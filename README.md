@@ -22,7 +22,8 @@ What it manages:
   exactly the keys you declare and leaves the rest of the twin alone. Reported
   properties and the Plug and Play digital twin as data sources.
 - **Configurations** — `iothub_configuration` for automatic device management
-  and `iothub_edge_deployment` for IoT Edge, including layered deployments.
+  and `iothub_edge_deployment` for IoT Edge, including layered deployments;
+  `provider::iothub::edge_manifest` builds deployment manifests from HCL.
 - **Actions** — direct methods (including Plug and Play commands), scheduled
   twin and method jobs, bulk import and export, setting the modules of one
   edge device, purging a device's cloud-to-device queue, cancelling jobs.

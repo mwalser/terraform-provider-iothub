@@ -1,3 +1,9 @@
+## 1.1.0 (Unreleased)
+
+FEATURES:
+
+* **New Function:** `edge_manifest` — builds the `modules_content` of `iothub_edge_deployment` and `iothub_set_edge_modules` from an object: system modules, registry credentials, modules with `create_options`, `env` and twin `desired` properties as objects, routes with priority and TTL, store-and-forward settings and layered deployments; unknown keys, wrong types and invalid names or values are errors at plan time
+
 ## 1.0.1 (August 17, 2026)
 
 ENHANCEMENTS:
