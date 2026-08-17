@@ -1,3 +1,13 @@
+## 1.0.1 (August 17, 2026)
+
+ENHANCEMENTS:
+
+* resource/iothub_edge_deployment, action/iothub_set_edge_modules: a whole deployment manifest passed as `modules_content` is reported as such, with the expression that extracts its `modulesContent` object
+
+NOTES:
+
+* Documentation: shorter provider page and attribute descriptions; examples fit the Registry page width, use heredocs for queries and read `modules_content` from a modules-only `modules.json`
+
 ## 1.0.0 (August 16, 2026)
 
 First release. The surface below is the 1.x contract: resource, data source,
