@@ -12,7 +12,10 @@ resource "iothub_configuration" "fw_channel" {
   labels           = { owner = "platform", release = var.release }
 
   device_content = jsonencode({
-    "properties.desired.firmware" = { channel = "stable", release = var.release }
+    "properties.desired.firmware" = {
+      channel = "stable"
+      release = var.release
+    }
   })
 
   lifecycle {
@@ -20,7 +23,10 @@ resource "iothub_configuration" "fw_channel" {
   }
 
   metrics = {
-    applied = "SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'"
+    applied = <<-EOT
+      SELECT deviceId FROM devices
+      WHERE properties.reported.firmware.channel = 'stable'
+    EOT
   }
 }
 

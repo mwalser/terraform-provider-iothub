@@ -116,8 +116,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	if r.kind.isEdge() {
 		attrs["modules_content"] = schema.StringAttribute{
 			CustomType: ModulesContentType,
-			MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON, for example " +
-				"`jsonencode(jsondecode(file(\"deployment.json\")).modulesContent)`. It holds `$edgeAgent` and `$edgeHub` with their " +
+			MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON: `$edgeAgent` and `$edgeHub` with their " +
 				"`properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries " +
 				"under `$edgeAgent`. **Changing it replaces the deployment.**",
 			Required:      true,
@@ -130,9 +129,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version " +
 			"in `deployment_id` and use " +
 			"`lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against " +
-			"the hub at plan time where possible.\n\n" +
-			"Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment " +
-			"targets them."
+			"the hub at plan time where possible."
 	} else {
 		attrs["device_content"] = schema.StringAttribute{
 			CustomType: ContentType,
@@ -157,9 +154,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a " +
 			"configuration, put a version in " +
 			"`configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` " +
-			"queries are checked against the hub at plan time where possible.\n\n" +
-			"Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until " +
-			"another configuration or a twin resource changes them."
+			"queries are checked against the hub at plan time where possible."
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: description,

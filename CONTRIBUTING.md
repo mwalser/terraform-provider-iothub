@@ -47,6 +47,9 @@ Leave out:
 - REST paths, HTTP methods, status codes and service error codes; ETag,
   `If-Match`, retry, polling and refresh mechanics.
 - Evidence phrasing ("verified", "the service answers …", "the hub silently …").
+- What the hub does on its own, outside the provider's control (what happens
+  to devices after a configuration is deleted). Azure documents its service;
+  we document the provider.
 - Tiers, quotas, rates, limits and prices — link Azure's documentation where a
   limit changes what the user must do.
 - Design rationale ("by design", "no knob", "lossless", references to
@@ -65,6 +68,8 @@ Leave out:
   in the summary, and is written once. Example comments say only what the
   code does not show.
 - Filler ("Two short examples.", "as the example shows").
+- What something is not ("is an error, not a fallback"). Say what happens
+  and stop.
 
 Style: a one- or two-sentence summary, then the attributes. Plain language
 over service jargon ("if the device is offline", not "404 `DeviceNotOnline`").

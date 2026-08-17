@@ -3,5 +3,8 @@ data "iothub_import_export_job" "export" {
 }
 
 output "export_status" {
-  value = "${data.iothub_import_export_job.export.status} (${data.iothub_import_export_job.export.progress}%)"
+  value = {
+    status   = data.iothub_import_export_job.export.status
+    progress = data.iothub_import_export_job.export.progress
+  }
 }

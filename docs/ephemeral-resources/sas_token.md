@@ -23,7 +23,7 @@ ephemeral "iothub_sas_token" "sensor" {
   ttl       = "24h"
 }
 
-# The secret is rewritten (with a fresh token) on the first apply of each hour.
+# The secret is rewritten with a fresh token on the first apply of each hour.
 resource "azurerm_key_vault_secret" "sensor_token" {
   name             = "sensor-0001-sas"
   key_vault_id     = azurerm_key_vault.devices.id

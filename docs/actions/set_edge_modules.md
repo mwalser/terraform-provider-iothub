@@ -25,16 +25,17 @@ resource "iothub_device" "gateway" {
   authentication = { type = "certificateAuthority" }
 }
 
-# Push a manifest to a single lab gateway right away (like `az iot edge set-modules`).
+# Push a manifest to a single lab gateway right away (like
+# `az iot edge set-modules`).
 action "iothub_set_edge_modules" "lab" {
   config {
     device_id       = iothub_device.gateway.device_id
-    modules_content = jsonencode(jsondecode(file("${path.module}/deployment.json")).modulesContent)
+    modules_content = file("${path.module}/modules.json")
   }
 }
 
 resource "terraform_data" "lab_release" {
-  input = filesha256("${path.module}/deployment.json")
+  input = filesha256("${path.module}/modules.json")
 
   lifecycle {
     action_trigger {

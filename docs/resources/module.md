@@ -40,20 +40,20 @@ resource "iothub_module" "updater" {
 }
 
 # Keys that never enter state. Bump the version to rotate.
-ephemeral "random_bytes" "diagnostics_primary" {
+ephemeral "random_bytes" "logger_primary" {
   length = 32
 }
 
-ephemeral "random_bytes" "diagnostics_secondary" {
+ephemeral "random_bytes" "logger_secondary" {
   length = 32
 }
 
-resource "iothub_module" "diagnostics" {
+resource "iothub_module" "logger" {
   device_id                = iothub_device.sensor.device_id
-  module_id                = "diagnostics"
-  primary_key_wo           = ephemeral.random_bytes.diagnostics_primary.base64
+  module_id                = "logger"
+  primary_key_wo           = ephemeral.random_bytes.logger_primary.base64
   primary_key_wo_version   = 1
-  secondary_key_wo         = ephemeral.random_bytes.diagnostics_secondary.base64
+  secondary_key_wo         = ephemeral.random_bytes.logger_secondary.base64
   secondary_key_wo_version = 1
 }
 ```

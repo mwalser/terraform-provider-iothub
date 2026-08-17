@@ -30,7 +30,7 @@ resource "iothub_device" "gateway" {
   }
 }
 
-# A downstream (leaf) device behind the gateway, using a self-signed certificate.
+# A downstream device behind the gateway, using a self-signed certificate.
 resource "iothub_device" "downstream" {
   device_id    = "sensor-0002"
   parent_scope = iothub_device.gateway.device_scope

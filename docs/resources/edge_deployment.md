@@ -5,7 +5,6 @@ subcategory: "Configurations and deployments"
 description: |-
   An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches target_condition, in order of priority. A deployment is layered when its $edgeAgent content sets properties.desired.modules.<name> keys instead of a full properties.desired.
   Changing modules_content replaces the deployment. The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version in deployment_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time where possible.
-  Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment targets them.
 ---
 
 # iothub_edge_deployment (Resource)
@@ -13,8 +12,6 @@ description: |-
 An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches `target_condition`, in order of `priority`. A deployment is layered when its `$edgeAgent` content sets `properties.desired.modules.<name>` keys instead of a full `properties.desired`.
 
 **Changing `modules_content` replaces the deployment.** The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version in `deployment_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time where possible.
-
-Destroying a deployment does not touch the devices. They keep the last applied manifest until another deployment targets them.
 
 ## Example Usage
 
@@ -32,10 +29,14 @@ resource "iothub_edge_deployment" "base" {
   priority         = 10
   labels           = { release = var.release }
 
-  modules_content = jsonencode(jsondecode(file("${path.module}/deployment.json")).modulesContent)
+  modules_content = file("${path.module}/modules.json")
 
   metrics = {
-    healthy = "SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200"
+    healthy = <<-EOT
+      SELECT deviceId FROM devices.modules
+      WHERE moduleId = '$edgeHub'
+        AND properties.reported.lastDesiredStatus.code = 200
+    EOT
   }
 
   lifecycle {
@@ -54,7 +55,9 @@ resource "iothub_edge_deployment" "temp_sensor" {
         type          = "docker"
         status        = "running"
         restartPolicy = "always"
-        settings      = { image = "mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.4" }
+        settings = {
+          image = "mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.4"
+        }
       }
     }
   })
@@ -71,7 +74,7 @@ resource "iothub_edge_deployment" "temp_sensor" {
 ### Required
 
 - `deployment_id` (String) IoT Edge deployment ID: 1 to 128 characters from `a-z 0-9 - + % _ * ! '`, lowercase only. It must be unique among all configurations and IoT Edge deployments of the hub. Changing it replaces the IoT Edge deployment.
-- `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON, for example `jsonencode(jsondecode(file("deployment.json")).modulesContent)`. It holds `$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries under `$edgeAgent`. **Changing it replaces the deployment.**
+- `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON: `$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries under `$edgeAgent`. **Changing it replaces the deployment.**
 - `target_condition` (String) Which IoT Edge devices the deployment targets. A query condition over `deviceId`, `tags` and `properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices.
 
 ### Optional

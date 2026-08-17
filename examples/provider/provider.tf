@@ -8,21 +8,24 @@ terraform {
   }
 }
 
-# Entra ID by default, configured like azurerm: ARM_* variables, use_oidc,
-# use_msi or the Azure CLI login. See Authentication below.
 provider "iothub" {
   hostname = "contoso-prod.azure-devices.net"
 }
 
-# A shared access policy instead:
-#
-# provider "iothub" {
-#   connection_string = azurerm_iothub_shared_access_policy.terraform.primary_connection_string
-# }
+resource "iothub_device" "gateway" {
+  device_id    = "gw-munich-01"
+  edge_enabled = true
+}
 
-# A second hub, selected on resources with `provider = iothub.staging`:
-#
-# provider "iothub" {
-#   alias    = "staging"
-#   hostname = "contoso-staging.azure-devices.net"
-# }
+resource "iothub_device" "sensor" {
+  device_id    = "sensor-0001"
+  parent_scope = iothub_device.gateway.device_scope
+}
+
+resource "iothub_device_twin" "sensor" {
+  device_id = iothub_device.sensor.device_id
+  tags      = jsonencode({ site = "munich" })
+  desired_properties = jsonencode({
+    telemetryIntervalSec = 60
+  })
+}

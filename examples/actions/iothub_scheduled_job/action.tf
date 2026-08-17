@@ -4,14 +4,17 @@ variable "release" {
 }
 
 # Roll a desired-property change out to a fleet on every release. The job ID
-# carries the release because an ID cannot be reused while the hub remembers it.
+# carries the release because an ID cannot be reused while the hub remembers
+# it.
 action "iothub_scheduled_job" "fw_channel" {
   config {
-    job_id                     = "fw-channel-${replace(var.release, ".", "-")}"
+    job_id                     = "firmware-${replace(var.release, ".", "-")}"
     query_condition            = "tags.fleet.region = 'eu'"
     max_execution_time_seconds = 3600
     twin_patch = {
-      desired_properties = jsonencode({ firmware = { channel = "stable", version = var.release } })
+      desired_properties = jsonencode({
+        firmware = { channel = "stable", version = var.release }
+      })
     }
   }
 }
@@ -26,10 +29,11 @@ resource "terraform_data" "release" {
   }
 }
 
-# Reboot every gateway of a site eight hours from now, without waiting.
+# Reboot every gateway of a site eight hours from now, without waiting:
+#   terraform apply -invoke=action.iothub_scheduled_job.reboot_gateways
 action "iothub_scheduled_job" "reboot_gateways" {
   config {
-    job_id          = "reboot-gateways-${formatdate("YYYY-MM-DD", plantimestamp())}"
+    job_id          = "reboot-${formatdate("YYYY-MM-DD", plantimestamp())}"
     query_condition = "tags.site = 'munich' AND capabilities.iotEdge = true"
     start_time      = timeadd(plantimestamp(), "8h") # at most 7 days ahead
     method = {

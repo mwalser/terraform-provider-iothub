@@ -5,7 +5,6 @@ subcategory: "Configurations and deployments"
 description: |-
   An automatic device management configuration. The hub applies its desired properties to every device or module that matches target_condition, in order of priority.
   Changing device_content or module_content replaces the configuration. The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time where possible.
-  Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 ---
 
 # iothub_configuration (Resource)
@@ -13,8 +12,6 @@ description: |-
 An automatic device management configuration. The hub applies its desired properties to every device or module that matches `target_condition`, in order of `priority`.
 
 **Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time where possible.
-
-Destroying a configuration does not touch the devices. The desired properties it applied stay in the twins until another configuration or a twin resource changes them.
 
 ## Example Usage
 
@@ -33,7 +30,10 @@ resource "iothub_configuration" "fw_channel" {
   labels           = { owner = "platform", release = var.release }
 
   device_content = jsonencode({
-    "properties.desired.firmware" = { channel = "stable", release = var.release }
+    "properties.desired.firmware" = {
+      channel = "stable"
+      release = var.release
+    }
   })
 
   lifecycle {
@@ -41,7 +41,10 @@ resource "iothub_configuration" "fw_channel" {
   }
 
   metrics = {
-    applied = "SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'"
+    applied = <<-EOT
+      SELECT deviceId FROM devices
+      WHERE properties.reported.firmware.channel = 'stable'
+    EOT
   }
 }
 

@@ -11,10 +11,14 @@ resource "iothub_edge_deployment" "base" {
   priority         = 10
   labels           = { release = var.release }
 
-  modules_content = jsonencode(jsondecode(file("${path.module}/deployment.json")).modulesContent)
+  modules_content = file("${path.module}/modules.json")
 
   metrics = {
-    healthy = "SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200"
+    healthy = <<-EOT
+      SELECT deviceId FROM devices.modules
+      WHERE moduleId = '$edgeHub'
+        AND properties.reported.lastDesiredStatus.code = 200
+    EOT
   }
 
   lifecycle {
@@ -33,7 +37,9 @@ resource "iothub_edge_deployment" "temp_sensor" {
         type          = "docker"
         status        = "running"
         restartPolicy = "always"
-        settings      = { image = "mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.4" }
+        settings = {
+          image = "mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.4"
+        }
       }
     }
   })

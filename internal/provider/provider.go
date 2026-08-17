@@ -74,15 +74,10 @@ func (p *IoTHubProvider) Metadata(_ context.Context, _ provider.MetadataRequest,
 func (p *IoTHubProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages the Azure IoT Hub **data plane**: device and module identities, twins, " +
-			"automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play. " +
-			"The hub itself, and everything else under Azure Resource Manager, is managed with the `azurerm` provider.\n\n" +
-			"Requirements: Terraform 1.14 or later, an IoT Hub in the Azure public cloud (no sovereign clouds), and an " +
-			"Entra ID identity with an IoT Hub data-plane role on the hub or a shared access policy connection string.\n\n" +
-			"Not covered: sending cloud-to-device messages, receiving feedback or file-upload notifications, file upload, " +
-			"and Device Provisioning Service enrollments.",
+			"automatic device management configurations, IoT Edge deployments, jobs, direct methods and Plug and Play.",
 		Attributes: map[string]schema.Attribute{
 			"hostname": schema.StringAttribute{
-				MarkdownDescription: "Hostname of the IoT Hub, in lowercase, for example `contoso.azure-devices.net`. Falls back to " +
+				MarkdownDescription: "Hostname of the IoT Hub, in lowercase, for example `contoso.azure-devices.net` (Azure public cloud only). Falls back to " +
 					"`IOTHUB_HOSTNAME`. Optional when `connection_string` is set: it is then taken from the connection string, " +
 					"and both must name the same hub if given.",
 				Optional:   true,

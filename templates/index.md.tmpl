@@ -14,19 +14,9 @@ description: |-
 
 ## Authentication
 
-The provider uses Entra ID by default, with the argument names and `ARM_*`
-variables of the `azurerm` provider (the Azure SDK's `AZURE_*` variables work
-too), or a hub shared access policy (SAS) when `connection_string` is set. The identity
-needs an IoT Hub **data-plane** role at hub scope. `Owner` and `Contributor`
-are not enough.
-
-- An argument in the provider block wins over `ARM_*` variables, which win
-  over `AZURE_*` variables.
-- The first method whose inputs are present is used, in the order of the
-  table.
-- A method that is switched on but incomplete is an error, not a fallback to
-  the Azure CLI. Set `use_cli = false` in CI so that a missing configuration
-  fails instead of using a developer's login.
+The first method whose inputs are present is used, in this order. An
+argument in the provider block wins over its `ARM_*` variable, which wins over
+the `AZURE_*` one.
 
 | Method | Set | Also needed | Environment |
 |---|---|---|---|
@@ -40,33 +30,9 @@ are not enough.
 | Azure CLI | nothing (`use_cli` defaults to `true`) | an `az login` session | `ARM_USE_CLI=false` disables it |
 | Shared access policy | `connection_string` | nothing; `hostname` is taken from it | `IOTHUB_CONNECTION_STRING` |
 
-A GitHub Actions job:
-
-```yaml
-permissions:
-  id-token: write
-  contents: read
-env:
-  ARM_USE_OIDC: "true"
-  ARM_CLIENT_ID: <application (client) ID>
-  ARM_TENANT_ID: <tenant ID>
-```
-
-An Azure DevOps task:
-
-```yaml
-- task: AzureCLI@2
-  env:
-    ARM_USE_OIDC: "true"
-    ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID: <service connection ID>
-    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-    SYSTEM_OIDCREQUESTURI: $(System.OidcRequestUri)
-```
-
-The Azure side (app registration, federated credential, role assignment) is
-the same as for `azurerm`, so its
-[authentication guides](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_oidc)
-apply.
+A method that is switched on but incomplete is an error. Set `use_cli = false`
+in CI so that a missing configuration fails instead of using a developer's
+login.
 
 ### Permissions
 
@@ -79,14 +45,5 @@ policy (SAS). Narrower permissions work for subsets:
 | Twins (`iothub_*_twin`), `iothub_digital_twin`, `iothub_query` | *IoT Hub Twin Contributor*, or *Data Reader* for read-only use | ServiceConnect |
 | The `iothub_device` and `iothub_module` list resources (they query twins, then read the identities) | *IoT Hub Data Reader* | RegistryRead, ServiceConnect |
 | Configurations and deployments (resources, data sources, list resources), jobs, direct methods, queue purge, statistics | *IoT Hub Data Contributor* | RegistryRead, RegistryWrite, ServiceConnect |
-
-## Hubs
-
-One provider block manages one hub. Use aliases for several. If the hub is
-created in the same configuration, `hostname = azurerm_iothub.x.hostname` is
-unknown during the first plan. Resources are then planned without contacting
-the hub and applied once it exists. Data sources report an error on that
-first run, so apply the hub first or keep them in a configuration that runs
-after the hub exists.
 
 {{ .SchemaMarkdown | trimspace }}

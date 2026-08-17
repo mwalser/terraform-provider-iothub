@@ -66,6 +66,9 @@ func TestContentTypes(t *testing.T) {
 	if !check(ModulesContentType, `{"$edgeAgent":"nope"}`) || !check(ModulesContentType, `{"$edgeAgent":{"tags.x":1}}`) {
 		t.Error("bad module entries accepted")
 	}
+	if !check(ModulesContentType, `{"modulesContent":{"$edgeAgent":{}}}`) || !check(ModulesContentType, `{"content":{"modulesContent":{"$edgeAgent":{}}}}`) {
+		t.Error("whole manifest accepted")
+	}
 }
 
 func TestIDPatternAndDiff(t *testing.T) {

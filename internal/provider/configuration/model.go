@@ -90,6 +90,9 @@ var ContentType = jsondoc.Type{Name: "configuration_content", Validate: func(doc
 var ModulesContentType = jsondoc.Type{Name: "modules_content", Validate: func(doc map[string]any) []string {
 	var out []string
 	if _, ok := doc["$edgeAgent"]; !ok {
+		if wrapped(doc) {
+			return []string{"this is a whole deployment manifest; pass its `modulesContent` object: `jsonencode(jsondecode(file(\"deployment.json\")).modulesContent)`"}
+		}
 		out = append(out, "modules_content must contain `$edgeAgent` (the service rejects deployments without it; layered deployments carry their `properties.desired.modules.<name>` entries under `$edgeAgent` too)")
 	}
 	for _, k := range sortedKeys(doc) {
@@ -106,6 +109,21 @@ var ModulesContentType = jsondoc.Type{Name: "modules_content", Validate: func(do
 	}
 	return out
 }}
+
+// wrapped reports whether doc is a whole deployment manifest
+// ({"modulesContent": …} or {"content": {"modulesContent": …}}) rather than
+// its modulesContent object.
+func wrapped(doc map[string]any) bool {
+	if _, ok := doc["modulesContent"]; ok {
+		return true
+	}
+	c, ok := doc["content"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, ok = c["modulesContent"]
+	return ok
+}
 
 func sortedKeys(m map[string]any) []string {
 	out := make([]string, 0, len(m))
