@@ -47,6 +47,8 @@ func (a *setEdgeModulesAction) Schema(_ context.Context, _ action.SchemaRequest,
 			"This bypasses `iothub_edge_deployment` targeting and is the equivalent of `az iot edge set-modules`. Fails for a " +
 			"device that is not an IoT Edge device.\n\n" +
 			"Useful for one-off tests on a single gateway. For fleets, use `iothub_edge_deployment`.\n\n" +
+			"-> You can build `modules_content` with `provider::iothub::edge_manifest` instead of reading it from a " +
+			"file.\n\n" +
 			"~> A deployment that targets the device applies its own manifest again the next time the hub evaluates it, for " +
 			"example when the deployment is changed.",
 		Attributes: map[string]schema.Attribute{

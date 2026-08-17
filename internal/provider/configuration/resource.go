@@ -125,6 +125,8 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		description = "An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every " +
 			"IoT Edge device that matches `target_condition`, in order of `priority`. A deployment is layered when its " +
 			"`$edgeAgent` content sets `properties.desired.modules.<name>` keys instead of a full `properties.desired`.\n\n" +
+			"-> You can build `modules_content` with `provider::iothub::edge_manifest` instead of reading it from a " +
+			"file.\n\n" +
 			"**Changing `modules_content` replaces the deployment.** The content is compared by value: reformatting it plans an " +
 			"in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version " +
 			"in `deployment_id` and use " +

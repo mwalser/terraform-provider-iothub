@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
+	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/list"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -21,6 +22,7 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/configuration"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/device"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/edgemanifest"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/jobs"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/module"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/query"
@@ -34,6 +36,7 @@ var (
 	_ provider.ProviderWithEphemeralResources = &IoTHubProvider{}
 	_ provider.ProviderWithActions            = &IoTHubProvider{}
 	_ provider.ProviderWithListResources      = &IoTHubProvider{}
+	_ provider.ProviderWithFunctions          = &IoTHubProvider{}
 )
 
 // IoTHubProvider is the provider implementation.
@@ -365,6 +368,12 @@ func (p *IoTHubProvider) Actions(_ context.Context) []func() action.Action {
 		actions.NewScheduledJobAction,
 		actions.NewImportExportJobAction,
 		actions.NewCancelJobAction,
+	}
+}
+
+func (p *IoTHubProvider) Functions(_ context.Context) []func() function.Function {
+	return []func() function.Function{
+		edgemanifest.New,
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
@@ -49,5 +50,29 @@ func TestProvider_Schema(t *testing.T) {
 	p.Metadata(ctx, provider.MetadataRequest{}, &meta)
 	if meta.TypeName != "iothub" {
 		t.Errorf("type name = %q, want iothub", meta.TypeName)
+	}
+}
+
+func TestProvider_Functions(t *testing.T) {
+	ctx := context.Background()
+	p, ok := New("test")().(provider.ProviderWithFunctions)
+	if !ok {
+		t.Fatal("provider does not serve functions")
+	}
+	var names []string
+	for _, f := range p.Functions(ctx) {
+		var meta function.MetadataResponse
+		f().Metadata(ctx, function.MetadataRequest{}, &meta)
+		names = append(names, meta.Name)
+		var def function.DefinitionResponse
+		f().Definition(ctx, function.DefinitionRequest{}, &def)
+		var valid function.DefinitionValidateResponse
+		def.Definition.ValidateImplementation(ctx, function.DefinitionValidateRequest{FuncName: meta.Name}, &valid)
+		if valid.Diagnostics.HasError() {
+			t.Errorf("function %q: %v", meta.Name, valid.Diagnostics)
+		}
+	}
+	if len(names) != 1 || names[0] != "edge_manifest" {
+		t.Errorf("functions = %v, want [edge_manifest]", names)
 	}
 }

@@ -3,7 +3,7 @@
 page_title: "{{.Name}} {{.Type}} - {{.RenderedProviderName}}"
 subcategory: "{{ if eq .Name "iothub_device_twin" "iothub_module_twin" "iothub_digital_twin" }}Twins{{ else if eq .Name "iothub_configuration" "iothub_edge_deployment" "iothub_set_edge_modules" "edge_manifest" }}Configurations and deployments{{ else if eq .Name "iothub_scheduled_job" "iothub_import_export_job" "iothub_cancel_job" }}Jobs{{ else if eq .Name "iothub_query" "iothub_statistics" }}Hub{{ else }}Devices and modules{{ end }}"
 description: |-
-{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+{{ .Summary | plainmarkdown | trimspace | prefixlines "  " }}
 ---
 
 # {{.Name}} ({{.Type}})
@@ -19,4 +19,13 @@ description: |-
 {{- end }}
 {{- end }}
 
-{{ .SchemaMarkdown | trimspace }}
+## Signature
+
+{{ .FunctionSignatureMarkdown }}
+
+## Arguments
+
+{{ .FunctionArgumentsMarkdown }}
+{{- if .HasVariadic }}
+{{ .FunctionVariadicArgumentMarkdown }}
+{{- end }}

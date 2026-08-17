@@ -69,7 +69,7 @@ func validate(doc map[string]any, allowNullLeaves bool) []Problem {
 				return
 			}
 			for k, c := range t {
-				if msg := checkKey(k); msg != "" {
+				if msg := CheckKey(k); msg != "" {
 					out = append(out, Problem{p.child(k), msg})
 				}
 				walk(p.child(k), c)
@@ -77,7 +77,7 @@ func validate(doc map[string]any, allowNullLeaves bool) []Problem {
 		}
 	}
 	for k, v := range doc {
-		if msg := checkKey(k); msg != "" {
+		if msg := CheckKey(k); msg != "" {
 			out = append(out, Problem{Path{k}, msg})
 		}
 		walk(Path{k}, v)
@@ -85,7 +85,8 @@ func validate(doc map[string]any, allowNullLeaves bool) []Problem {
 	return out
 }
 
-func checkKey(k string) string {
+// CheckKey reports why k is not a valid twin key, or "" if it is.
+func CheckKey(k string) string {
 	if len(k) > MaxKeyBytes {
 		return fmt.Sprintf("key is %d bytes, the maximum is %d", len(k), MaxKeyBytes)
 	}
