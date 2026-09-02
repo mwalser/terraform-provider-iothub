@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | Design record — v1.0, 2026-08-16 (decisions resolved, §14; verified against a live hub, Appendix D; fully implemented and released as 1.0.0). 1.1 adds the `edge_manifest` function (§6.6, 2026-08-17). |
+| Status | Design record — v1.0, 2026-08-16 (decisions resolved, §14; verified against a live hub, Appendix D; fully implemented and released as 1.0.0). 1.1 adds the `edge_manifest` function (§6.6, 2026-08-17); 1.1.1 keeps the resource identity when a vanished object is dropped from state (Appendix D, 2026-09-02). |
 | Scope | IoT Hub **Service REST API** (`https://<hub>.azure-devices.net`, `api-version=2021-04-12`) |
 | Out of scope | Everything under Azure Resource Manager (`Microsoft.Devices/*`), the device-side Messaging API, AMQP-only operations, sovereign clouds |
 | Name | `terraform-provider-iothub`, registry `<namespace>/iothub`, resource prefix `iothub_` |
@@ -532,7 +532,7 @@ The reliable discriminator is the **`iothub-errorcode` response header**; bodies
 | HTTP / `iothub-errorcode` | Provider behaviour |
 |---|---|
 | 401 `IotHubUnauthorizedAccess` / 403 | Error naming the required data action / role (Appendix C), the auth mode in use, and the fact that `Owner`/`Contributor` carry no data actions. |
-| 404 `DeviceNotFound` (also for module twins), `ModuleNotFound`, `ConfigurationNotFound` | Read: remove from state. Delete: success. |
+| 404 `DeviceNotFound` (also for module twins), `ModuleNotFound`, `ConfigurationNotFound` | Read: remove from state, identity kept (Appendix D, resource identity). Delete: success. |
 | 409 `DeviceAlreadyExists`, `ModuleAlreadyExistsOnDevice`, `ConfigurationAlreadyExists` on create | "exists — import with `terraform import iothub_device.x <id>`". |
 | 412 `PreconditionFailed` ("Etag missing" / "ETag mismatch") on update | Conflict inspection (§11.1); if the written fields differ: field-level message and "run `terraform plan` again". |
 | 429 `ThrottlingBacklogTimeout`, 503 | Retried within the operation timeout (10 s base, jitter); if the budget is exhausted the error names the operation type from the service message, the tier limit and the time spent waiting. |
@@ -790,6 +790,7 @@ Verified against an F1 hub in West Europe with `api-version=2021-04-12`, using r
 | Query ghosts | A device deleted 25 min earlier still returned by `SELECT … FROM devices` while `GET` is 404 | List resources confirm with `GET` |
 | Scope updates | Edge device: omitting/blanking own `deviceScope` on `PUT` → 400 "Device scope is immutable"; `parentScopes` omitted or `[]` detaches; leaf→edge: `deviceScope: ""` (+ `parentScopes` keeps the parent; sending the parent scope as `deviceScope` → 503); edge→leaf: parent lost unless attached in a second write | Spec builder echoes the own scope; two-step edge→leaf with parent (§6.1) |
 | Actions & list (Terraform 1.15) | Write-only attributes are rejected in action configuration ("WriteOnly Attribute Not Allowed"); `action_trigger` does not gate dependents of the triggering resource (a data source depending on it is read concurrently with the action); actions are invocable ad hoc with `terraform apply -invoke`; `terraform query` needs resource identity on the managed resource; `managedBy` is not part of the module twin and therefore not queryable | Job container URIs are plain attributes; job results are read in a later plan/apply; identity added to the four listable resources |
+| Resource identity (Terraform 1.11.4 / 1.16.0, framework 1.19.0; 2026-09-02) | The framework fails a read that returns no identity, also one that removes a vanished object (`Missing Resource Identity After Read`, "always an issue in the Terraform Provider"). Terraform ≥ 1.12 sends the stored identity and the framework returns it unchanged; Terraform ≤ 1.11 sends none, and state written by it carries none after an upgrade, so only the deleted-outside-Terraform path failed (user report, reproduced) | Read sets the identity from prior state before removing the object; unit tests read every identity-bearing resource against a 404 hub without a current identity (`providertest.ReadGone`) |
 | Ephemeral timing | Terraform 1.15 opens ephemeral resources at plan when inputs are known; `depends_on` does not defer; `DeferralAllowed` is false by default; unknown results at plan are accepted and re-opened at apply | `iothub_device_credentials` returns unknowns + warning for a not-yet-existing device (§8) |
 | Throttling | 250 registry reads / 10.5 s all 200 (p90 1.2 s, max 3.2 s); configuration writes shaped to ≈1/s; 429 has **no `Retry-After`**, message says "Wait 10 seconds", `connection: close` | 10 s base backoff; generous HTTP timeout |
 | Statistics | Lag: deleted devices still counted, connected count 0 while connected | Data source documented as approximate |

@@ -331,6 +331,10 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if err != nil {
 		if client.IsNotFound(err) {
 			tflog.Info(ctx, "IoT Hub "+r.kind.noun()+" no longer exists; removing from state", map[string]any{"id": state.ConfigurationID.ValueString()})
+			// The identity is returned even though the object is gone: the
+			// framework rejects a read without one, and Terraform before 1.12
+			// (or state written by it) supplies none to fall back on.
+			resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, state.ConfigurationID.ValueString())...)
 			resp.State.RemoveResource(ctx)
 			return
 		}

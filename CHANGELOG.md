@@ -1,3 +1,9 @@
+## 1.1.1 (Unreleased)
+
+BUG FIXES:
+
+* resource/iothub_device, resource/iothub_module, resource/iothub_configuration, resource/iothub_edge_deployment: refreshing an object that was deleted outside Terraform failed with `Missing Resource Identity After Read` on Terraform versions before 1.12 and on state written by them
+
 ## 1.1.0 (August 17, 2026)
 
 FEATURES:
