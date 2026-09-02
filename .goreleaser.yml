@@ -60,5 +60,8 @@ release:
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
   # If you want to manually examine the release before its live, uncomment this line:
   # draft: true
+# The changelog pipe stays enabled: it is what loads the notes the release
+# workflow passes with --release-notes (the tag's CHANGELOG.md section).
+# `disable: true` would publish an empty body instead.
 changelog:
-  disable: true
+  disable: false
