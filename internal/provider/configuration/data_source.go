@@ -88,7 +88,7 @@ func (d *configDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 		"metric_results":    schema.MapAttribute{MarkdownDescription: "Latest results of the custom `metrics`, by name.", ElementType: types.Int64Type, Computed: true},
 	}
 	if d.kind.isEdge() {
-		attrs["modules_content"] = c("The deployment's `modulesContent` as a JSON string.")
+		attrs["modules_content"] = c("The deployment's `modulesContent` as a JSON string. The hub returns resolved values rather than secret placeholders, so this attribute can contain secrets.")
 	} else {
 		attrs["device_content"] = c("Device twin content as a JSON string. Null for module configurations.")
 		attrs["module_content"] = c("Module twin content as a JSON string. Null for device configurations.")

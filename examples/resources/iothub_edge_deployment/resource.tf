@@ -3,7 +3,14 @@ variable "release" {
   default = "1.4.0"
 }
 
-# A base deployment from a standard deployment manifest file.
+variable "acr_password" {
+  type      = string
+  sensitive = true
+}
+
+# A base deployment from a standard deployment manifest file. The registry
+# password in the file is the placeholder "{{secret.acr}}"; its value comes
+# from the write-only secrets_wo map.
 resource "iothub_edge_deployment" "base" {
   # Versioned ID + create_before_destroy: no window without a deployment.
   deployment_id    = "base-${replace(var.release, ".", "-")}"
@@ -12,6 +19,7 @@ resource "iothub_edge_deployment" "base" {
   labels           = { release = var.release }
 
   modules_content = file("${path.module}/modules.json")
+  secrets_wo      = { acr = var.acr_password }
 
   metrics = {
     healthy = <<-EOT

@@ -17,7 +17,7 @@ resource "iothub_edge_deployment" "base" {
       acr = {
         address  = "contoso.azurecr.io"
         username = "contoso"
-        password = var.acr_password
+        password = "{{secret.acr}}" # Defined in secrets_wo below
       }
     }
     edge_agent = { image = "mcr.microsoft.com/azureiotedge-agent:1.5" }
@@ -43,6 +43,7 @@ resource "iothub_edge_deployment" "base" {
     }
     store_and_forward = { time_to_live_secs = 3600 }
   })
+  secrets_wo = { acr = var.acr_password }
 
   lifecycle {
     create_before_destroy = true

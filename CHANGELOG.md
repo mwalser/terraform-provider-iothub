@@ -1,3 +1,10 @@
+## 1.2.0 (Unreleased)
+
+FEATURES:
+
+* resource/iothub_edge_deployment: new write-only `secrets_wo` map. Use `{{secret.<name>}}` as a whole string value in `modules_content` to keep registry passwords and module secrets out of state and plan without hiding the rest of the document's diff
+* action/iothub_set_edge_modules: new `secrets` map supports the same placeholders
+
 ## 1.1.1 (September 2, 2026)
 
 BUG FIXES:

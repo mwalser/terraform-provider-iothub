@@ -46,7 +46,7 @@ output "base_deployment_health" {
 - `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query.
-- `modules_content` (String) The deployment's `modulesContent` as a JSON string.
+- `modules_content` (String) The deployment's `modulesContent` as a JSON string. The hub returns resolved values rather than secret placeholders, so this attribute can contain secrets.
 - `priority` (Number) Priority. Higher wins when several IoT Edge deployments target the same device.
 - `schema_version` (String) Version string of the IoT Edge deployment document, if set.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.

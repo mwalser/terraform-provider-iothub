@@ -310,7 +310,7 @@ func (r *moduleResource) Update(ctx context.Context, req resource.UpdateRequest,
 		if err != nil {
 			if client.IsNotFound(err) {
 				resp.Diagnostics.AddError("Module no longer exists",
-					fmt.Sprintf("The %s was deleted outside Terraform. Run `terraform plan` again; it will be re-created.", name))
+					fmt.Sprintf("The %s was deleted outside Terraform. Run `terraform plan` again.", name))
 				return
 			}
 			resp.Diagnostics.AddError("Cannot read IoT Hub module before update", common.DescribeError(err))

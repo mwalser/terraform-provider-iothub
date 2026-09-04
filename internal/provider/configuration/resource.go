@@ -25,14 +25,17 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/common"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/jsondoc"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/secrets"
+	"github.com/mwalser/terraform-provider-iothub/internal/twinpatch"
 )
 
 var (
-	_ resource.Resource                = &configResource{}
-	_ resource.ResourceWithConfigure   = &configResource{}
-	_ resource.ResourceWithImportState = &configResource{}
-	_ resource.ResourceWithModifyPlan  = &configResource{}
-	_ resource.ResourceWithIdentity    = &configResource{}
+	_ resource.Resource                   = &configResource{}
+	_ resource.ResourceWithConfigure      = &configResource{}
+	_ resource.ResourceWithImportState    = &configResource{}
+	_ resource.ResourceWithModifyPlan     = &configResource{}
+	_ resource.ResourceWithIdentity       = &configResource{}
+	_ resource.ResourceWithValidateConfig = &configResource{}
 )
 
 // NewConfigurationResource returns the iothub_configuration resource.
@@ -118,9 +121,24 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			CustomType: ModulesContentType,
 			MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON: `$edgeAgent` and `$edgeHub` with their " +
 				"`properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries " +
-				"under `$edgeAgent`. **Changing it replaces the deployment.**",
-			Required:      true,
-			PlanModifiers: []planmodifier.String{jsondoc.RequiresReplaceIfChanged()},
+				"under `$edgeAgent`. String values that are exactly `{{secret.<name>}}` are placeholders for `secrets_wo`. " +
+				"**Changing it replaces the deployment.**",
+			Required: true,
+		}
+		attrs["secrets_wo"] = schema.MapAttribute{
+			MarkdownDescription: "Secrets referenced from `modules_content` by placeholders, by name (" + secrets.NameDescription + "): " +
+				"a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the deployment is sent to the hub. " +
+				"Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. " +
+				"**Changing a value, or using one that is not known until apply, replaces the deployment.**",
+			ElementType: types.StringType,
+			Optional:    true,
+			WriteOnly:   true,
+			Sensitive:   true,
+			Validators:  secrets.MapValidators(),
+		}
+		attrs["secrets_fingerprint"] = schema.StringAttribute{
+			MarkdownDescription: "Opaque comparison value maintained by the provider for the secrets behind the placeholders.",
+			Computed:            true,
 		}
 		description = "An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every " +
 			"IoT Edge device that matches `target_condition`, in order of `priority`. A deployment is layered when its " +
@@ -186,9 +204,25 @@ func (r *configResource) Configure(_ context.Context, req resource.ConfigureRequ
 	r.pd = pd
 }
 
-// ModifyPlan defers when the hub is not known yet, sets the ID, and validates
-// target_condition / metrics against the hub when they change (fixed
-// behaviour, CONCEPT.md §14 row 11).
+// ValidateConfig checks the secret placeholders of an edge deployment
+// against secrets_wo: every placeholder needs a key and every key a
+// placeholder (CONCEPT.md §6.7).
+func (r *configResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	if !r.kind.isEdge() {
+		return
+	}
+	cfg, diags := r.kind.get(ctx, req.Config)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(secrets.Validate(cfg.ModulesContent, cfg.SecretsWO, "secrets_wo")...)
+}
+
+// ModifyPlan defers when the hub is not known yet, sets the ID, decides on
+// the replacement of an edge deployment from its secrets fingerprint
+// (planModulesContent, CONCEPT.md §6.7) and validates target_condition /
+// metrics against the hub when they change (fixed behaviour, §14 row 11).
 func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	if req.Plan.Raw.IsNull() { // destroy
 		return
@@ -210,6 +244,21 @@ func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 	common.DeferIfHubUnknown(r.pd, req, resp)
 	if !plan.ConfigurationID.IsUnknown() {
 		plan.ID = plan.ConfigurationID
+	}
+	if r.kind.isEdge() {
+		values, known, d := r.secretValues(ctx, req.Config)
+		resp.Diagnostics.Append(d...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		blame, d := planModulesContent(plan, state, values, known)
+		resp.Diagnostics.Append(d...)
+		if blame == "secrets_fingerprint" {
+			plan.SecretsFingerprint = types.StringUnknown() // the plan shows the replacement here
+		}
+		if blame != "" {
+			resp.RequiresReplace = append(resp.RequiresReplace, path.Root(blame))
+		}
 	}
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.Plan, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -276,8 +325,86 @@ func (r *configResource) validateQueries(ctx context.Context, plan model, state 
 	return diags
 }
 
+// ---- secrets (CONCEPT.md §6.7) ----------------------------------------------
+
+// planModulesContent decides whether an existing edge deployment is
+// replaced (CONCEPT.md §6.7), returning the attribute to blame: when the
+// document changed, or when a secret behind a placeholder is not what the
+// hub held at the last refresh. It stands in for the jsondoc plan modifier
+// the configuration resource uses, because the comparison needs the
+// write-only secrets, which only the configuration carries. Documents are
+// compared after resolving both with the configured values: state normally
+// holds placeholders, an imported deployment holds the hub's values. When
+// they agree, the values are compared with the fingerprint the last refresh
+// or write took of the hub's — no hub read at plan time.
+func planModulesContent(plan model, state *model, values map[string]string, known bool) (blame string, diags diag.Diagnostics) {
+	if state == nil { // create
+		return "", diags
+	}
+	if !plan.ConfigurationID.IsUnknown() && plan.ConfigurationID.ValueString() != state.ConfigurationID.ValueString() {
+		return "", diags // the ID already forces replacement (the versioned-ID pattern); nothing to add
+	}
+	if plan.ModulesContent.IsUnknown() || state.ModulesContent.IsNull() || state.ModulesContent.IsUnknown() {
+		return "modules_content", diags // cannot tell yet
+	}
+	planDoc, err := plan.ModulesContent.Object()
+	if err != nil {
+		return "", diags // reported by the attribute's validation
+	}
+	stateDoc, err := state.ModulesContent.Object()
+	if err != nil {
+		return "modules_content", diags // the hub's document kept verbatim by content(); a replacement rewrites it
+	}
+	// (1) Both documents with the known values filled in, state's
+	// placeholders renamed to the plan's where both hold one: every
+	// non-secret change and, on an import (the hub's values in state, no
+	// placeholders), a configured secret that differs from the imported one.
+	stateDoc = secrets.AdoptTokens(stateDoc, planDoc)
+	if !twinpatch.Equal(secrets.Resolve(planDoc, values), secrets.Resolve(stateDoc, values)) {
+		return "modules_content", diags
+	}
+	refs := secrets.Refs(planDoc)
+	if len(refs) == 0 || len(secrets.Refs(stateDoc)) == 0 {
+		return "", diags // no placeholders, or an import: (1) compared every value
+	}
+	if !known {
+		diags.AddWarning("IoT Edge deployment secrets not known until apply",
+			fmt.Sprintf("Values of `secrets_wo` for %q are not known until apply, so whether they changed cannot be checked; the deployment is replaced.", state.ConfigurationID.ValueString()))
+		return "secrets_fingerprint", diags
+	}
+	// (2) Only a placeholder state already carried is in the fingerprint;
+	// one that replaces a literal was just compared by value above.
+	var carried []secrets.Ref
+	for _, r := range refs {
+		if !r.IsLiteral(stateDoc) {
+			carried = append(carried, r)
+		}
+	}
+	if len(carried) > 0 && !secrets.ParseFingerprint(state.SecretsFingerprint.ValueString()).Matches(carried, values) {
+		return "secrets_fingerprint", diags // rotated in the configuration, or recreated on the hub before the last refresh
+	}
+	return "", diags
+}
+
+// secretValues reads the write-only secrets of an edge deployment from the
+// configuration, the only place Terraform carries them. Create and Update
+// ignore known: at apply every value is known.
+func (r *configResource) secretValues(ctx context.Context, config tfsdk.Config) (values map[string]string, known bool, diags diag.Diagnostics) {
+	if !r.kind.isEdge() {
+		return nil, true, nil
+	}
+	cfg, diags := r.kind.get(ctx, config)
+	if diags.HasError() {
+		return nil, false, diags
+	}
+	values, known = secrets.Values(cfg.SecretsWO)
+	return values, known, diags
+}
+
 func (r *configResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	plan, diags := r.kind.get(ctx, req.Plan)
+	resp.Diagnostics.Append(diags...)
+	values, _, diags := r.secretValues(ctx, req.Config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -288,7 +415,7 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 	hostname := c.Hostname()
-	spec, diags := r.kind.spec(ctx, plan)
+	spec, diags := r.kind.spec(ctx, plan, values)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -305,7 +432,7 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 		resp.Diagnostics.AddError("Cannot create IoT Hub "+r.kind.noun(), common.DescribeError(err))
 		return
 	}
-	r.kind.fromHub(&plan, created, plan)
+	r.kind.absorbHub(&plan, types.StringNull(), created) // no prior fingerprint: a fresh salt
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, plan)...)
 	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, created.ID)...)
 }
@@ -345,7 +472,7 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	r.kind.fromHub(&state, cfg, state)
+	r.kind.absorbHub(&state, state.SecretsFingerprint, cfg)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, state)...)
 	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, cfg.ID)...)
 }
@@ -369,13 +496,24 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	resp.Diagnostics.Append(diags...)
 	state, d := r.kind.get(ctx, req.State)
 	resp.Diagnostics.Append(d...)
+	values, _, d := r.secretValues(ctx, req.Config)
+	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	state.ModulesContent = adoptPlanTokens(state.ModulesContent, plan.ModulesContent)
 	// Terraform sees a changed configured string even when its JSON value is
-	// equal. Record that representation in state without spending a
-	// configuration write or moving the remote ETag.
-	if len(diffWritten(writtenFromModel(ctx, state), writtenFromModel(ctx, plan))) == 0 {
+	// equal — a reformatted document, placeholders replacing the values an
+	// import brought in, or a renamed placeholder. Record that representation
+	// in state without spending a configuration write or moving the remote
+	// ETag.
+	if len(diffWritten(writtenFromModel(ctx, state, values), writtenFromModel(ctx, plan, values))) == 0 {
+		resolved, err := resolvedRaw(plan.ModulesContent, values)
+		if err != nil { // cannot happen: the plan compared the same resolution
+			resp.Diagnostics.Append(secrets.Unresolved(err))
+			return
+		}
+		plan.SecretsFingerprint = fingerprint(plan.ModulesContent, state.SecretsFingerprint, resolved)
 		plan.SchemaVersion = state.SchemaVersion
 		plan.ETag = state.ETag
 		plan.CreatedTime = state.CreatedTime
@@ -391,7 +529,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	spec, diags := r.kind.spec(ctx, plan)
+	spec, diags := r.kind.spec(ctx, plan, values)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -407,7 +545,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 		}
 		if client.IsNotFound(err) {
 			resp.Diagnostics.AddError(strings.ToUpper(r.kind.noun()[:1])+r.kind.noun()[1:]+" no longer exists",
-				fmt.Sprintf("%q was deleted outside Terraform. Run `terraform plan` again; it will be re-created.", id))
+				fmt.Sprintf("%q was deleted outside Terraform. Run `terraform plan` again.", id))
 			return
 		}
 		if !client.IsPreconditionFailed(err) || attempt >= 3 {
@@ -422,7 +560,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 			resp.Diagnostics.AddError("Cannot read IoT Hub "+r.kind.noun()+" after a concurrent change", common.DescribeError(gerr))
 			return
 		}
-		if changed := diffWritten(writtenFromModel(ctx, state), writtenFromHub(fresh)); len(changed) > 0 {
+		if changed := diffWritten(writtenFromModel(ctx, state, values), writtenFromHub(fresh)); len(changed) > 0 {
 			resp.Diagnostics.AddError(strings.ToUpper(r.kind.noun()[:1])+r.kind.noun()[1:]+" changed outside Terraform",
 				fmt.Sprintf("%q was modified since the last refresh:\n  - %s\n\nRun `terraform plan` again to review the external change before applying.", id, strings.Join(changed, "\n  - ")))
 			return
@@ -430,7 +568,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 		tflog.Debug(ctx, "412 without a change to written fields; retrying with the fresh ETag", map[string]any{"id": id, "attempt": attempt})
 		etag = fresh.ETag
 	}
-	r.kind.fromHub(&plan, updated, plan)
+	r.kind.absorbHub(&plan, state.SecretsFingerprint, updated)
 	resp.Diagnostics.Append(r.kind.set(ctx, &resp.State, plan)...)
 	resp.Diagnostics.Append(r.kind.setIdentity(ctx, resp.Identity, updated.ID)...)
 }

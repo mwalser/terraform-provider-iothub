@@ -94,7 +94,8 @@ func (l *listResource) List(ctx context.Context, req list.ListRequest, stream *l
 // listSibling says which sibling kind is not part of the list.
 func listSibling(k kind) string {
 	if k.isEdge() {
-		return "Automatic device management configurations are not included. Use `iothub_configuration` for those."
+		return "Automatic device management configurations are not included. Use `iothub_configuration` for those. " +
+			"The hub returns resolved values rather than secret placeholders in `modules_content`, so query results can contain secrets."
 	}
 	return "IoT Edge deployments are not included. Use `iothub_edge_deployment` for those."
 }

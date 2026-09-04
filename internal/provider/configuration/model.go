@@ -19,6 +19,7 @@ import (
 
 	"github.com/mwalser/terraform-provider-iothub/internal/client"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/jsondoc"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/secrets"
 	"github.com/mwalser/terraform-provider-iothub/internal/twinpatch"
 )
 
@@ -138,21 +139,23 @@ func sortedKeys(m map[string]any) []string {
 
 // model is the kind-independent view of both resource schemas.
 type model struct {
-	ID              types.String
-	ConfigurationID types.String // configuration_id / deployment_id
-	TargetCondition types.String
-	Priority        types.Int64
-	Labels          types.Map
-	DeviceContent   jsondoc.Value // configuration only
-	ModuleContent   jsondoc.Value // configuration only
-	ModulesContent  jsondoc.Value // edge deployment only
-	Metrics         types.Map
-	SchemaVersion   types.String
-	ETag            types.String
-	CreatedTime     types.String
-	LastUpdatedTime types.String
-	SystemMetrics   types.Map
-	MetricResults   types.Map
+	ID                 types.String
+	ConfigurationID    types.String // configuration_id / deployment_id
+	TargetCondition    types.String
+	Priority           types.Int64
+	Labels             types.Map
+	DeviceContent      jsondoc.Value // configuration only
+	ModuleContent      jsondoc.Value // configuration only
+	ModulesContent     jsondoc.Value // edge deployment only
+	SecretsWO          types.Map     // edge deployment only; write-only: in the config, never in plan or state
+	SecretsFingerprint types.String  // edge deployment only; computed from what the hub holds behind the placeholders
+	Metrics            types.Map
+	SchemaVersion      types.String
+	ETag               types.String
+	CreatedTime        types.String
+	LastUpdatedTime    types.String
+	SystemMetrics      types.Map
+	MetricResults      types.Map
 }
 
 type configurationModel struct {
@@ -173,19 +176,21 @@ type configurationModel struct {
 }
 
 type edgeDeploymentModel struct {
-	ID              types.String  `tfsdk:"id"`
-	DeploymentID    types.String  `tfsdk:"deployment_id"`
-	TargetCondition types.String  `tfsdk:"target_condition"`
-	Priority        types.Int64   `tfsdk:"priority"`
-	Labels          types.Map     `tfsdk:"labels"`
-	ModulesContent  jsondoc.Value `tfsdk:"modules_content"`
-	Metrics         types.Map     `tfsdk:"metrics"`
-	SchemaVersion   types.String  `tfsdk:"schema_version"`
-	ETag            types.String  `tfsdk:"etag"`
-	CreatedTime     types.String  `tfsdk:"created_time"`
-	LastUpdatedTime types.String  `tfsdk:"last_updated_time"`
-	SystemMetrics   types.Map     `tfsdk:"system_metrics"`
-	MetricResults   types.Map     `tfsdk:"metric_results"`
+	ID                 types.String  `tfsdk:"id"`
+	DeploymentID       types.String  `tfsdk:"deployment_id"`
+	TargetCondition    types.String  `tfsdk:"target_condition"`
+	Priority           types.Int64   `tfsdk:"priority"`
+	Labels             types.Map     `tfsdk:"labels"`
+	ModulesContent     jsondoc.Value `tfsdk:"modules_content"`
+	SecretsWO          types.Map     `tfsdk:"secrets_wo"`
+	SecretsFingerprint types.String  `tfsdk:"secrets_fingerprint"`
+	Metrics            types.Map     `tfsdk:"metrics"`
+	SchemaVersion      types.String  `tfsdk:"schema_version"`
+	ETag               types.String  `tfsdk:"etag"`
+	CreatedTime        types.String  `tfsdk:"created_time"`
+	LastUpdatedTime    types.String  `tfsdk:"last_updated_time"`
+	SystemMetrics      types.Map     `tfsdk:"system_metrics"`
+	MetricResults      types.Map     `tfsdk:"metric_results"`
 }
 
 type getter interface {
@@ -202,21 +207,24 @@ func (k kind) get(ctx context.Context, src getter) (model, diag.Diagnostics) {
 		diags := src.Get(ctx, &e)
 		return model{ID: e.ID, ConfigurationID: e.DeploymentID, TargetCondition: e.TargetCondition, Priority: e.Priority,
 			Labels: e.Labels, DeviceContent: jsondoc.NewNull(ContentType), ModuleContent: jsondoc.NewNull(ContentType), ModulesContent: e.ModulesContent,
-			Metrics: e.Metrics, SchemaVersion: e.SchemaVersion, ETag: e.ETag, CreatedTime: e.CreatedTime, LastUpdatedTime: e.LastUpdatedTime,
+			SecretsWO: e.SecretsWO, SecretsFingerprint: e.SecretsFingerprint, Metrics: e.Metrics, SchemaVersion: e.SchemaVersion, ETag: e.ETag, CreatedTime: e.CreatedTime, LastUpdatedTime: e.LastUpdatedTime,
 			SystemMetrics: e.SystemMetrics, MetricResults: e.MetricResults}, diags
 	}
 	var c configurationModel
 	diags := src.Get(ctx, &c)
 	return model{ID: c.ID, ConfigurationID: c.ConfigurationID, TargetCondition: c.TargetCondition, Priority: c.Priority,
 		Labels: c.Labels, DeviceContent: c.DeviceContent, ModuleContent: c.ModuleContent, ModulesContent: jsondoc.NewNull(ModulesContentType),
-		Metrics: c.Metrics, SchemaVersion: c.SchemaVersion, ETag: c.ETag, CreatedTime: c.CreatedTime, LastUpdatedTime: c.LastUpdatedTime,
+		SecretsWO: types.MapNull(types.StringType), SecretsFingerprint: types.StringNull(), Metrics: c.Metrics, SchemaVersion: c.SchemaVersion, ETag: c.ETag, CreatedTime: c.CreatedTime, LastUpdatedTime: c.LastUpdatedTime,
 		SystemMetrics: c.SystemMetrics, MetricResults: c.MetricResults}, diags
 }
 
+// set writes the model to a plan or state. secrets_wo is write-only and
+// therefore always null there.
 func (k kind) set(ctx context.Context, dst setter, m model) diag.Diagnostics {
 	if k.isEdge() {
 		return dst.Set(ctx, &edgeDeploymentModel{ID: m.ID, DeploymentID: m.ConfigurationID, TargetCondition: m.TargetCondition,
-			Priority: m.Priority, Labels: m.Labels, ModulesContent: m.ModulesContent, Metrics: m.Metrics, SchemaVersion: m.SchemaVersion, ETag: m.ETag,
+			Priority: m.Priority, Labels: m.Labels, ModulesContent: m.ModulesContent, SecretsWO: types.MapNull(types.StringType),
+			SecretsFingerprint: m.SecretsFingerprint, Metrics: m.Metrics, SchemaVersion: m.SchemaVersion, ETag: m.ETag,
 			CreatedTime: m.CreatedTime, LastUpdatedTime: m.LastUpdatedTime, SystemMetrics: m.SystemMetrics, MetricResults: m.MetricResults})
 	}
 	return dst.Set(ctx, &configurationModel{ID: m.ID, ConfigurationID: m.ConfigurationID, TargetCondition: m.TargetCondition,
@@ -292,6 +300,87 @@ func content(t jsondoc.Type, raw json.RawMessage, owner jsondoc.Value) jsondoc.V
 	return jsondoc.NewValue(t, string(raw))
 }
 
+// tokenizeHub puts the secret placeholders of owner (the planned or prior
+// modules_content) back into hub, the modulesContent the hub returned, so a
+// secret never reaches state: wherever owner holds a token and the hub a
+// string, the token wins (CONCEPT.md §6.7). Without tokens hub comes back
+// as it is.
+func tokenizeHub(owner jsondoc.Value, hub json.RawMessage) json.RawMessage {
+	ownerDoc, err := owner.Object() // nil for null and unknown: no tokens
+	if err != nil || len(secrets.Refs(ownerDoc)) == 0 || len(hub) == 0 {
+		return hub
+	}
+	doc, err := twinpatch.Decode(string(hub))
+	if err != nil {
+		return hub
+	}
+	return json.RawMessage(twinpatch.Encode(secrets.Retokenize(doc, ownerDoc)))
+}
+
+// resolvedRaw renders a document for the wire with its secret placeholders
+// replaced by values; null and unknown are nil. A placeholder without a
+// value comes back with an error — the document is resolved as far as the
+// values go, for comparisons, but must not be written.
+func resolvedRaw(v jsondoc.Value, values map[string]string) (json.RawMessage, error) {
+	if v.IsNull() || v.IsUnknown() {
+		return nil, nil
+	}
+	s, err := secrets.ResolveJSON(v.ValueString(), values)
+	return json.RawMessage(s), err
+}
+
+// fingerprint takes the secrets_fingerprint of what hubContent holds at the
+// placeholder paths of owner (the planned or prior modules_content), keeping
+// the salt of recorded, the fingerprint state holds. hubContent is the hub's
+// modulesContent — or, after a state-only update, the planned document
+// resolved with the configured values, which the plan established to be
+// the hub's. Null without placeholders, without a prior document (import)
+// or without a hub document that decodes.
+func fingerprint(owner jsondoc.Value, recorded types.String, hubContent json.RawMessage) types.String {
+	ownerDoc, err := owner.Object()
+	if err != nil || ownerDoc == nil {
+		return types.StringNull()
+	}
+	hub, err := twinpatch.Decode(string(hubContent))
+	if err != nil {
+		return types.StringNull() // kept verbatim by content() and shown as a change
+	}
+	if s := secrets.ParseFingerprint(recorded.ValueString()).Take(secrets.Refs(ownerDoc), hub).String(); s != "" {
+		return types.StringValue(s)
+	}
+	return types.StringNull()
+}
+
+// adoptPlanTokens returns prior (the state's modules_content) with the
+// plan's placeholders adopted wherever both hold one, so a renamed
+// placeholder resolves with the configured values the way the plan compared
+// it (planModulesContent) and an unchanged document stays a state-only
+// update. Verbatim when either document does not decode.
+func adoptPlanTokens(prior, plan jsondoc.Value) jsondoc.Value {
+	priorDoc, err := prior.Object()
+	if err != nil || priorDoc == nil {
+		return prior
+	}
+	planDoc, err := plan.Object()
+	if err != nil || planDoc == nil {
+		return prior
+	}
+	return jsondoc.NewValue(ModulesContentType, twinpatch.Encode(secrets.AdoptTokens(priorDoc, planDoc)))
+}
+
+// absorbHub takes a configuration the hub returned into the model: it
+// fingerprints the hub's secret values under the salt of recorded, puts m's
+// placeholders back into the content and maps it onto m — in that order,
+// because the fingerprint must see the values before the placeholders
+// overwrite them. c stays as the hub returned it.
+func (k kind) absorbHub(m *model, recorded types.String, c *client.Configuration) {
+	fp := fingerprint(m.ModulesContent, recorded, c.Content.ModulesContent)
+	tokenized := *c
+	tokenized.Content.ModulesContent = tokenizeHub(m.ModulesContent, c.Content.ModulesContent)
+	k.fromHub(m, &tokenized, *m)
+	m.SecretsFingerprint = fp
+}
+
 // fromHub maps a hub configuration onto the model. owner supplies the prior
 // (plan or state) values that decide null-vs-empty and verbatim strings.
 func (k kind) fromHub(m *model, c *client.Configuration, owner model) {
@@ -326,8 +415,9 @@ func (k kind) fromHub(m *model, c *client.Configuration, owner model) {
 	m.ModulesContent = content(ModulesContentType, c.Content.ModulesContent, owner.ModulesContent)
 }
 
-// spec renders the model for the wire.
-func (k kind) spec(ctx context.Context, m model) (client.ConfigurationSpec, diag.Diagnostics) {
+// spec renders the model for the wire; values resolve the secret
+// placeholders of modules_content.
+func (k kind) spec(ctx context.Context, m model, values map[string]string) (client.ConfigurationSpec, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	spec := client.ConfigurationSpec{
 		ID:              m.ConfigurationID.ValueString(),
@@ -346,10 +436,14 @@ func (k kind) spec(ctx context.Context, m model) (client.ConfigurationSpec, diag
 		}
 		return json.RawMessage(v.ValueString())
 	}
+	modules, err := resolvedRaw(m.ModulesContent, values)
+	if err != nil {
+		diags.Append(secrets.Unresolved(err))
+	}
 	spec.Content = client.ConfigurationContent{
 		DeviceContent:  raw(m.DeviceContent),
 		ModuleContent:  raw(m.ModuleContent),
-		ModulesContent: raw(m.ModulesContent),
+		ModulesContent: modules,
 	}
 	return spec, diags
 }
@@ -383,14 +477,20 @@ func writtenFromHub(c *client.Configuration) written {
 	return w
 }
 
-func writtenFromModel(ctx context.Context, m model) written {
+// writtenFromModel renders the written fields of a plan or state; values
+// resolve the secret placeholders of modules_content, so the result compares
+// with what the hub holds.
+func writtenFromModel(ctx context.Context, m model, values map[string]string) written {
 	labels, _ := mapToGo(ctx, m.Labels)
 	metrics, _ := mapToGo(ctx, m.Metrics)
 	w := written{Priority: m.Priority.ValueInt64(), TargetCondition: m.TargetCondition.ValueString(), SchemaVersion: m.SchemaVersion.ValueString(), Labels: labels, Metrics: metrics}
-	for _, v := range []jsondoc.Value{m.DeviceContent, m.ModuleContent, m.ModulesContent} {
+	for _, v := range []jsondoc.Value{m.DeviceContent, m.ModuleContent} {
 		if !v.IsNull() && !v.IsUnknown() {
 			w.Content = v.ValueString()
 		}
+	}
+	if raw, _ := resolvedRaw(m.ModulesContent, values); raw != nil {
+		w.Content = string(raw) // placeholders resolved as far as the values go, as the hub holds them
 	}
 	return w
 }

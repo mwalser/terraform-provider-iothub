@@ -26,6 +26,20 @@ func TestSchemas_ValidateImplementation(t *testing.T) {
 		if edge != (name == "edge") || dev == (name == "edge") {
 			t.Errorf("%s: content attributes wrong (modules_content=%v device_content=%v)", name, edge, dev)
 		}
+		sw, hasSecrets := rs.Schema.Attributes["secrets_wo"]
+		if hasSecrets != (name == "edge") {
+			t.Errorf("%s: secrets_wo present=%v", name, hasSecrets)
+		}
+		if hasSecrets && (!sw.IsWriteOnly() || !sw.IsSensitive() || sw.IsComputed()) {
+			t.Errorf("%s: secrets_wo must be write-only and sensitive, not computed", name)
+		}
+		fp, hasFingerprint := rs.Schema.Attributes["secrets_fingerprint"]
+		if hasFingerprint != (name == "edge") {
+			t.Errorf("%s: secrets_fingerprint present=%v", name, hasFingerprint)
+		}
+		if hasFingerprint && (!fp.IsComputed() || fp.IsOptional() || fp.IsSensitive() || fp.IsWriteOnly()) {
+			t.Errorf("%s: secrets_fingerprint must be computed only", name)
+		}
 		for _, a := range []string{"id", "target_condition", "priority", "labels", "metrics", "schema_version", "etag", "system_metrics", "metric_results"} {
 			if _, ok := rs.Schema.Attributes[a]; !ok {
 				t.Errorf("%s: missing %q", name, a)

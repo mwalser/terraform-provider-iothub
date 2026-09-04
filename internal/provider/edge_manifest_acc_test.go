@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 
 	iotacc "github.com/mwalser/terraform-provider-iothub/internal/acctest"
+	"github.com/mwalser/terraform-provider-iothub/internal/twinpatch"
 )
 
 // TestAccEdgeManifest_deployments applies what the function builds: a base
@@ -150,10 +151,12 @@ action "iothub_set_edge_modules" "apply" {
   config {
     device_id = iothub_device.edge.device_id
     modules_content = provider::iothub::edge_manifest({
-      edge_agent = { image = "mcr.microsoft.com/azureiotedge-agent:1.5" }
-      edge_hub   = { image = "mcr.microsoft.com/azureiotedge-hub:1.5" }
-      routes     = { all = "FROM /messages/* INTO $upstream" }
+      registry_credentials = { acr = { address = "contoso.azurecr.io", username = "ci", password = "{{secret.acr}}" } }
+      edge_agent           = { image = "mcr.microsoft.com/azureiotedge-agent:1.5" }
+      edge_hub             = { image = "mcr.microsoft.com/azureiotedge-hub:1.5" }
+      routes               = { all = "FROM /messages/* INTO $upstream" }
     })
+    secrets = { acr = "not-a-real-password" }
   }
 }
 
@@ -185,6 +188,9 @@ resource "terraform_data" "apply" {
 					}
 					if v, _ := desired["schemaVersion"].(string); v != "1.1" {
 						return fmt.Errorf("manifest not applied; $edgeAgent desired = %s", tw.Properties.Desired)
+					}
+					if pw, _ := twinpatch.Get(desired, twinpatch.Path{"runtime", "settings", "registryCredentials", "acr", "password"}); pw != "not-a-real-password" {
+						return fmt.Errorf("secret placeholder not resolved; $edgeAgent desired = %s", tw.Properties.Desired)
 					}
 					return nil
 				},

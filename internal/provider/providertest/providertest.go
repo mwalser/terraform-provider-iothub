@@ -29,12 +29,18 @@ func Str(s string) tftypes.Value { return tftypes.NewValue(tftypes.String, s) }
 // 404, as it does for an object deleted outside Terraform.
 func GoneHub(t *testing.T) *common.ProviderData {
 	t.Helper()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	return HubWith(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("iothub-errorcode", "DeviceNotFound")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"Message":"ErrorCode:DeviceNotFound;not found","ExceptionMessage":"Tracking ID:test"}`))
 	}))
+}
+
+// HubWith returns provider data for a fake hub served by handler.
+func HubWith(t *testing.T, handler http.Handler) *common.ProviderData {
+	t.Helper()
+	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	target, err := url.Parse(srv.URL)
 	if err != nil {

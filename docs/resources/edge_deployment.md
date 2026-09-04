@@ -24,7 +24,14 @@ variable "release" {
   default = "1.4.0"
 }
 
-# A base deployment from a standard deployment manifest file.
+variable "acr_password" {
+  type      = string
+  sensitive = true
+}
+
+# A base deployment from a standard deployment manifest file. The registry
+# password in the file is the placeholder "{{secret.acr}}"; its value comes
+# from the write-only secrets_wo map.
 resource "iothub_edge_deployment" "base" {
   # Versioned ID + create_before_destroy: no window without a deployment.
   deployment_id    = "base-${replace(var.release, ".", "-")}"
@@ -33,6 +40,7 @@ resource "iothub_edge_deployment" "base" {
   labels           = { release = var.release }
 
   modules_content = file("${path.module}/modules.json")
+  secrets_wo      = { acr = var.acr_password }
 
   metrics = {
     healthy = <<-EOT
@@ -77,14 +85,17 @@ resource "iothub_edge_deployment" "temp_sensor" {
 ### Required
 
 - `deployment_id` (String) IoT Edge deployment ID: 1 to 128 characters from `a-z 0-9 - + % _ * ! '`, lowercase only. It must be unique among all configurations and IoT Edge deployments of the hub. Changing it replaces the IoT Edge deployment.
-- `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON: `$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries under `$edgeAgent`. **Changing it replaces the deployment.**
+- `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON: `$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries under `$edgeAgent`. String values that are exactly `{{secret.<name>}}` are placeholders for `secrets_wo`. **Changing it replaces the deployment.**
 - `target_condition` (String) Which IoT Edge devices the deployment targets. A query condition over `deviceId`, `tags` and `properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices.
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `labels` (Map of String) Free-form labels.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200`. Results are in `metric_results`.
 - `priority` (Number) Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base.
+- `secrets_wo` (Map of String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Secrets referenced from `modules_content` by placeholders, by name (letters, digits, `_` and `-`): a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the deployment is sent to the hub. Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. **Changing a value, or using one that is not known until apply, replaces the deployment.**
 
 ### Read-Only
 
@@ -94,6 +105,7 @@ resource "iothub_edge_deployment" "temp_sensor" {
 - `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `schema_version` (String) Schema version of the document as the hub reports it, if any (the Azure CLI writes `1.0`).
+- `secrets_fingerprint` (String) Opaque comparison value maintained by the provider for the secrets behind the placeholders.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
 
 ## Import

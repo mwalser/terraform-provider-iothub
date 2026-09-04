@@ -3,12 +3,12 @@
 page_title: "iothub_edge_deployment List Resource - Azure IoT Hub"
 subcategory: "Configurations and deployments"
 description: |-
-  Lists every IoT Edge deployment of the hub for terraform query, without arguments. Automatic device management configurations are not included. Use iothub_configuration for those.
+  Lists every IoT Edge deployment of the hub for terraform query, without arguments. Automatic device management configurations are not included. Use iothub_configuration for those. The hub returns resolved values rather than secret placeholders in modules_content, so query results can contain secrets.
 ---
 
 # iothub_edge_deployment (List Resource)
 
-Lists every IoT Edge deployment of the hub for `terraform query`, without arguments. Automatic device management configurations are not included. Use `iothub_configuration` for those.
+Lists every IoT Edge deployment of the hub for `terraform query`, without arguments. Automatic device management configurations are not included. Use `iothub_configuration` for those. The hub returns resolved values rather than secret placeholders in `modules_content`, so query results can contain secrets.
 
 ## Example Usage
 

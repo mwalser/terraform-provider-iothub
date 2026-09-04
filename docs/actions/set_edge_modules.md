@@ -55,8 +55,9 @@ resource "terraform_data" "lab_release" {
 ### Required
 
 - `device_id` (String) ID of the IoT Edge device.
-- `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON. It must contain `$edgeAgent`.
+- `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON. It must contain `$edgeAgent`. String values that are exactly `{{secret.<name>}}` are placeholders for `secrets`.
 
 ### Optional
 
+- `secrets` (Map of String) Secrets referenced from `modules_content` by placeholders, by name (letters, digits, `_` and `-`): a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the manifest is sent to the hub. Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. Pass the values from a `sensitive` variable to keep them out of the plan output.
 - `timeout` (String) Overall deadline for the invocation, for example `30m` (default `10m`). It covers retries of throttled requests.

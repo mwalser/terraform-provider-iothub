@@ -17,11 +17,13 @@ import (
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/configuration"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/identity"
 	"github.com/mwalser/terraform-provider-iothub/internal/provider/jsondoc"
+	"github.com/mwalser/terraform-provider-iothub/internal/provider/secrets"
 )
 
 var (
-	_ action.Action              = &setEdgeModulesAction{}
-	_ action.ActionWithConfigure = &setEdgeModulesAction{}
+	_ action.Action                   = &setEdgeModulesAction{}
+	_ action.ActionWithConfigure      = &setEdgeModulesAction{}
+	_ action.ActionWithValidateConfig = &setEdgeModulesAction{}
 )
 
 // NewSetEdgeModulesAction returns the iothub_set_edge_modules action.
@@ -34,6 +36,7 @@ type setEdgeModulesAction struct {
 type setEdgeModulesModel struct {
 	DeviceID       types.String  `tfsdk:"device_id"`
 	ModulesContent jsondoc.Value `tfsdk:"modules_content"`
+	Secrets        types.Map     `tfsdk:"secrets"`
 	Timeout        types.String  `tfsdk:"timeout"`
 }
 
@@ -53,13 +56,33 @@ func (a *setEdgeModulesAction) Schema(_ context.Context, _ action.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"device_id": schema.StringAttribute{MarkdownDescription: "ID of the IoT Edge device.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"modules_content": schema.StringAttribute{
-				CustomType:          configuration.ModulesContentType,
-				MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON. It must contain `$edgeAgent`.",
-				Required:            true,
+				CustomType: configuration.ModulesContentType,
+				MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON. It must contain `$edgeAgent`. " +
+					"String values that are exactly `{{secret.<name>}}` are placeholders for `secrets`.",
+				Required: true,
+			},
+			"secrets": schema.MapAttribute{
+				MarkdownDescription: "Secrets referenced from `modules_content` by placeholders, by name (" + secrets.NameDescription + "): " +
+					"a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the manifest is sent to the hub. " +
+					"Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. " +
+					"Pass the values from a `sensitive` variable to keep them out of the plan output.",
+				ElementType: types.StringType,
+				Optional:    true,
+				Validators:  secrets.MapValidators(),
 			},
 			"timeout": timeoutAttribute("10m", "It covers retries of throttled requests."),
 		},
 	}
+}
+
+// ValidateConfig checks the secret placeholders against `secrets`.
+func (a *setEdgeModulesAction) ValidateConfig(ctx context.Context, req action.ValidateConfigRequest, resp *action.ValidateConfigResponse) {
+	var data setEdgeModulesModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	resp.Diagnostics.Append(secrets.Validate(data.ModulesContent, data.Secrets, "secrets")...)
 }
 
 func (a *setEdgeModulesAction) Invoke(ctx context.Context, req action.InvokeRequest, resp *action.InvokeResponse) {
@@ -78,9 +101,17 @@ func (a *setEdgeModulesAction) Invoke(ctx context.Context, req action.InvokeRequ
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	deviceID := data.DeviceID.ValueString()
+	// Validation could not see a document unknown at plan time: a
+	// placeholder without a value is never written.
+	values, _ := secrets.Values(data.Secrets)
+	content, err := secrets.ResolveJSON(data.ModulesContent.ValueString(), values)
+	if err != nil {
+		resp.Diagnostics.Append(secrets.Unresolved(err))
+		return
+	}
 	progress(resp, "Setting the modules of edge device %q…", deviceID)
 	tflog.Info(ctx, "applying configuration content", map[string]any{"device_id": deviceID})
-	if err := c.ApplyConfigurationContent(ctx, deviceID, json.RawMessage(data.ModulesContent.ValueString())); err != nil {
+	if err := c.ApplyConfigurationContent(ctx, deviceID, json.RawMessage(content)); err != nil {
 		switch {
 		case client.IsNotFound(err):
 			resp.Diagnostics.AddAttributeError(path.Root("device_id"), "Device not found", fmt.Sprintf("No device with ID %q exists in %s.\n\n%s", deviceID, c.Hostname(), common.DescribeError(err)))

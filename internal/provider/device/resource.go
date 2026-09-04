@@ -329,7 +329,7 @@ func (r *deviceResource) Update(ctx context.Context, req resource.UpdateRequest,
 		if err != nil {
 			if client.IsNotFound(err) {
 				resp.Diagnostics.AddError("Device no longer exists",
-					fmt.Sprintf("Device %q was deleted outside Terraform. Run `terraform plan` again; it will be re-created.", id))
+					fmt.Sprintf("Device %q was deleted outside Terraform. Run `terraform plan` again.", id))
 				return
 			}
 			resp.Diagnostics.AddError("Cannot read IoT Hub device before update", common.DescribeError(err))
