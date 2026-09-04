@@ -111,10 +111,6 @@ Optional:
 
 ## Import
 
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
-
 ```shell
 # Import ID: the device ID.
 terraform import iothub_device.sensor sensor-0001

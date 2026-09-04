@@ -51,7 +51,7 @@ func (e *credentialsEphemeral) Schema(_ context.Context, _ ephemeral.SchemaReque
 		MarkdownDescription: "The symmetric keys and connection strings of a device.",
 		Attributes: map[string]schema.Attribute{
 			"device_id":           schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
-			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.", Computed: true},
+			"authentication_type": schema.StringAttribute{MarkdownDescription: "`sas`, `selfSigned`, or `certificateAuthority`.", Computed: true},
 			"primary_key":         schema.StringAttribute{MarkdownDescription: "Primary key, base64 encoded. Null unless `authentication_type` is `sas`.", Computed: true, Sensitive: true},
 			"secondary_key":       schema.StringAttribute{MarkdownDescription: "Secondary key, base64 encoded. Null unless `authentication_type` is `sas`.", Computed: true, Sensitive: true},
 			"primary_connection_string": schema.StringAttribute{

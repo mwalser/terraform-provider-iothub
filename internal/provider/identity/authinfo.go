@@ -22,11 +22,15 @@ func AuthInfoAttribute(subject string) dsschema.SingleNestedAttribute {
 	c := func(desc string) dsschema.StringAttribute {
 		return dsschema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
+	typesDescription := "`sas`, `selfSigned`, or `certificateAuthority`"
+	if subject == "module" {
+		typesDescription += ", or `none` for identities without credentials such as the hub's system modules"
+	}
 	return dsschema.SingleNestedAttribute{
 		MarkdownDescription: "How the " + subject + " authenticates. Keys are not exposed here.",
 		Computed:            true,
 		Attributes: map[string]dsschema.Attribute{
-			"type":                 c("`sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules."),
+			"type":                 c(typesDescription + "."),
 			"primary_thumbprint":   c("Primary X.509 thumbprint, for `selfSigned` authentication."),
 			"secondary_thumbprint": c("Secondary X.509 thumbprint, for `selfSigned` authentication."),
 		},

@@ -37,7 +37,8 @@ func (l *listResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (l *listResource) ListResourceConfigSchema(_ context.Context, _ list.ListResourceSchemaRequest, resp *list.ListResourceSchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet. Results carry no keys.",
+		MarkdownDescription: "Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet. " +
+			"Results carry no keys. The query index is eventually consistent, so recent identity or twin changes may not be reflected immediately.",
 		Attributes: map[string]schema.Attribute{
 			"query_condition": schema.StringAttribute{
 				MarkdownDescription: "`WHERE` clause over `deviceId`, `tags`, `properties` and `capabilities`, for example `tags.site = 'munich'` or " +

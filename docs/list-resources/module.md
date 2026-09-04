@@ -3,12 +3,12 @@
 page_title: "iothub_module List Resource - Azure IoT Hub"
 subcategory: "Devices and modules"
 description: |-
-  Lists module identities for terraform query, for example to generate import blocks for an existing fleet. The hub's system modules ($edgeAgent, $edgeHub) are skipped because iothub_module cannot manage them. Results carry no keys.
+  Lists module identities for terraform query, for example to generate import blocks for an existing fleet. The hub's system modules ($edgeAgent, $edgeHub) are skipped because iothub_module cannot manage them. Results carry no keys. The query index is eventually consistent, so recent identity or twin changes may not be reflected immediately.
 ---
 
 # iothub_module (List Resource)
 
-Lists module identities for `terraform query`, for example to generate `import` blocks for an existing fleet. The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them. Results carry no keys.
+Lists module identities for `terraform query`, for example to generate `import` blocks for an existing fleet. The hub's system modules (`$edgeAgent`, `$edgeHub`) are skipped because `iothub_module` cannot manage them. Results carry no keys. The query index is eventually consistent, so recent identity or twin changes may not be reflected immediately.
 
 ## Example Usage
 

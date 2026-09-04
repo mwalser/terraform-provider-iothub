@@ -40,9 +40,8 @@ func (d *digitalTwinDataSource) Metadata(_ context.Context, req datasource.Metad
 
 func (d *digitalTwinDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The IoT Plug and Play digital twin of a device, as the hub derives it from the device twin and the " +
-			"device's DTDL model. Writable Plug and Play properties are twin desired properties: manage them with " +
-			"`iothub_device_twin`, with the `\"__t\": \"c\"` marker on component objects.",
+		MarkdownDescription: "The IoT Plug and Play digital twin that the hub derives from a device twin and its DTDL model. " +
+			"Manage writable properties through `iothub_device_twin`. Component objects require the `\"__t\": \"c\"` marker.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{MarkdownDescription: "The device ID.", Computed: true},
 			"device_id": schema.StringAttribute{

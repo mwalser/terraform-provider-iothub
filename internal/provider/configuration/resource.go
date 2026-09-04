@@ -97,7 +97,7 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			Validators:          []validator.Map{mapvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1))},
 		},
 		"schema_version": schema.StringAttribute{
-			MarkdownDescription: "Schema version of the document as the hub reports it, if any (the Azure CLI writes `1.0`).",
+			MarkdownDescription: "Schema version of the document as reported by the hub, if any.",
 			Computed:            true,
 			PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 		},
@@ -119,16 +119,17 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 	if r.kind.isEdge() {
 		attrs["modules_content"] = schema.StringAttribute{
 			CustomType: ModulesContentType,
-			MarkdownDescription: "The `modulesContent` object of a deployment manifest as JSON: `$edgeAgent` and `$edgeHub` with their " +
-				"`properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries " +
-				"under `$edgeAgent`. String values that are exactly `{{secret.<name>}}` are placeholders for `secrets_wo`. " +
+			MarkdownDescription: "The deployment manifest's `modulesContent` object as JSON. A base deployment contains full " +
+				"`$edgeAgent` and `$edgeHub` desired properties, plus any custom-module desired properties. A layered deployment " +
+				"contains patches under `$edgeAgent` and, when routes are present, `$edgeHub`. String values that exactly match " +
+				"`{{secret.<name>}}` are placeholders for `secrets_wo`. " +
 				"**Changing it replaces the deployment.**",
 			Required: true,
 		}
 		attrs["secrets_wo"] = schema.MapAttribute{
-			MarkdownDescription: "Secrets referenced from `modules_content` by placeholders, by name (" + secrets.NameDescription + "): " +
-				"a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the deployment is sent to the hub. " +
-				"Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. " +
+			MarkdownDescription: "Secrets used by `modules_content`, keyed by name (" + secrets.NameDescription + "). A string value " +
+				"exactly matching `{{secret.<name>}}` is replaced before the deployment is sent. Every placeholder must have a matching " +
+				"entry, and every entry must be used. " +
 				"**Changing a value, or using one that is not known until apply, replaces the deployment.**",
 			ElementType: types.StringType,
 			Optional:    true,
@@ -145,11 +146,9 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 			"`$edgeAgent` content sets `properties.desired.modules.<name>` keys instead of a full `properties.desired`.\n\n" +
 			"-> You can build `modules_content` with `provider::iothub::edge_manifest` instead of reading it from a " +
 			"file.\n\n" +
-			"**Changing `modules_content` replaces the deployment.** The content is compared by value: reformatting it plans an " +
-			"in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version " +
-			"in `deployment_id` and use " +
-			"`lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against " +
-			"the hub at plan time where possible."
+			"**Changing `modules_content` replaces the deployment.** Reformatting the JSON changes only Terraform state because " +
+			"content is compared by value. To avoid a window without a deployment, use a versioned `deployment_id` with " +
+			"`lifecycle { create_before_destroy = true }`."
 	} else {
 		attrs["device_content"] = schema.StringAttribute{
 			CustomType: ContentType,
@@ -170,11 +169,9 @@ func (r *configResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		}
 		description = "An automatic device management configuration. The hub applies its desired properties to every device or " +
 			"module that matches `target_condition`, in order of `priority`.\n\n" +
-			"**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value: " +
-			"reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a " +
-			"configuration, put a version in " +
-			"`configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` " +
-			"queries are checked against the hub at plan time where possible."
+			"**Changing `device_content` or `module_content` replaces the configuration.** Reformatting the JSON changes only " +
+			"Terraform state because content is compared by value. To avoid a window without a configuration, use a versioned " +
+			"`configuration_id` with `lifecycle { create_before_destroy = true }`."
 	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: description,
@@ -626,7 +623,7 @@ func priorityDescription(k kind) string {
 		return "Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. " +
 			"Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base."
 	}
-	return "Priority, 0 or higher (default 0). When several configurations target the same device, the highest priority wins."
+	return "Priority, 0 or higher (default 0). When several configurations target the same twin path, the highest priority wins for that path."
 }
 
 func metricsExample(k kind) string {

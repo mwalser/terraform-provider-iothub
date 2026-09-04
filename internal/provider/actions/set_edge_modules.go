@@ -62,10 +62,9 @@ func (a *setEdgeModulesAction) Schema(_ context.Context, _ action.SchemaRequest,
 				Required: true,
 			},
 			"secrets": schema.MapAttribute{
-				MarkdownDescription: "Secrets referenced from `modules_content` by placeholders, by name (" + secrets.NameDescription + "): " +
-					"a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the manifest is sent to the hub. " +
-					"Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. " +
-					"Pass the values from a `sensitive` variable to keep them out of the plan output.",
+				MarkdownDescription: "Secrets used by `modules_content`, keyed by name (" + secrets.NameDescription + "). A string value " +
+					"exactly matching `{{secret.<name>}}` is replaced before the manifest is sent. Every placeholder must have a matching " +
+					"entry, and every entry must be used.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Validators:  secrets.MapValidators(),

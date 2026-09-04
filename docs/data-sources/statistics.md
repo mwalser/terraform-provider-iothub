@@ -3,12 +3,12 @@
 page_title: "iothub_statistics Data Source - Azure IoT Hub"
 subcategory: "Hub"
 description: |-
-  Identity registry and service statistics of an IoT Hub. The service updates the counts asynchronously, so they can lag behind registry changes and device connections by minutes. Treat them as approximate.
+  Identity registry and service statistics of an IoT Hub. Counts can lag behind registry and connection changes, so treat them as approximate.
 ---
 
 # iothub_statistics (Data Source)
 
-Identity registry and service statistics of an IoT Hub. The service updates the counts asynchronously, so they can lag behind registry changes and device connections by minutes. Treat them as approximate.
+Identity registry and service statistics of an IoT Hub. Counts can lag behind registry and connection changes, so treat them as approximate.
 
 ## Example Usage
 

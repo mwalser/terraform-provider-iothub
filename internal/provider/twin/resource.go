@@ -128,18 +128,15 @@ func (r *twinResource) Schema(ctx context.Context, _ resource.SchemaRequest, res
 		MarkdownDescription: "Manages part of a " + subject + " twin: the tags and desired properties you declare. Reported " +
 			"properties are read-only, in the `iothub_" + subject + "_twin` data source.\n\n" +
 			"## Ownership\n\n" +
-			"The twin exists as long as the " + subject + " does. This resource neither creates nor deletes it. Terraform " +
-			"manages only the keys you declare in `tags` and `desired_properties`, down to the innermost key, and leaves " +
-			"everything else in the twin alone: a backend can write `desired.firmware.lastCheck` beside your " +
-			"`desired.firmware.channel`. Arrays and empty objects count as one value, and `null` is not a value: omit a key to " +
-			"remove it. Several resources and systems can share one twin as long as they declare different " +
-			"keys. Two writers of the same key, including `iothub_configuration` and `iothub_scheduled_job` twin patches, " +
-			"overwrite each other on every apply.\n\n" +
-			"Removing a key from the configuration removes it from the twin, and destroying the resource removes every " +
-			"managed key. An imported twin starts without managed keys. The first apply adopts the declared ones and deletes " +
-			"nothing.\n\n" +
+			"The twin belongs to the " + subject + ". This resource does not create or delete it. It manages only the innermost " +
+			"keys declared in `tags` and `desired_properties`, leaving other keys untouched. This allows independent resources " +
+			"and systems to share a twin, but writers that manage the same key overwrite one another, including " +
+			"`iothub_configuration` and `iothub_scheduled_job` twin patches.\n\n" +
+			"Omitting a previously managed key removes it from the twin. Destroying the resource removes all of its managed " +
+			"keys. Arrays and empty objects are single values. Omit a key instead of setting it to `null`. After import, the " +
+			"first apply adopts the declared keys without deleting any others.\n\n" +
 			"Keys and values must follow the [twin format rules](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-device-twins#tags-and-properties-format). " +
-			"Values are compared by content: key order, whitespace and `2` versus `2.0` are equal and never show as drift.",
+			"JSON formatting, object key order and `2` versus `2.0` do not cause drift.",
 		Attributes: attrs,
 	}
 }

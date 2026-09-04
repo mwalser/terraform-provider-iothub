@@ -4,14 +4,14 @@ page_title: "iothub_configuration Resource - Azure IoT Hub"
 subcategory: "Configurations and deployments"
 description: |-
   An automatic device management configuration. The hub applies its desired properties to every device or module that matches target_condition, in order of priority.
-  Changing device_content or module_content replaces the configuration. The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a configuration, put a version in configuration_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time where possible.
+  Changing device_content or module_content replaces the configuration. Reformatting the JSON changes only Terraform state because content is compared by value. To avoid a window without a configuration, use a versioned configuration_id with lifecycle { create_before_destroy = true }.
 ---
 
 # iothub_configuration (Resource)
 
 An automatic device management configuration. The hub applies its desired properties to every device or module that matches `target_condition`, in order of `priority`.
 
-**Changing `device_content` or `module_content` replaces the configuration.** The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a configuration, put a version in `configuration_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time where possible.
+**Changing `device_content` or `module_content` replaces the configuration.** Reformatting the JSON changes only Terraform state because content is compared by value. To avoid a window without a configuration, use a versioned `configuration_id` with `lifecycle { create_before_destroy = true }`.
 
 ## Example Usage
 
@@ -73,7 +73,7 @@ resource "iothub_configuration" "telemetry_interval" {
 - `labels` (Map of String) Free-form labels.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices WHERE properties.reported.firmware.channel = 'stable'`. Results are in `metric_results`.
 - `module_content` (String) Module twin desired properties to apply, as a JSON object of `properties.desired.<path>` keys. Use it with a module target condition such as `FROM devices.modules WHERE moduleId = '…'`. Set exactly one of `device_content` and `module_content`. **Changing it replaces the configuration.**
-- `priority` (Number) Priority, 0 or higher (default 0). When several configurations target the same device, the highest priority wins.
+- `priority` (Number) Priority, 0 or higher (default 0). When several configurations target the same twin path, the highest priority wins for that path.
 
 ### Read-Only
 
@@ -82,14 +82,10 @@ resource "iothub_configuration" "telemetry_interval" {
 - `id` (String) The `configuration_id`. Also the import ID.
 - `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
-- `schema_version` (String) Schema version of the document as the hub reports it, if any (the Azure CLI writes `1.0`).
+- `schema_version` (String) Schema version of the document as reported by the hub, if any.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration.
 
 ## Import
-
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
 # Import ID: the configuration ID.

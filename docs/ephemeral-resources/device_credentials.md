@@ -39,7 +39,7 @@ resource "azurerm_key_vault_secret" "sensor" {
 
 ### Read-Only
 
-- `authentication_type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.
+- `authentication_type` (String) `sas`, `selfSigned`, or `certificateAuthority`.
 - `primary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;SharedAccessKey=<primary key>`. Null unless `authentication_type` is `sas`.
 - `primary_key` (String, Sensitive) Primary key, base64 encoded. Null unless `authentication_type` is `sas`.
 - `secondary_connection_string` (String, Sensitive) `HostName=…;DeviceId=…;SharedAccessKey=<secondary key>`. Null unless `authentication_type` is `sas`.

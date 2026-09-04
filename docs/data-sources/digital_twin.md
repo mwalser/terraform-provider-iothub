@@ -3,12 +3,12 @@
 page_title: "iothub_digital_twin Data Source - Azure IoT Hub"
 subcategory: "Twins"
 description: |-
-  The IoT Plug and Play digital twin of a device, as the hub derives it from the device twin and the device's DTDL model. Writable Plug and Play properties are twin desired properties: manage them with iothub_device_twin, with the "__t": "c" marker on component objects.
+  The IoT Plug and Play digital twin that the hub derives from a device twin and its DTDL model. Manage writable properties through iothub_device_twin. Component objects require the "__t": "c" marker.
 ---
 
 # iothub_digital_twin (Data Source)
 
-The IoT Plug and Play digital twin of a device, as the hub derives it from the device twin and the device's DTDL model. Writable Plug and Play properties are twin desired properties: manage them with `iothub_device_twin`, with the `"__t": "c"` marker on component objects.
+The IoT Plug and Play digital twin that the hub derives from a device twin and its DTDL model. Manage writable properties through `iothub_device_twin`. Component objects require the `"__t": "c"` marker.
 
 ## Example Usage
 

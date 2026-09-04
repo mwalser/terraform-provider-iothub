@@ -3,12 +3,12 @@
 page_title: "iothub_direct_method Action - Azure IoT Hub"
 subcategory: "Devices and modules"
 description: |-
-  Invokes a direct method on a device or module and waits for the device's answer. A response status outside expected_status_codes, an offline device or an unknown device fails the apply. The device's status and payload are shown in the apply output. If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the method may already have run.
+  Invokes a direct method on a device or module and waits for its response. The apply fails if the target is unknown, does not connect within connect_timeout_seconds, or returns a status not listed in expected_status_codes. The response status and payload appear in the apply output. The action does not retry a lost response because the method may already have run.
 ---
 
 # iothub_direct_method (Action)
 
-Invokes a direct method on a device or module and waits for the device's answer. A response status outside `expected_status_codes`, an offline device or an unknown device fails the apply. The device's status and payload are shown in the apply output. If the hub's answer is lost, for example on a network timeout, the action fails without retrying, because the method may already have run.
+Invokes a direct method on a device or module and waits for its response. The apply fails if the target is unknown, does not connect within `connect_timeout_seconds`, or returns a status not listed in `expected_status_codes`. The response status and payload appear in the apply output. The action does not retry a lost response because the method may already have run.
 
 ## Example Usage
 
@@ -52,7 +52,7 @@ resource "iothub_device_twin" "sensor" {
 
 ### Optional
 
-- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0) and at most `response_timeout_seconds`, which bounds the whole call.
+- `connect_timeout_seconds` (Number) How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0) and at most `response_timeout_seconds`.
 - `expected_status_codes` (List of Number) Device-defined response statuses that count as success (default `[200]`).
 - `module_id` (String) Module ID, to call a module's method.
 - `payload` (String) JSON payload, any JSON value (use `jsonencode`). Sent as `null` when omitted.

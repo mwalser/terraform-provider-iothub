@@ -45,9 +45,9 @@ func (a *cancelJobAction) Metadata(_ context.Context, req action.MetadataRequest
 
 func (a *cancelJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Cancels a queued or scheduled twin-update or method job, or an enqueued or running import/export job, " +
-			"and waits until the hub reports a terminal state. IoT Hub does not cancel a scheduled job after it has started running. " +
-			"A job that already finished is reported as such without an error. An unknown job fails.",
+		MarkdownDescription: "Cancels a pending twin-update or method job, or an active import/export job, and waits for a terminal " +
+			"state. A scheduled job cannot be cancelled after it starts. An already completed job succeeds without changes. An " +
+			"unknown job fails.",
 		Attributes: map[string]schema.Attribute{
 			"job_id": schema.StringAttribute{MarkdownDescription: "Job ID.", Required: true, Validators: []validator.String{stringvalidator.LengthAtLeast(1)}},
 			"kind": schema.StringAttribute{

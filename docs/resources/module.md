@@ -3,16 +3,16 @@
 page_title: "iothub_module Resource - Azure IoT Hub"
 subcategory: "Devices and modules"
 description: |-
-  A module identity on a device, with its own credentials and its own twin (iothub_module_twin). Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules. The system modules $edgeAgent and $edgeHub of IoT Edge devices are created by the hub, not through this resource.
-  Credentials work as for iothub_device. iothub_module_credentials reads the connection strings.
+  A module identity with its own credentials and twin, managed through iothub_module_twin. Deleting the identity also deletes its twin. Modules have no status of their own. A disabled device disables its modules. The hub, not this resource, creates the $edgeAgent and $edgeHub system modules.
+  When authentication is omitted, the hub generates SAS keys and Terraform stores them as sensitive state. To keep keys out of state, use the write-only key arguments and read connection strings with iothub_module_credentials.
   ~> With SAS authentication the hub refuses to create, change or delete modules of a disabled device. Enable the device first, or authenticate with Entra ID.
 ---
 
 # iothub_module (Resource)
 
-A module identity on a device, with its own credentials and its own twin (`iothub_module_twin`). Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules. The system modules `$edgeAgent` and `$edgeHub` of IoT Edge devices are created by the hub, not through this resource.
+A module identity with its own credentials and twin, managed through `iothub_module_twin`. Deleting the identity also deletes its twin. Modules have no status of their own. A disabled device disables its modules. The hub, not this resource, creates the `$edgeAgent` and `$edgeHub` system modules.
 
-Credentials work as for `iothub_device`. `iothub_module_credentials` reads the connection strings.
+When authentication is omitted, the hub generates SAS keys and Terraform stores them as sensitive state. To keep keys out of state, use the write-only key arguments and read connection strings with `iothub_module_credentials`.
 
 ~> With SAS authentication the hub refuses to create, change or delete modules of a *disabled* device. Enable the device first, or authenticate with Entra ID.
 
@@ -99,10 +99,6 @@ Optional:
 - `type` (String) `sas` for symmetric keys, `selfSigned` for X.509 thumbprints (`primary_thumbprint` required), or `certificateAuthority` for CA-signed X.509 certificates (neither keys nor thumbprints).
 
 ## Import
-
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
 # Import ID: <device_id>/<module_id>

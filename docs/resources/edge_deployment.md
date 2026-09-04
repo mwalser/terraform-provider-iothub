@@ -5,7 +5,7 @@ subcategory: "Configurations and deployments"
 description: |-
   An IoT Edge deployment, including layered deployments. The hub applies the deployment manifest to every IoT Edge device that matches target_condition, in order of priority. A deployment is layered when its $edgeAgent content sets properties.desired.modules.<name> keys instead of a full properties.desired.
   -> You can build modules_content with provider::iothub::edge_manifest instead of reading it from a file.
-  Changing modules_content replaces the deployment. The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version in deployment_id and use lifecycle { create_before_destroy = true }. target_condition and the metrics queries are checked against the hub at plan time where possible.
+  Changing modules_content replaces the deployment. Reformatting the JSON changes only Terraform state because content is compared by value. To avoid a window without a deployment, use a versioned deployment_id with lifecycle { create_before_destroy = true }.
 ---
 
 # iothub_edge_deployment (Resource)
@@ -14,7 +14,7 @@ An IoT Edge deployment, including layered deployments. The hub applies the deplo
 
 -> You can build `modules_content` with `provider::iothub::edge_manifest` instead of reading it from a file.
 
-**Changing `modules_content` replaces the deployment.** The content is compared by value: reformatting it plans an in-place update that changes only the state, not the hub. To avoid a window without a deployment, put a version in `deployment_id` and use `lifecycle { create_before_destroy = true }`. `target_condition` and the `metrics` queries are checked against the hub at plan time where possible.
+**Changing `modules_content` replaces the deployment.** Reformatting the JSON changes only Terraform state because content is compared by value. To avoid a window without a deployment, use a versioned `deployment_id` with `lifecycle { create_before_destroy = true }`.
 
 ## Example Usage
 
@@ -85,7 +85,7 @@ resource "iothub_edge_deployment" "temp_sensor" {
 ### Required
 
 - `deployment_id` (String) IoT Edge deployment ID: 1 to 128 characters from `a-z 0-9 - + % _ * ! '`, lowercase only. It must be unique among all configurations and IoT Edge deployments of the hub. Changing it replaces the IoT Edge deployment.
-- `modules_content` (String) The `modulesContent` object of a deployment manifest as JSON: `$edgeAgent` and `$edgeHub` with their `properties.desired`, plus custom modules. A layered deployment carries `properties.desired.modules.<name>` entries under `$edgeAgent`. String values that are exactly `{{secret.<name>}}` are placeholders for `secrets_wo`. **Changing it replaces the deployment.**
+- `modules_content` (String) The deployment manifest's `modulesContent` object as JSON. A base deployment contains full `$edgeAgent` and `$edgeHub` desired properties, plus any custom-module desired properties. A layered deployment contains patches under `$edgeAgent` and, when routes are present, `$edgeHub`. String values that exactly match `{{secret.<name>}}` are placeholders for `secrets_wo`. **Changing it replaces the deployment.**
 - `target_condition` (String) Which IoT Edge devices the deployment targets. A query condition over `deviceId`, `tags` and `properties.reported`, for example `tags.site = 'munich'`. Use `*` for all devices.
 
 ### Optional
@@ -95,7 +95,7 @@ resource "iothub_edge_deployment" "temp_sensor" {
 - `labels` (Map of String) Free-form labels.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query, for example `SELECT deviceId FROM devices.modules WHERE moduleId = '$edgeHub' AND properties.reported.lastDesiredStatus.code = 200`. Results are in `metric_results`.
 - `priority` (Number) Priority, 0 or higher (default 0). Among base deployments that target the same device, the highest priority wins. Layered deployments are applied on top of the base deployment, higher priority last, and must have a higher priority than the base.
-- `secrets_wo` (Map of String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Secrets referenced from `modules_content` by placeholders, by name (letters, digits, `_` and `-`): a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the deployment is sent to the hub. Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. **Changing a value, or using one that is not known until apply, replaces the deployment.**
+- `secrets_wo` (Map of String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Secrets used by `modules_content`, keyed by name (letters, digits, `_` and `-`). A string value exactly matching `{{secret.<name>}}` is replaced before the deployment is sent. Every placeholder must have a matching entry, and every entry must be used. **Changing a value, or using one that is not known until apply, replaces the deployment.**
 
 ### Read-Only
 
@@ -104,15 +104,11 @@ resource "iothub_edge_deployment" "temp_sensor" {
 - `id` (String) The `deployment_id`. Also the import ID.
 - `last_updated_time` (String) Last update time.
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
-- `schema_version` (String) Schema version of the document as the hub reports it, if any (the Azure CLI writes `1.0`).
+- `schema_version` (String) Schema version of the document as reported by the hub, if any.
 - `secrets_fingerprint` (String) Opaque comparison value maintained by the provider for the secrets behind the placeholders.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount`, `appliedCount`, `reportedSuccessfulCount` and `reportedFailedCount`. Empty until the hub has evaluated the deployment.
 
 ## Import
-
-Import is supported using the following syntax:
-
-The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
 # Import ID: the deployment ID.

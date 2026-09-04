@@ -3,17 +3,17 @@
 page_title: "iothub_import_export_job Action - Azure IoT Hub"
 subcategory: "Jobs"
 description: |-
-  Runs a bulk identity registry job. An export writes the registry to a blob container, optionally with configurations and deployments. An import reads a file in the same format https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt from a container and applies each line's importMode (create, update or delete) on its own. There is no rollback.
-  Blob access is keyBased with container SAS URIs, or identityBased with the hub's system-assigned or a user-assigned managed identity, which needs Storage Blob Data Contributor on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window. SAS URIs appear in the plan output unless they come from a sensitive variable.
+  Runs a bulk identity registry job. An export writes the registry to a blob container and can include configurations and deployments. An import reads the same format https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt and independently applies each line's importMode (create, update, or delete). There is no rollback.
+  Use keyBased access with container SAS URIs, or identityBased access with one of the hub's managed identities. The identity needs Storage Blob Data Contributor on the container. Because a new role assignment can take a few minutes to propagate, the action retries during that window.
   ~> An import that finishes with per-line errors still counts as completed. The hub writes them to importErrors.log in the output container. The action reports where the log is but does not read it, so check it after every import.
   Only one import or export job runs per hub at a time, so the action waits for its turn within timeout.
 ---
 
 # iothub_import_export_job (Action)
 
-Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally with configurations and deployments. An **import** reads a file in the same [format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) from a container and applies each line's `importMode` (create, update or delete) on its own. There is no rollback.
+Runs a bulk identity registry job. An **export** writes the registry to a blob container and can include configurations and deployments. An **import** reads the same [format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) and independently applies each line's `importMode` (`create`, `update`, or `delete`). There is no rollback.
 
-Blob access is `keyBased` with container SAS URIs, or `identityBased` with the hub's system-assigned or a user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container. A role assignment granted moments ago can take a few minutes to become effective. The action retries during that window. SAS URIs appear in the plan output unless they come from a sensitive variable.
+Use `keyBased` access with container SAS URIs, or `identityBased` access with one of the hub's managed identities. The identity needs *Storage Blob Data Contributor* on the container. Because a new role assignment can take a few minutes to propagate, the action retries during that window.
 
 ~> **An import that finishes with per-line errors still counts as completed.** The hub writes them to `importErrors.log` in the output container. The action reports where the log is but does not read it, so check it after every import.
 

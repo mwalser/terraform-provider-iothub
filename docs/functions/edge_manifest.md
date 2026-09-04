@@ -8,9 +8,9 @@ description: |-
 
 # edge_manifest (function)
 
-Builds the `modules_content` for `iothub_edge_deployment` and `iothub_set_edge_modules` from an object, so that a deployment manifest is written in HCL.
+Builds `modules_content` for `iothub_edge_deployment` and `iothub_set_edge_modules` from an HCL object.
 
-The result is compact JSON with sorted keys, `$edgeAgent` schema version 1.1 and `$edgeHub` schema version 1.1.
+The result is compact JSON with sorted keys. Non-layered manifests use `$edgeAgent` and `$edgeHub` schema version 1.1.
 
 ## The `manifest` object
 
@@ -21,7 +21,7 @@ The result is compact JSON with sorted keys, `$edgeAgent` schema version 1.1 and
 | `registry_credentials` | Container registries the device pulls from, by label: `address`, `username`, `password`. Not allowed when `layered`. |
 | `modules` | Custom modules by name (letters, digits, `-`, `_`), see below. |
 | `routes` | Routes by name: the route string, or an object with `route`, `priority` (0–9, 0 first) and `time_to_live_secs`. |
-| `store_and_forward` | `time_to_live_secs` (default 7200; -1 keeps messages until delivered) and `max_size_bytes`. Not allowed when `layered`. |
+| `store_and_forward` | `time_to_live_secs` (default 7200, with -1 keeping messages until delivered) and `max_size_bytes`. Not allowed when `layered`. |
 | `layered` | `true` builds a layered deployment: `modules` and `routes` are added on top of a base deployment. |
 
 A module:
@@ -30,11 +30,11 @@ A module:
 |---|---|
 | `image` | Container image reference. Required. |
 | `create_options` | Docker container create options as an object or a JSON string. |
-| `env` | Environment variables; values are strings, numbers or booleans. |
+| `env` | Environment variables. Values can be strings, numbers or booleans. |
 | `status` | `running` (default) or `stopped`. |
 | `restart_policy` | `always` (default), `on-failure`, `on-unhealthy` or `never`. |
 | `image_pull_policy` | `on-create` (default) or `never`. |
-| `startup_order` | 0 to 4294967295; lower starts earlier. |
+| `startup_order` | 0 to 4294967295. Lower values start earlier. |
 | `version` | Free text, kept in the manifest. |
 | `desired` | The module twin's desired properties, as an object. |
 

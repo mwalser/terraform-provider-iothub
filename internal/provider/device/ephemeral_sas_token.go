@@ -54,8 +54,8 @@ func (e *sasTokenEphemeral) Metadata(_ context.Context, req ephemeral.MetadataRe
 func (e *sasTokenEphemeral) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), " +
-			"signed with the identity's symmetric key: a short-lived credential that does not expose the key itself. A new " +
-			"token is minted on every run. Fails for identities without a symmetric key (X.509 or `none`).",
+			"signed with the identity's symmetric key without exposing that key. A new token is minted on every run. Identities " +
+			"without a symmetric key, such as X.509 identities, are not supported.",
 		Attributes: map[string]schema.Attribute{
 			"device_id": schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true},
 			"module_id": schema.StringAttribute{MarkdownDescription: "Module ID, for a module token.", Optional: true},

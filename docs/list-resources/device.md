@@ -3,12 +3,12 @@
 page_title: "iothub_device List Resource - Azure IoT Hub"
 subcategory: "Devices and modules"
 description: |-
-  Lists device identities for terraform query, for example to generate import blocks for an existing fleet. Results carry no keys.
+  Lists device identities for terraform query, for example to generate import blocks for an existing fleet. Results carry no keys. The query index is eventually consistent, so recent identity or twin changes may not be reflected immediately.
 ---
 
 # iothub_device (List Resource)
 
-Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet. Results carry no keys.
+Lists device identities for `terraform query`, for example to generate `import` blocks for an existing fleet. Results carry no keys. The query index is eventually consistent, so recent identity or twin changes may not be reflected immediately.
 
 ## Example Usage
 

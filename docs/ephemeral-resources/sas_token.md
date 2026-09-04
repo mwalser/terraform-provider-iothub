@@ -3,12 +3,12 @@
 page_title: "iothub_sas_token Ephemeral Resource - Azure IoT Hub"
 subcategory: "Devices and modules"
 description: |-
-  A shared access signature for a device or module (SharedAccessSignature sr=…&sig=…&se=…), signed with the identity's symmetric key: a short-lived credential that does not expose the key itself. A new token is minted on every run. Fails for identities without a symmetric key (X.509 or none).
+  A shared access signature for a device or module (SharedAccessSignature sr=…&sig=…&se=…), signed with the identity's symmetric key without exposing that key. A new token is minted on every run. Identities without a symmetric key, such as X.509 identities, are not supported.
 ---
 
 # iothub_sas_token (Ephemeral Resource)
 
-A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), signed with the identity's symmetric key: a short-lived credential that does not expose the key itself. A new token is minted on every run. Fails for identities without a symmetric key (X.509 or `none`).
+A shared access signature for a device or module (`SharedAccessSignature sr=…&sig=…&se=…`), signed with the identity's symmetric key without exposing that key. A new token is minted on every run. Identities without a symmetric key, such as X.509 identities, are not supported.
 
 ## Example Usage
 

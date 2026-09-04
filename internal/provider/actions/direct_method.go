@@ -56,10 +56,10 @@ func (a *directMethodAction) Metadata(_ context.Context, req action.MetadataRequ
 
 func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Invokes a direct method on a device or module and waits for the device's answer. A response status " +
-			"outside `expected_status_codes`, an offline device or an unknown device fails the apply. The device's status and " +
-			"payload are shown in the apply output. If the hub's answer is lost, for example on a network timeout, the action " +
-			"fails without retrying, because the method may already have run.",
+		MarkdownDescription: "Invokes a direct method on a device or module and waits for its response. The apply fails if the " +
+			"target is unknown, does not connect within `connect_timeout_seconds`, or returns a status not listed in " +
+			"`expected_status_codes`. The response status and " +
+			"payload appear in the apply output. The action does not retry a lost response because the method may already have run.",
 		Attributes: map[string]schema.Attribute{
 			"device_id":   schema.StringAttribute{MarkdownDescription: "Device ID.", Required: true, Validators: []validator.String{identity.IDValidator()}},
 			"module_id":   schema.StringAttribute{MarkdownDescription: "Module ID, to call a module's method.", Optional: true, Validators: []validator.String{identity.IDValidator()}},
@@ -74,7 +74,7 @@ func (a *directMethodAction) Schema(_ context.Context, _ action.SchemaRequest, r
 				Validators:          []validator.Int64{int64validator.Between(5, 300)},
 			},
 			"connect_timeout_seconds": schema.Int64Attribute{
-				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0) and at most `response_timeout_seconds`, which bounds the whole call.",
+				MarkdownDescription: "How long the hub waits for a disconnected device to connect before giving up, 0 to 300 seconds (default 0) and at most `response_timeout_seconds`.",
 				Optional:            true,
 				Validators:          []validator.Int64{int64validator.Between(0, 300)},
 			},

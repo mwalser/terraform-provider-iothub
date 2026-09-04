@@ -71,11 +71,12 @@ func (r *moduleResource) Schema(ctx context.Context, _ resource.SchemaRequest, r
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A module identity on a device, with its own credentials and its own twin (`iothub_module_twin`). " +
-			"Deleting a module deletes its twin. Modules have no status of their own: a disabled device disables its modules. " +
-			"The system modules `$edgeAgent` and `$edgeHub` of IoT Edge devices are created by the hub, not through this " +
-			"resource.\n\n" +
-			"Credentials work as for `iothub_device`. `iothub_module_credentials` reads the connection strings.\n\n" +
+		MarkdownDescription: "A module identity with its own credentials and twin, managed through `iothub_module_twin`. Deleting " +
+			"the identity also deletes its twin. Modules have no status of their own. A disabled device disables its modules. " +
+			"The hub, not this resource, creates the " +
+			"`$edgeAgent` and `$edgeHub` system modules.\n\n" +
+			"When authentication is omitted, the hub generates SAS keys and Terraform stores them as sensitive state. To keep keys " +
+			"out of state, use the write-only key arguments and read connection strings with `iothub_module_credentials`.\n\n" +
 			"~> With SAS authentication the hub refuses to create, change or delete modules of a *disabled* device. Enable the " +
 			"device first, or authenticate with Entra ID.",
 		Attributes: map[string]schema.Attribute{

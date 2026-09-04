@@ -56,14 +56,13 @@ func (a *importExportJobAction) Metadata(_ context.Context, req action.MetadataR
 
 func (a *importExportJobAction) Schema(_ context.Context, _ action.SchemaRequest, resp *action.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Runs a bulk identity registry job. An **export** writes the registry to a blob container, optionally " +
-			"with configurations and deployments. An **import** reads a file in the same " +
-			"[format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) from a container and applies each " +
-			"line's `importMode` (create, update or delete) on its own. There is no rollback.\n\n" +
-			"Blob access is `keyBased` with container SAS URIs, or `identityBased` with the hub's system-assigned or a " +
-			"user-assigned managed identity, which needs *Storage Blob Data Contributor* on the container. A role assignment " +
-			"granted moments ago can take a few minutes to become effective. The action retries during that window. SAS URIs " +
-			"appear in the plan output unless they come from a sensitive variable.\n\n" +
+		MarkdownDescription: "Runs a bulk identity registry job. An **export** writes the registry to a blob container and can " +
+			"include configurations and deployments. An **import** reads the same " +
+			"[format](https://learn.microsoft.com/azure/iot-hub/iot-hub-bulk-identity-mgmt) and independently applies each line's " +
+			"`importMode` (`create`, `update`, or `delete`). There is no rollback.\n\n" +
+			"Use `keyBased` access with container SAS URIs, or `identityBased` access with one of the hub's managed identities. " +
+			"The identity needs *Storage Blob Data Contributor* on the container. Because a new role assignment can take a few " +
+			"minutes to propagate, the action retries during that window.\n\n" +
 			"~> **An import that finishes with per-line errors still counts as completed.** The hub writes them to " +
 			"`importErrors.log` in the output container. The action reports where the log is but does not read it, so check " +
 			"it after every import.\n\n" +

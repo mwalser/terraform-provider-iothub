@@ -40,7 +40,7 @@ output "fw_channel_metrics" {
 - `metric_results` (Map of Number) Latest results of the custom `metrics`, by name.
 - `metrics` (Map of String) Custom metrics: a map from metric name to an IoT Hub query.
 - `module_content` (String) Module twin content as a JSON string. Null for device configurations.
-- `priority` (Number) Priority. Higher wins when several configurations target the same device.
+- `priority` (Number) Priority. Higher wins when several configurations target the same twin path.
 - `schema_version` (String) Version string of the configuration document, if set.
 - `system_metrics` (Map of Number) Latest system metrics computed by the hub: `targetedCount` and `appliedCount`. Empty until the hub has evaluated the configuration.
 - `target_condition` (String) Which devices or modules the configuration targets, as a query condition.

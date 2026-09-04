@@ -18,9 +18,3 @@ resource "iothub_device_twin" "sensor" {
     firmware             = { channel = "stable" }
   })
 }
-
-# Several resources can share one twin if they declare different keys.
-resource "iothub_device_twin" "sensor_ops" {
-  device_id = iothub_device.sensor.device_id
-  tags      = jsonencode({ ops = { oncall = "team-a" } })
-}

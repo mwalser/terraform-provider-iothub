@@ -73,11 +73,15 @@ func (d *configDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 	c := func(desc string) schema.StringAttribute {
 		return schema.StringAttribute{MarkdownDescription: desc, Computed: true}
 	}
+	priorityDescription := "Priority. The highest-priority base deployment applies. Layered deployments apply on top of it in priority order and must have a higher priority than the base."
+	if !d.kind.isEdge() {
+		priorityDescription = "Priority. Higher wins when several configurations target the same twin path."
+	}
 	attrs := map[string]schema.Attribute{
 		"id":                c("The `" + d.kind.idAttr() + "`."),
 		d.kind.idAttr():     schema.StringAttribute{MarkdownDescription: "ID of the " + d.kind.noun() + ".", Required: true},
 		"target_condition":  c(targetConditionSummary(d.kind)),
-		"priority":          schema.Int64Attribute{MarkdownDescription: "Priority. Higher wins when several " + d.kind.noun() + "s target the same device.", Computed: true},
+		"priority":          schema.Int64Attribute{MarkdownDescription: priorityDescription, Computed: true},
 		"labels":            schema.MapAttribute{MarkdownDescription: "Free-form labels.", ElementType: types.StringType, Computed: true},
 		"metrics":           schema.MapAttribute{MarkdownDescription: "Custom metrics: a map from metric name to an IoT Hub query.", ElementType: types.StringType, Computed: true},
 		"schema_version":    c("Version string of the " + d.kind.noun() + " document, if set."),

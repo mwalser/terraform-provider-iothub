@@ -53,4 +53,4 @@ Read-Only:
 
 - `primary_thumbprint` (String) Primary X.509 thumbprint, for `selfSigned` authentication.
 - `secondary_thumbprint` (String) Secondary X.509 thumbprint, for `selfSigned` authentication.
-- `type` (String) `sas`, `selfSigned`, `certificateAuthority`, or `none` for identities without credentials such as the hub's system modules.
+- `type` (String) `sas`, `selfSigned`, or `certificateAuthority`.

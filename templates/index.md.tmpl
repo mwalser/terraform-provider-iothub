@@ -8,19 +8,24 @@ description: |-
 
 {{ .Description | trimspace }}
 
+This provider manages one existing IoT Hub. Use the `azurerm` provider to
+create the hub and manage its Azure Resource Manager settings, such as routes,
+endpoints, certificates and shared access policies.
+
 ## Example Usage
 
 {{ tffile "examples/provider/provider.tf" }}
 
 ## Authentication
 
-The first method whose inputs are present is used, in this order. An
-argument in the provider block wins over its `ARM_*` variable, which wins over
-the `AZURE_*` one.
+Setting `connection_string` selects shared access policy authentication.
+Otherwise, the provider uses the first configured Entra ID method listed below.
+For each setting, a provider argument takes precedence over its `ARM_*` and then
+`AZURE_*` environment variable.
 
 | Method | Set | Also needed | Environment |
 |---|---|---|---|
-| Client certificate | `client_certificate_path` or `client_certificate` (base64) | `tenant_id`, `client_id`, `client_certificate_password` if the file has one | `ARM_CLIENT_CERTIFICATE_PATH`, `ARM_CLIENT_CERTIFICATE`, `ARM_CLIENT_CERTIFICATE_PASSWORD` |
+| Client certificate | `client_certificate_path` or `client_certificate` (base64) | `tenant_id`, `client_id`, and `client_certificate_password` if the PKCS#12 certificate is password-protected | `ARM_CLIENT_CERTIFICATE_PATH`, `ARM_CLIENT_CERTIFICATE`, `ARM_CLIENT_CERTIFICATE_PASSWORD` |
 | Client secret | `client_secret` or `client_secret_file_path` | `tenant_id`, `client_id` (or `client_id_file_path`) | `ARM_CLIENT_SECRET`, `ARM_CLIENT_SECRET_FILE_PATH` |
 | OIDC: HCP Terraform | `use_oidc = true` | `tenant_id`; HCP sets `client_id` and `oidc_token` (`client_id_file_path` and `oidc_token_file_path` with several provider configurations) | `ARM_USE_OIDC`, `ARM_TENANT_ID`; `ARM_CLIENT_ID` and `ARM_OIDC_TOKEN` set by HCP |
 | OIDC: GitHub Actions | `use_oidc = true` | `tenant_id`, `client_id`; the job needs `permissions: id-token: write` | `ARM_USE_OIDC`, `ARM_CLIENT_ID`, `ARM_TENANT_ID`; `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` are read |

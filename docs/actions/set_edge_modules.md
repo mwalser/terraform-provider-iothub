@@ -59,5 +59,5 @@ resource "terraform_data" "lab_release" {
 
 ### Optional
 
-- `secrets` (Map of String) Secrets referenced from `modules_content` by placeholders, by name (letters, digits, `_` and `-`): a whole string value of `{{secret.<name>}}` is replaced by the value of that name before the manifest is sent to the hub. Every placeholder must have a matching map entry, and every map entry must be referenced by a placeholder. Pass the values from a `sensitive` variable to keep them out of the plan output.
+- `secrets` (Map of String) Secrets used by `modules_content`, keyed by name (letters, digits, `_` and `-`). A string value exactly matching `{{secret.<name>}}` is replaced before the manifest is sent. Every placeholder must have a matching entry, and every entry must be used.
 - `timeout` (String) Overall deadline for the invocation, for example `30m` (default `10m`). It covers retries of throttled requests.

@@ -4,14 +4,14 @@ page_title: "iothub_query Data Source - Azure IoT Hub"
 subcategory: "Hub"
 description: |-
   Runs an IoT Hub query language https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language statement against the hub and returns all results.
-  The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the iothub_device or iothub_device_twin data source.
+  The query index is eventually consistent, so recent registry or twin changes may not appear immediately. For a single known device, prefer the iothub_device or iothub_device_twin data source.
 ---
 
 # iothub_query (Data Source)
 
 Runs an [IoT Hub query language](https://learn.microsoft.com/azure/iot-hub/iot-hub-devguide-query-language) statement against the hub and returns all results.
 
-The query index is eventually consistent: a new device is visible a few seconds after creation, and a deleted device can be listed for a while afterwards. For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.
+The query index is eventually consistent, so recent registry or twin changes may not appear immediately. For a single known device, prefer the `iothub_device` or `iothub_device_twin` data source.
 
 ## Example Usage
 

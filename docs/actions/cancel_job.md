@@ -3,12 +3,12 @@
 page_title: "iothub_cancel_job Action - Azure IoT Hub"
 subcategory: "Jobs"
 description: |-
-  Cancels a queued or scheduled twin-update or method job, or an enqueued or running import/export job, and waits until the hub reports a terminal state. IoT Hub does not cancel a scheduled job after it has started running. A job that already finished is reported as such without an error. An unknown job fails.
+  Cancels a pending twin-update or method job, or an active import/export job, and waits for a terminal state. A scheduled job cannot be cancelled after it starts. An already completed job succeeds without changes. An unknown job fails.
 ---
 
 # iothub_cancel_job (Action)
 
-Cancels a queued or scheduled twin-update or method job, or an enqueued or running import/export job, and waits until the hub reports a terminal state. IoT Hub does not cancel a scheduled job after it has started running. A job that already finished is reported as such without an error. An unknown job fails.
+Cancels a pending twin-update or method job, or an active import/export job, and waits for a terminal state. A scheduled job cannot be cancelled after it starts. An already completed job succeeds without changes. An unknown job fails.
 
 ## Example Usage
 
