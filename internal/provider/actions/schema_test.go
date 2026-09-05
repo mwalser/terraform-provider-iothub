@@ -48,7 +48,7 @@ func TestJobHelpers(t *testing.T) {
 			t.Errorf("%q should be a valid job ID", ok)
 		}
 	}
-	for _, bad := range []string{"", "Upper", "with_underscore", "with.dot", "with space", strings.Repeat("a", 65)} {
+	for _, bad := range []string{"", "Upper", "with_underscore", "with.dot", "with'apostrophe", "with space", strings.Repeat("a", 65)} {
 		if scheduledJobIDPattern.MatchString(bad) {
 			t.Errorf("%q should not be a valid job ID", bad)
 		}

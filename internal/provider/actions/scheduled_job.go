@@ -56,7 +56,7 @@ const maxScheduleAhead = 168 * time.Hour
 
 // scheduledJobIDPattern is the hub's job ID charset (verified: uppercase,
 // underscores, dots and other punctuation are rejected; 64 characters at most).
-var scheduledJobIDPattern = regexp.MustCompile(`^[a-z0-9\-']{1,64}$`)
+var scheduledJobIDPattern = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
 
 type twinPatchModel struct {
 	Tags              jsondoc.Value `tfsdk:"tags"`
