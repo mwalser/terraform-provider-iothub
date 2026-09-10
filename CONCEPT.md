@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | Design record — v1.0, 2026-08-16 (decisions resolved, §14; verified against a live hub, Appendix D; fully implemented and released as 1.0.0). 1.1 adds the `edge_manifest` function (§6.6, 2026-08-17); 1.1.1 keeps the resource identity when a vanished object is dropped from state (Appendix D, 2026-09-02). 1.2 (designed 2026-09-02, implemented 2026-09-03) adds secret placeholders for `modules_content` — write-only `secrets_wo`, one salted fingerprint of the values in the computed `secrets_fingerprint` (§6.7, revised 2026-09-04 and 2026-09-05). |
+| Status | Design record — v1.0, 2026-08-16 (decisions resolved, §14; verified against a live hub, Appendix D; fully implemented and released as 1.0.0). 1.1 adds the `edge_manifest` function (§6.6, 2026-08-17); 1.1.1 keeps the resource identity when a vanished object is dropped from state (Appendix D, 2026-09-02). 1.2 (designed 2026-09-02, implemented 2026-09-03, released as 1.2.0 on 2026-09-10) adds secret placeholders for `modules_content` — write-only `secrets_wo`, one salted fingerprint of the values in the computed `secrets_fingerprint` (§6.7, revised 2026-09-04 and 2026-09-05). |
 | Scope | IoT Hub **Service REST API** (`https://<hub>.azure-devices.net`, `api-version=2021-04-12`) |
 | Out of scope | Everything under Azure Resource Manager (`Microsoft.Devices/*`), the device-side Messaging API, AMQP-only operations, sovereign clouds |
 | Name | `terraform-provider-iothub`, registry `<namespace>/iothub`, resource prefix `iothub_` |
