@@ -1,6 +1,6 @@
 module github.com/mwalser/terraform-provider-iothub
 
-go 1.25.8
+go 1.26.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.1
@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.31.0
 	github.com/hashicorp/terraform-plugin-log v0.11.0
 	github.com/hashicorp/terraform-plugin-testing v1.16.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	software.sslmate.com/src/go-pkcs12 v0.7.3
 )
 
